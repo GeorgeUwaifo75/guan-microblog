@@ -2,9 +2,10 @@ __pycache__
 *.pyc
 .git
 .gitignore
-README.md
 .env
 .venv
 venv
 static/uploads/*
 !static/uploads/.gitkeep
+*.md
+.DS_Store
