@@ -1,0 +1,19 @@
+/* static/style.css - Additional styles for mobile optimization */
+@media (max-width: 640px) {
+    .talo-photos img {
+        width: calc(50% - 4px) !important;
+    }
+    .stat-btn {
+        font-size: 12px !important;
+    }
+    .profile-card {
+        padding: 12px !important;
+    }
+}
+
+.pull-to-refresh {
+    text-align: center;
+    padding: 10px;
+    font-size: 12px;
+    color: #999;
+}

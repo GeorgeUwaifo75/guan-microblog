@@ -1,0 +1,399 @@
+<!-- templates/post.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Post - GuAn</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .post-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
+            margin-right: 15px;
+        }
+
+        .user-info {
+            flex: 1;
+        }
+
+        .user-name {
+            font-weight: bold;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .user-id {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .post-time {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        .post-content {
+            font-size: 16px;
+            line-height: 1.5;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .post-images {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .post-image {
+            max-width: 100%;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .post-stats {
+            display: flex;
+            gap: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-decoration: none;
+            margin-bottom: 20px;
+            transition: background 0.3s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .reply-form {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .reply-textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            margin-bottom: 10px;
+        }
+
+        .reply-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .reply-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .photo-upload {
+            position: relative;
+        }
+
+        .photo-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .photo-input {
+            display: none;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.2s;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .reply-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .reply-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .reply-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin-right: 12px;
+        }
+
+        .reply-user {
+            font-weight: bold;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .reply-time {
+            font-size: 11px;
+            color: #999;
+            margin-left: auto;
+        }
+
+        .reply-content {
+            font-size: 14px;
+            line-height: 1.4;
+            color: #555;
+            margin-bottom: 10px;
+            margin-left: 47px;
+        }
+
+        .reply-image {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+
+        .reply-stats {
+            margin-left: 47px;
+            display: flex;
+            gap: 15px;
+        }
+
+        .like-btn {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .like-btn:hover {
+            color: #e74c3c;
+        }
+
+        .like-btn.liked {
+            color: #e74c3c;
+        }
+
+        .no-replies {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .selected-photo {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .card, .reply-form {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/dashboard" class="back-btn">← Back to Dashboard</a>
+        
+        <!-- Main Post -->
+        <div class="card">
+            <div class="post-header">
+                <div class="user-avatar">
+                    {{ talo.user_name[0] if talo.user_name else 'U' }}
+                </div>
+                <div class="user-info">
+                    <div class="user-name">{{ talo.user_name }}</div>
+                    <div class="user-id">@{{ talo.user_id }}</div>
+                    <div class="post-time">{{ talo.created_at[:19].replace('T', ' ') }}</div>
+                </div>
+            </div>
+            <div class="post-content">{{ talo.content }}</div>
+            {% if talo.photos %}
+            <div class="post-images">
+                {% for photo in talo.photos %}
+                    <img src="data:{{ photo.type }};base64,{{ photo.data }}" class="post-image" alt="Post image">
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="post-stats">
+                <span>❤️ {{ talo.likes }} likes</span>
+                <span>💬 {{ talo.reply_count }} replies</span>
+            </div>
+        </div>
+
+        <!-- Reply Form -->
+        <div class="reply-form">
+            <form action="/api/create_reply/{{ talo.id }}" method="post" enctype="multipart/form-data">
+                <textarea name="content" class="reply-textarea" rows="3" placeholder="Write your reply..." required></textarea>
+                <div class="reply-actions">
+                    <div class="photo-upload">
+                        <label class="photo-label">
+                            📷 Attach Photo
+                            <input type="file" name="photo" class="photo-input" accept="image/*" onchange="showSelectedFileName(this)">
+                        </label>
+                        <div class="selected-photo" id="selected-photo"></div>
+                    </div>
+                    <button type="submit" class="submit-btn">Post Reply</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Replies Section -->
+        <div class="card">
+            <h3 style="margin-bottom: 20px;">Replies ({{ replies|length }})</h3>
+            {% if replies %}
+                {% for reply in replies %}
+                <div class="reply-card" id="reply-{{ reply.id }}">
+                    <div class="reply-header">
+                        <div class="reply-avatar">
+                            {{ reply.user_name[0] if reply.user_name else 'U' }}
+                        </div>
+                        <div class="reply-user">{{ reply.user_name }}</div>
+                        <div class="reply-time">{{ reply.created_at[:19].replace('T', ' ') }}</div>
+                    </div>
+                    <div class="reply-content">{{ reply.content }}</div>
+                    {% if reply.photos %}
+                        {% for photo in reply.photos %}
+                            <img src="data:{{ photo.type }};base64,{{ photo.data }}" class="reply-image" alt="Reply image">
+                        {% endfor %}
+                    {% endif %}
+                    <div class="reply-stats">
+                        <button class="like-btn" onclick="likeReply('{{ reply.id }}', this)">
+                            ❤️ <span class="like-count">{{ reply.likes }}</span>
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-replies">
+                    No replies yet. Be the first to reply!
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        function showSelectedFileName(input) {
+            const fileName = input.files[0]?.name;
+            const display = document.getElementById('selected-photo');
+            if (fileName) {
+                display.textContent = `Selected: ${fileName}`;
+            } else {
+                display.textContent = '';
+            }
+        }
+
+        async function likeReply(replyId, button) {
+            try {
+                const response = await fetch(`/api/like_reply/${replyId}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                const likeSpan = button.querySelector('.like-count');
+                likeSpan.textContent = data.count;
+                
+                if (data.liked) {
+                    button.classList.add('liked');
+                } else {
+                    button.classList.remove('liked');
+                }
+            } catch (error) {
+                console.error('Error liking reply:', error);
+            }
+        }
+    </script>
+</body>
+</html>

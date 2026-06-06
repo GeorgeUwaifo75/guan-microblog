@@ -1,0 +1,80 @@
+{
+  "users": [
+    {
+      "id": "3517e7ab-52f9-4dc2-9cf3-bcce3116176b",
+      "user_id": "albert01",
+      "email": "geocorpsys@gmail.com",
+      "first_name": "Albert",
+      "last_name": "Uwaifo",
+      "password_hash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+      "gender": "Male",
+      "age": 50,
+      "country": "Nigeria",
+      "profile_photo": null,
+      "background_image": null,
+      "is_active": true,
+      "is_premium": false,
+      "user_category": "Normal",
+      "followers_count": 0,
+      "following_count": 0,
+      "talos_count": 3,
+      "created_at": "2026-06-05T22:50:14.401339",
+      "session_token": "f913R-IhXVUw7S85BhN1B5FyrMLgmlj5l227F_vOodg"
+    }
+  ],
+  "talos": [
+    {
+      "id": "4d9a829b-1396-4cce-8636-87e74ab45a3b",
+      "user_id": "albert01",
+      "content": "How are you doing today?",
+      "photos": [],
+      "likes": 0,
+      "dislikes": 0,
+      "retalos": 0,
+      "replies": 0,
+      "created_at": "2026-06-05T23:03:10.497916",
+      "promoted": false,
+      "promotion_level": 0
+    },
+    {
+      "id": "737e5a8a-f380-4b31-96fd-4f83270dcb0c",
+      "user_id": "albert01",
+      "content": "where do you reside?\r\n",
+      "photos": [],
+      "likes": 0,
+      "dislikes": 0,
+      "retalos": 0,
+      "replies": 0,
+      "created_at": "2026-06-05T22:59:17.221882",
+      "promoted": false,
+      "promotion_level": 0
+    },
+    {
+      "id": "8df09dd1-57cb-43ea-8bd4-33fc1b838b47",
+      "user_id": "albert01",
+      "content": "Hello.  How are you?\r\n",
+      "photos": [],
+      "likes": 0,
+      "dislikes": 0,
+      "retalos": 0,
+      "replies": 0,
+      "created_at": "2026-06-05T22:58:08.496721",
+      "promoted": false,
+      "promotion_level": 0
+    }
+  ],
+  "admins": [
+    {
+      "user_id": "Adminxx01",
+      "role": "super_admin",
+      "session_token": "HKMLr2uUCL1g1fPhnOYVO4eFy6YY6_1_cVwo8_mlmAw"
+    }
+  ],
+  "likes": [],
+  "dislikes": [],
+  "retalos": [],
+  "follows": [],
+  "blocks": [],
+  "payments": [],
+  "notifications": []
+}

@@ -1,0 +1,35 @@
+{
+  "users": [
+    {
+      "id": "cb7c8fbf-00e4-4b77-aa58-5c356fc0fdc4",
+      "user_id": "george01",
+      "email": "george.uwaifo@gmail.com",
+      "first_name": "George",
+      "last_name": "Uwaifo",
+      "password_hash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+      "gender": "Male",
+      "age": 50,
+      "country": "Nigeria",
+      "profile_photo": null,
+      "background_image": null,
+      "is_active": true,
+      "is_premium": false,
+      "user_category": "Normal",
+      "followers_count": 0,
+      "following_count": 0,
+      "talos_count": 0,
+      "created_at": "2026-06-05T22:38:09.524419",
+      "session_token": "Ro_aZlpltNnGgic3yAp3kEQ_7EJWpL8XSG44_AAprXE"
+    }
+  ],
+  "talos": [],
+  "admins": [
+    {
+      "user_id": "Adminxx01",
+      "role": "super_admin",
+      "session_token": "ODQiqee5goV-JyXmvz4FaQ5af7GVUMty6A-saZw0344"
+    }
+  ],
+  "likes": [],
+  "follows": []
+}
