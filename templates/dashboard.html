@@ -974,9 +974,9 @@
         </div>
     </div>
 
-    <div class="new-post-btn" onclick="highlightAndFocusCreateSection()">
-        <span>+</span>
-    </div>
+    <div class="new-post-btn" onclick="scrollToTopAndHighlight()">
+    <span>+</span>
+</div>
 
     <div class="home-btn" onclick="location.href='/dashboard'">
         <span>🏠</span>
@@ -1102,15 +1102,30 @@
             applyHashtagFilter();
         }
         
-        function highlightAndFocusCreateSection() {
-            const createSection = document.getElementById('createTaloSection');
-            createSection.classList.add('highlight');
-            createSection.scrollIntoView({ behavior: 'smooth' });
-            setTimeout(() => {
-                createSection.classList.remove('highlight');
-            }, 1000);
-        }
+        // Replace the highlightAndFocusCreateSection function with this:
+function scrollToTopAndHighlight() {
+    // Scroll to the very top of the page
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+    
+    // Get the create section
+    const createSection = document.getElementById('createTaloSection');
+    
+    // Add highlight effect after a slight delay to ensure scroll is complete
+    setTimeout(() => {
+        createSection.classList.add('highlight');
         
+        // Also ensure the create section is fully visible
+        createSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        // Remove highlight after animation
+        setTimeout(() => {
+            createSection.classList.remove('highlight');
+        }, 1000);
+    }, 300);
+}
         // Apply hashtag highlighting to all talo contents after page load
         function applyHashtagHighlighting() {
             document.querySelectorAll('.talo-content').forEach(contentDiv => {
