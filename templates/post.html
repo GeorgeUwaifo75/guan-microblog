@@ -14,7 +14,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #fff5f5 0%, #fff8e8 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -42,7 +42,7 @@
             width: 50px;
             height: 50px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #cc0000 0%, #ffcc00 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -106,7 +106,7 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            background: rgba(255,255,255,0.2);
+            background: #cc0000;
             color: white;
             padding: 10px 20px;
             border-radius: 10px;
@@ -116,7 +116,7 @@
         }
 
         .back-btn:hover {
-            background: rgba(255,255,255,0.3);
+            background: #990000;
         }
 
         .reply-form {
@@ -124,6 +124,7 @@
             border-radius: 15px;
             padding: 20px;
             margin-bottom: 20px;
+            border: 2px solid #ffcc00;
         }
 
         .reply-textarea {
@@ -139,13 +140,15 @@
 
         .reply-textarea:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #cc0000;
         }
 
         .reply-actions {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
         .photo-upload {
@@ -168,7 +171,7 @@
         }
 
         .submit-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #cc0000;
             color: white;
             border: none;
             padding: 10px 25px;
@@ -180,26 +183,33 @@
 
         .submit-btn:hover {
             transform: translateY(-2px);
+            background: #990000;
         }
 
+        /* Themed Reply Card - Red, Yellow, White theme */
         .reply-card {
-            background: #f8f9fa;
+            background: linear-gradient(135deg, #fff5f5 0%, #fff8e8 100%);
             border-radius: 12px;
             padding: 15px;
             margin-bottom: 15px;
+            border-left: 4px solid #cc0000;
+            border-right: 4px solid #ffcc00;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
         .reply-header {
             display: flex;
             align-items: center;
             margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #ffcc00;
         }
 
         .reply-avatar {
             width: 35px;
             height: 35px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #cc0000 0%, #ffcc00 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -216,14 +226,14 @@
 
         .reply-time {
             font-size: 11px;
-            color: #999;
+            color: #888;
             margin-left: auto;
         }
 
         .reply-content {
             font-size: 14px;
             line-height: 1.4;
-            color: #555;
+            color: #000;
             margin-bottom: 10px;
             margin-left: 47px;
         }
@@ -233,6 +243,7 @@
             max-height: 200px;
             border-radius: 8px;
             margin-top: 8px;
+            margin-left: 47px;
         }
 
         .reply-stats {
@@ -253,11 +264,11 @@
         }
 
         .like-btn:hover {
-            color: #e74c3c;
+            color: #cc0000;
         }
 
         .like-btn.liked {
-            color: #e74c3c;
+            color: #cc0000;
         }
 
         .no-replies {
@@ -272,6 +283,17 @@
             color: #666;
         }
 
+        .replies-section {
+            margin-top: 20px;
+        }
+
+        .replies-title {
+            color: #cc0000;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ffcc00;
+        }
+
         @media (max-width: 600px) {
             .container {
                 padding: 10px;
@@ -279,6 +301,18 @@
             
             .card, .reply-form {
                 padding: 15px;
+            }
+            
+            .reply-content {
+                margin-left: 0;
+            }
+            
+            .reply-stats {
+                margin-left: 0;
+            }
+            
+            .reply-image {
+                margin-left: 0;
             }
         }
     </style>
@@ -331,8 +365,8 @@
         </div>
 
         <!-- Replies Section -->
-        <div class="card">
-            <h3 style="margin-bottom: 20px;">Replies ({{ replies|length }})</h3>
+        <div class="replies-section">
+            <h3 class="replies-title">Replies ({{ replies|length }})</h3>
             {% if replies %}
                 {% for reply in replies %}
                 <div class="reply-card" id="reply-{{ reply.id }}">
