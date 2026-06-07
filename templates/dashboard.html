@@ -252,6 +252,21 @@
             resize: none;
             font-family: inherit;
         }
+        /* Character counter styles */
+        .char-counter {
+            text-align: right;
+            font-size: 12px;
+            margin-top: 5px;
+            margin-bottom: 10px;
+            color: #666;
+        }
+        .char-counter.warning {
+            color: #ffcc00;
+        }
+        .char-counter.exceed {
+            color: #dc3545;
+            font-weight: bold;
+        }
         .photo-preview {
             display: flex;
             gap: 10px;
@@ -477,6 +492,12 @@
             border-bottom: 1px solid #ffcc00;
         }
         
+        /* Disabled submit button style */
+        .btn-primary.disabled, .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
         @media (max-width: 768px) {
             .dashboard-container {
                 flex-direction: column;
@@ -512,6 +533,10 @@
         .btn-primary {
             background: #cc0000;
             color: white;
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         .btn-outline {
             background: transparent;
@@ -739,13 +764,15 @@
         <div class="main-feed">
             <div class="create-talo" id="createTaloSection">
                 <form id="createTaloForm" enctype="multipart/form-data" action="/api/create_talo" method="post">
-                    <textarea name="content" rows="3" placeholder="What's happening? (max 250 characters)" maxlength="250"></textarea>
+                    <textarea name="content" id="taloContent" rows="3" placeholder="What's happening? (max 250 characters)" maxlength="250"></textarea>
+                    <!-- Character counter -->
+                    <div class="char-counter" id="charCounter">250 characters remaining</div>
                     <div id="photoPreview" class="photo-preview"></div>
                     <div class="talo-actions">
                         <div class="photo-buttons">
                             <button type="button" class="photo-btn" onclick="addPhotoInput()">📷 Add Photo (max 4)</button>
                         </div>
-                        <button type="submit" class="btn btn-primary">Talo →</button>
+                        <button type="submit" id="submitTaloBtn" class="btn btn-primary">Talo →</button>
                     </div>
                 </form>
             </div>
@@ -795,7 +822,7 @@
         </div>
     </div>
 
-    <div class="new-post-btn" onclick="scrollToCreate()">
+    <div class="new-post-btn" onclick="focusOnCreateTalo()">
         <span>+</span>
     </div>
 
@@ -831,6 +858,7 @@
     <script>
         let photoInputs = [];
         const loggedInUserId = '{{ user.user_id }}';
+        const MAX_CHARS = 250;
         
         // Store trending data for mobile
         const trendingData = [
@@ -850,6 +878,43 @@
             following_count: {{ user.following_count }},
             talos_count: {{ user.talos_count }}
         };
+        
+        // Character counter function
+        function updateCharCounter() {
+            const textarea = document.getElementById('taloContent');
+            const counterDiv = document.getElementById('charCounter');
+            const submitBtn = document.getElementById('submitTaloBtn');
+            const currentLength = textarea.value.length;
+            const remaining = MAX_CHARS - currentLength;
+            
+            if (remaining >= 0) {
+                counterDiv.textContent = `${remaining} characters remaining`;
+                counterDiv.classList.remove('exceed');
+                if (remaining <= 20) {
+                    counterDiv.classList.add('warning');
+                } else {
+                    counterDiv.classList.remove('warning');
+                }
+                submitBtn.disabled = false;
+            } else {
+                const exceeded = Math.abs(remaining);
+                counterDiv.textContent = `${exceeded} characters over limit`;
+                counterDiv.classList.add('exceed');
+                counterDiv.classList.remove('warning');
+                submitBtn.disabled = true;
+            }
+        }
+        
+        // Focus on create talo section and set cursor in textarea
+        function focusOnCreateTalo() {
+            const createSection = document.querySelector('.create-talo');
+            const textarea = document.getElementById('taloContent');
+            
+            if (createSection && textarea) {
+                createSection.scrollIntoView({ behavior: 'smooth' });
+                textarea.focus();
+            }
+        }
         
         function formatTimeAgo(dateStr) {
             const date = new Date(dateStr);
@@ -953,13 +1018,6 @@
         function toggleNotifications() {
             const panel = document.getElementById('notificationsPanel');
             panel.classList.toggle('show');
-        }
-        
-        function scrollToCreate() {
-            const createSection = document.querySelector('.create-talo');
-            if (createSection) {
-                createSection.scrollIntoView({ behavior: 'smooth' });
-            }
         }
         
         // Mobile Menu Functions
@@ -1176,6 +1234,13 @@
         } else {
             const followContainer = document.getElementById('followButtonContainer');
             if (followContainer) followContainer.style.display = 'none';
+        }
+        
+        // Initialize character counter
+        const taloTextarea = document.getElementById('taloContent');
+        if (taloTextarea) {
+            taloTextarea.addEventListener('input', updateCharCounter);
+            updateCharCounter(); // Initialize counter on page load
         }
         
         // Pull to refresh
