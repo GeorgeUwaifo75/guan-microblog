@@ -184,6 +184,12 @@
             padding: 12px 0;
             border-bottom: 1px solid #eee;
             font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .trending-item:hover {
+            background: #f5f5f5;
+            padding-left: 10px;
         }
         .profile-card {
             background: white;
@@ -192,6 +198,26 @@
             text-align: center;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             margin-bottom: 20px;
+            position: relative;
+        }
+        .edit-profile-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #ffcc00;
+            color: #990000;
+            border: none;
+            border-radius: 20px;
+            padding: 5px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: transform 0.2s;
+        }
+        .edit-profile-btn:hover {
+            transform: scale(1.05);
         }
         .profile-photo {
             width: 80px;
@@ -200,6 +226,7 @@
             border: 3px solid #cc0000;
             object-fit: cover;
             margin-bottom: 10px;
+            cursor: pointer;
         }
         .premium-badge {
             display: inline-flex;
@@ -233,6 +260,15 @@
             margin-top: 20px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
+        .trending-clickable {
+            cursor: pointer;
+            transition: background 0.2s;
+            padding: 8px 0;
+        }
+        .trending-clickable:hover {
+            background: #f5f5f5;
+            padding-left: 8px;
+        }
         .main-feed {
             flex: 1;
         }
@@ -242,6 +278,10 @@
             padding: 20px;
             margin-bottom: 20px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        .create-talo.highlight {
+            box-shadow: 0 0 0 3px #ffcc00, 0 2px 8px rgba(0,0,0,0.1);
         }
         .create-talo textarea {
             width: 100%;
@@ -252,7 +292,6 @@
             resize: none;
             font-family: inherit;
         }
-        /* Character counter styles */
         .char-counter {
             text-align: right;
             font-size: 12px;
@@ -335,6 +374,15 @@
         .talo-content {
             margin: 10px 0;
             line-height: 1.4;
+        }
+        /* Highlighted hashtag style */
+        .hashtag-highlight {
+            background: #ffcc00;
+            color: #990000;
+            font-weight: bold;
+            padding: 0 4px;
+            border-radius: 4px;
+            display: inline-block;
         }
         .talo-photos {
             display: flex;
@@ -476,26 +524,93 @@
             display: inline-block;
         }
         
-        /* Reply Section Theme Colors */
-        .reply-section {
-            background: linear-gradient(135deg, #fff5f5 0%, #fff8e8 100%);
-            border-radius: 15px;
-            padding: 15px;
+        /* Profile Edit Modal */
+        .profile-edit-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        .profile-edit-modal.active {
+            display: flex;
+        }
+        .profile-edit-content {
+            background: white;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 450px;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .profile-edit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ffcc00;
+        }
+        .profile-edit-header h3 {
+            color: #cc0000;
+        }
+        .profile-edit-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #999;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .profile-photo-preview {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 0 auto 10px;
+            display: block;
+            border: 3px solid #cc0000;
+        }
+        .photo-upload-label {
+            display: block;
+            text-align: center;
+            background: #f0f0f0;
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .save-profile-btn {
+            background: #cc0000;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 25px;
+            width: 100%;
+            font-size: 16px;
+            cursor: pointer;
             margin-top: 15px;
-            border-left: 4px solid #cc0000;
-            border-right: 4px solid #ffcc00;
-        }
-        .reply-section .reply-content {
-            color: #000;
-        }
-        .reply-section .reply-header {
-            border-bottom: 1px solid #ffcc00;
-        }
-        
-        /* Disabled submit button style */
-        .btn-primary.disabled, .btn-primary:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
         }
         
         @media (max-width: 768px) {
@@ -514,7 +629,6 @@
             }
         }
         
-        /* Desktop: hide mobile menu elements */
         @media (min-width: 769px) {
             .mobile-menu-overlay, .mobile-menu, .trending-modal, .menu-icon-btn {
                 display: none !important;
@@ -537,11 +651,6 @@
         .btn-primary:disabled {
             opacity: 0.5;
             cursor: not-allowed;
-        }
-        .btn-outline {
-            background: transparent;
-            border: 1px solid #cc0000;
-            color: #cc0000;
         }
         
         .modal-overlay {
@@ -584,10 +693,6 @@
             color: white;
         }
         
-        .close-modal:hover {
-            color: #ffcc00;
-        }
-        
         .user-list {
             padding: 10px;
             overflow-y: auto;
@@ -600,7 +705,6 @@
             padding: 12px;
             border-bottom: 1px solid #eee;
             cursor: pointer;
-            transition: background 0.2s;
         }
         
         .user-list-item:hover {
@@ -625,27 +729,11 @@
         
         .user-list-name {
             font-weight: bold;
-            color: #333;
         }
         
         .user-list-id {
             font-size: 12px;
             color: #666;
-        }
-        
-        .follow-btn-small {
-            background: #cc0000;
-            color: white;
-            border: none;
-            padding: 5px 12px;
-            border-radius: 15px;
-            cursor: pointer;
-            font-size: 11px;
-        }
-        
-        .follow-btn-small.following {
-            background: #ffcc00;
-            color: #990000;
         }
         
         .follow-btn {
@@ -668,6 +756,34 @@
         .follow-btn:hover {
             transform: translateY(-2px);
         }
+        
+        /* Filter bar for hashtag search */
+        .filter-bar {
+            background: white;
+            border-radius: 15px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .filter-tag {
+            background: #ffcc00;
+            color: #990000;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .clear-filter {
+            background: none;
+            border: none;
+            color: #cc0000;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -680,7 +796,6 @@
             </div>
         </div>
         <div class="nav-icons">
-            <!-- Menu icon for mobile (shows profile and trending) -->
             <button class="menu-icon-btn" onclick="toggleMobileMenu()" id="menuIconBtn">☰</button>
             <button class="icon-btn" onclick="toggleNotifications()">🔔 <span id="notificationCount" class="notification-badge" style="display: none;">0</span></button>
             <a href="/logout"><button class="icon-btn">🚪</button></a>
@@ -695,21 +810,50 @@
             <button class="mobile-menu-close" onclick="closeMobileMenu()">&times;</button>
         </div>
         <div class="mobile-menu-content">
-            <!-- Profile Card will be dynamically inserted here -->
             <div id="mobileProfileCard"></div>
-            <!-- Trending Section will be dynamically inserted here -->
             <div id="mobileTrendingCard"></div>
         </div>
     </div>
 
-    <!-- Trending Modal for Mobile (alternative bottom sheet) -->
+    <!-- Trending Modal for Mobile -->
     <div id="trendingModal" class="trending-modal">
         <div class="trending-modal-header">
             <span>🔥 Trending Today</span>
             <button class="trending-modal-close" onclick="closeTrendingModal()">&times;</button>
         </div>
-        <div class="trending-modal-content" id="trendingModalContent">
-            <!-- Trending content will be populated -->
+        <div class="trending-modal-content" id="trendingModalContent"></div>
+    </div>
+
+    <!-- Profile Edit Modal -->
+    <div id="profileEditModal" class="profile-edit-modal">
+        <div class="profile-edit-content">
+            <div class="profile-edit-header">
+                <h3>Edit Profile</h3>
+                <button class="profile-edit-close" onclick="closeProfileEditModal()">&times;</button>
+            </div>
+            <form id="profileEditForm">
+                <div class="form-group">
+                    <label>Profile Photo</label>
+                    <img id="editProfilePhotoPreview" class="profile-photo-preview" src="{{ user.profile_photo or '/static/default-avatar.png' }}" alt="Profile Photo">
+                    <label class="photo-upload-label">
+                        📷 Change Photo
+                        <input type="file" id="editProfilePhoto" accept="image/*" style="display: none;" onchange="previewProfilePhoto(this)">
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>First Name</label>
+                    <input type="text" id="editFirstName" value="{{ user.first_name }}">
+                </div>
+                <div class="form-group">
+                    <label>Last Name</label>
+                    <input type="text" id="editLastName" value="{{ user.last_name }}">
+                </div>
+                <div class="form-group">
+                    <label>Bio/Bio</label>
+                    <textarea id="editBio" rows="3" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;" placeholder="Tell us about yourself...">{{ user.bio or '' }}</textarea>
+                </div>
+                <button type="button" class="save-profile-btn" onclick="saveProfileChanges()">Save Changes</button>
+            </form>
         </div>
     </div>
 
@@ -720,15 +864,18 @@
 
     <div class="dashboard-container">
         <div class="sidebar" id="desktopSidebar">
-            <!-- Desktop Profile Card -->
             <div class="profile-card">
+                <button class="edit-profile-btn" onclick="openProfileEditModal()">✏️ Edit</button>
                 {% if user.profile_photo %}
-                <img class="profile-photo" src="{{ user.profile_photo }}" alt="Profile">
+                <img class="profile-photo" src="{{ user.profile_photo }}" alt="Profile" onclick="openProfileEditModal()">
                 {% else %}
-                <div class="profile-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 40px;">👤</div>
+                <div class="profile-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 40px;" onclick="openProfileEditModal()">👤</div>
                 {% endif %}
                 <h3>{{ user.first_name }} {{ user.last_name }}</h3>
                 <p>@{{ user.user_id }}</p>
+                {% if user.bio %}
+                <p style="font-size: 12px; color: #666; margin-top: 8px;">{{ user.bio }}</p>
+                {% endif %}
                 {% if user.is_premium %}
                 <div class="premium-badge">🐏 PREMIUM</div>
                 {% endif %}
@@ -754,7 +901,7 @@
             <div class="trending-card">
                 <h4>🔥 Trending Today</h4>
                 {% for word, count in trending %}
-                <div class="trending-item">{{ word }} ({{ count }})</div>
+                <div class="trending-item" onclick="filterByHashtag('{{ word }}')">{{ word }} ({{ count }})</div>
                 {% else %}
                 <div class="trending-item">No trending topics yet</div>
                 {% endfor %}
@@ -762,10 +909,15 @@
         </div>
 
         <div class="main-feed">
+            <!-- Filter bar (shown when filtering by hashtag) -->
+            <div id="filterBar" class="filter-bar" style="display: none;">
+                <span>Showing posts with tag: <span id="activeFilterTag" class="filter-tag"></span></span>
+                <button class="clear-filter" onclick="clearHashtagFilter()">Clear filter</button>
+            </div>
+
             <div class="create-talo" id="createTaloSection">
                 <form id="createTaloForm" enctype="multipart/form-data" action="/api/create_talo" method="post">
                     <textarea name="content" id="taloContent" rows="3" placeholder="What's happening? (max 250 characters)" maxlength="250"></textarea>
-                    <!-- Character counter -->
                     <div class="char-counter" id="charCounter">250 characters remaining</div>
                     <div id="photoPreview" class="photo-preview"></div>
                     <div class="talo-actions">
@@ -779,7 +931,7 @@
 
             <div id="talosFeed">
                 {% for talo in talos %}
-                <div class="talo-card" data-talo-id="{{ talo.id }}">
+                <div class="talo-card" data-talo-id="{{ talo.id }}" data-hashtags="{{ talo.hashtags|default('')|join(',') }}">
                     <div class="talo-header">
                         {% if talo.user_photo %}
                         <img class="talo-user-photo" src="{{ talo.user_photo }}" alt="">
@@ -794,7 +946,7 @@
                             <div class="talo-time" data-time="{{ talo.created_at }}"></div>
                         </div>
                     </div>
-                    <div class="talo-content">{{ talo.content }}</div>
+                    <div class="talo-content" id="taloContent_{{ talo.id }}">{{ talo.content }}</div>
                     {% if talo.photos and talo.photos|length > 0 %}
                     <div class="talo-photos">
                         {% for photo in talo.photos %}
@@ -822,7 +974,7 @@
         </div>
     </div>
 
-    <div class="new-post-btn" onclick="focusOnCreateTalo()">
+    <div class="new-post-btn" onclick="highlightAndFocusCreateSection()">
         <span>+</span>
     </div>
 
@@ -857,6 +1009,8 @@
 
     <script>
         let photoInputs = [];
+        let currentHashtagFilter = null;
+        let allTalos = [];
         const loggedInUserId = '{{ user.user_id }}';
         const MAX_CHARS = 250;
         
@@ -867,19 +1021,107 @@
             {% endfor %}
         ];
         
-        // User data for mobile profile
-        const userData = {
-            user_id: '{{ user.user_id }}',
-            first_name: '{{ user.first_name }}',
-            last_name: '{{ user.last_name }}',
-            profile_photo: '{{ user.profile_photo or "" }}',
-            is_premium: {{ user.is_premium|lower }},
-            followers_count: {{ user.followers_count }},
-            following_count: {{ user.following_count }},
-            talos_count: {{ user.talos_count }}
-        };
+        // Store all talos data for filtering
+        const allTalosData = {{ talos|tojson }};
         
-        // Character counter function
+        function highlightHashtagsInContent(content) {
+            // Match hashtags (#word)
+            const hashtagRegex = /(#\w+)/g;
+            return content.replace(hashtagRegex, match => {
+                return `<span class="hashtag-highlight" onclick="event.stopPropagation(); filterByHashtag('${match}')" style="cursor: pointer;">${match}</span>`;
+            });
+        }
+        
+        function applyHashtagFilter() {
+            const filterBar = document.getElementById('filterBar');
+            const activeFilterSpan = document.getElementById('activeFilterTag');
+            const taloCards = document.querySelectorAll('.talo-card');
+            
+            if (currentHashtagFilter) {
+                filterBar.style.display = 'flex';
+                activeFilterSpan.textContent = currentHashtagFilter;
+                
+                let visibleCount = 0;
+                taloCards.forEach(card => {
+                    const content = card.querySelector('.talo-content').textContent;
+                    if (content.toLowerCase().includes(currentHashtagFilter.toLowerCase())) {
+                        card.style.display = 'block';
+                        visibleCount++;
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+                
+                // Show message if no results
+                let noResultsMsg = document.getElementById('noFilterResults');
+                if (!noResultsMsg) {
+                    noResultsMsg = document.createElement('div');
+                    noResultsMsg.id = 'noFilterResults';
+                    noResultsMsg.style.textAlign = 'center';
+                    noResultsMsg.style.padding = '40px';
+                    noResultsMsg.style.background = 'white';
+                    noResultsMsg.style.borderRadius = '15px';
+                    noResultsMsg.style.color = '#999';
+                    document.getElementById('talosFeed').appendChild(noResultsMsg);
+                }
+                
+                if (visibleCount === 0) {
+                    noResultsMsg.innerHTML = `<p>No posts found with tag ${currentHashtagFilter}</p>`;
+                    noResultsMsg.style.display = 'block';
+                } else {
+                    noResultsMsg.style.display = 'none';
+                }
+            } else {
+                filterBar.style.display = 'none';
+                taloCards.forEach(card => {
+                    card.style.display = 'block';
+                });
+                const noResultsMsg = document.getElementById('noFilterResults');
+                if (noResultsMsg) noResultsMsg.style.display = 'none';
+            }
+        }
+        
+        function filterByHashtag(hashtag) {
+            currentHashtagFilter = hashtag;
+            applyHashtagFilter();
+            
+            // Close mobile menu and trending modal if open
+            closeMobileMenu();
+            closeTrendingModal();
+            
+            // Highlight the create section
+            const createSection = document.getElementById('createTaloSection');
+            createSection.classList.add('highlight');
+            setTimeout(() => {
+                createSection.classList.remove('highlight');
+            }, 1000);
+        }
+        
+        function clearHashtagFilter() {
+            currentHashtagFilter = null;
+            applyHashtagFilter();
+        }
+        
+        function highlightAndFocusCreateSection() {
+            const createSection = document.getElementById('createTaloSection');
+            createSection.classList.add('highlight');
+            createSection.scrollIntoView({ behavior: 'smooth' });
+            setTimeout(() => {
+                createSection.classList.remove('highlight');
+            }, 1000);
+        }
+        
+        // Apply hashtag highlighting to all talo contents after page load
+        function applyHashtagHighlighting() {
+            document.querySelectorAll('.talo-content').forEach(contentDiv => {
+                const originalContent = contentDiv.innerText;
+                const highlightedContent = highlightHashtagsInContent(originalContent);
+                if (originalContent !== highlightedContent) {
+                    contentDiv.innerHTML = highlightedContent;
+                }
+            });
+        }
+        
         function updateCharCounter() {
             const textarea = document.getElementById('taloContent');
             const counterDiv = document.getElementById('charCounter');
@@ -905,17 +1147,6 @@
             }
         }
         
-        // Focus on create talo section and set cursor in textarea
-        function focusOnCreateTalo() {
-            const createSection = document.querySelector('.create-talo');
-            const textarea = document.getElementById('taloContent');
-            
-            if (createSection && textarea) {
-                createSection.scrollIntoView({ behavior: 'smooth' });
-                textarea.focus();
-            }
-        }
-        
         function formatTimeAgo(dateStr) {
             const date = new Date(dateStr);
             const now = new Date();
@@ -937,14 +1168,9 @@
                 const response = await fetch(`/api/like/${taloId}`, { method: 'POST' });
                 const data = await response.json();
                 const countSpan = btn.querySelector('.like-count');
-                if (countSpan) {
-                    countSpan.textContent = data.count;
-                }
-                if (data.liked) {
-                    btn.classList.add('liked');
-                } else {
-                    btn.classList.remove('liked');
-                }
+                if (countSpan) countSpan.textContent = data.count;
+                if (data.liked) btn.classList.add('liked');
+                else btn.classList.remove('liked');
             } catch (error) {
                 console.error('Error liking talo:', error);
             }
@@ -990,9 +1216,7 @@
                         removeBtn.className = 'remove-photo';
                         removeBtn.onclick = () => {
                             container.remove();
-                            if (input.parentNode) {
-                                input.parentNode.removeChild(input);
-                            }
+                            if (input.parentNode) input.parentNode.removeChild(input);
                             const inputIndex = photoInputs.indexOf(input);
                             if (inputIndex > -1) {
                                 photoInputs.splice(inputIndex, 1);
@@ -1020,17 +1244,57 @@
             panel.classList.toggle('show');
         }
         
+        // Profile Edit Functions
+        function openProfileEditModal() {
+            document.getElementById('profileEditModal').classList.add('active');
+        }
+        
+        function closeProfileEditModal() {
+            document.getElementById('profileEditModal').classList.remove('active');
+        }
+        
+        function previewProfilePhoto(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('editProfilePhotoPreview').src = e.target.result;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+        
+        async function saveProfileChanges() {
+            const formData = new FormData();
+            const photoFile = document.getElementById('editProfilePhoto').files[0];
+            if (photoFile) formData.append('profile_photo', photoFile);
+            formData.append('first_name', document.getElementById('editFirstName').value);
+            formData.append('last_name', document.getElementById('editLastName').value);
+            formData.append('bio', document.getElementById('editBio').value);
+            
+            try {
+                const response = await fetch('/api/update_profile', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (response.ok) {
+                    alert('Profile updated successfully!');
+                    location.reload();
+                } else {
+                    alert('Failed to update profile');
+                }
+            } catch (error) {
+                console.error('Error updating profile:', error);
+                alert('Error updating profile');
+            }
+        }
+        
         // Mobile Menu Functions
         function toggleMobileMenu() {
             const overlay = document.getElementById('mobileMenuOverlay');
             const menu = document.getElementById('mobileMenu');
             overlay.classList.toggle('active');
             menu.classList.toggle('active');
-            
-            // Populate mobile menu content if not already populated
-            if (menu.classList.contains('active')) {
-                populateMobileMenu();
-            }
+            if (menu.classList.contains('active')) populateMobileMenu();
         }
         
         function closeMobileMenu() {
@@ -1041,17 +1305,18 @@
         }
         
         function populateMobileMenu() {
-            // Populate profile card in mobile menu
             const mobileProfileDiv = document.getElementById('mobileProfileCard');
             const profilePhotoHtml = userData.profile_photo ? 
-                `<img class="profile-photo" src="${userData.profile_photo}" alt="Profile">` :
-                `<div class="profile-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto;">👤</div>`;
+                `<img class="profile-photo" src="${userData.profile_photo}" alt="Profile" style="cursor: pointer;" onclick="openProfileEditModal(); closeMobileMenu();">` :
+                `<div class="profile-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto; cursor: pointer;" onclick="openProfileEditModal(); closeMobileMenu();">👤</div>`;
             
             mobileProfileDiv.innerHTML = `
                 <div class="profile-card" style="margin-bottom: 20px;">
+                    <button class="edit-profile-btn" onclick="openProfileEditModal(); closeMobileMenu();">✏️ Edit</button>
                     ${profilePhotoHtml}
                     <h3>${userData.first_name} ${userData.last_name}</h3>
                     <p>@${userData.user_id}</p>
+                    ${userData.bio ? `<p style="font-size: 12px; color: #666; margin-top: 8px;">${userData.bio}</p>` : ''}
                     ${userData.is_premium ? '<div class="premium-badge">🐏 PREMIUM</div>' : ''}
                     <div class="stats">
                         <div class="stat" onclick="showFollowersModal('${userData.user_id}'); closeMobileMenu();">
@@ -1070,35 +1335,17 @@
                 </div>
             `;
             
-            // Populate trending in mobile menu
             const mobileTrendingDiv = document.getElementById('mobileTrendingCard');
             let trendingHtml = '<div class="trending-card"><h4>🔥 Trending Today</h4>';
             if (trendingData.length > 0) {
                 trendingData.forEach(item => {
-                    trendingHtml += `<div class="trending-item">${item.word} (${item.count})</div>`;
+                    trendingHtml += `<div class="trending-item" onclick="filterByHashtag('${item.word}'); closeMobileMenu();">${item.word} (${item.count})</div>`;
                 });
             } else {
                 trendingHtml += '<div class="trending-item">No trending topics yet</div>';
             }
             trendingHtml += '</div>';
             mobileTrendingDiv.innerHTML = trendingHtml;
-        }
-        
-        // Trending Modal Functions (alternative bottom sheet)
-        function showTrendingModal() {
-            const modal = document.getElementById('trendingModal');
-            const contentDiv = document.getElementById('trendingModalContent');
-            
-            let html = '';
-            if (trendingData.length > 0) {
-                trendingData.forEach(item => {
-                    html += `<div class="trending-item">${item.word} (${item.count})</div>`;
-                });
-            } else {
-                html += '<div class="trending-item">No trending topics yet</div>';
-            }
-            contentDiv.innerHTML = html;
-            modal.classList.add('active');
         }
         
         function closeTrendingModal() {
@@ -1111,13 +1358,10 @@
                 const response = await fetch(`/api/get_follow_status/${profileUserId}`);
                 const data = await response.json();
                 const container = document.getElementById('followButtonContainer');
-                
                 if (container) {
-                    if (data.following) {
-                        container.innerHTML = '<button class="follow-btn following" onclick="toggleFollow(\'' + profileUserId + '\')">✓ Following</button>';
-                    } else {
-                        container.innerHTML = '<button class="follow-btn" onclick="toggleFollow(\'' + profileUserId + '\')">+ Follow</button>';
-                    }
+                    container.innerHTML = data.following ? 
+                        '<button class="follow-btn following" onclick="toggleFollow(\'' + profileUserId + '\')">✓ Following</button>' :
+                        '<button class="follow-btn" onclick="toggleFollow(\'' + profileUserId + '\')">+ Follow</button>';
                 }
             } catch (error) {
                 console.error('Error checking follow status:', error);
@@ -1128,12 +1372,8 @@
             try {
                 const response = await fetch(`/api/follow/${userIdToFollow}`, { method: 'POST' });
                 const data = await response.json();
-                
                 const followersCountSpan = document.getElementById('followersCountDesktop');
-                if (followersCountSpan) {
-                    followersCountSpan.textContent = data.followers_count;
-                }
-                
+                if (followersCountSpan) followersCountSpan.textContent = data.followers_count;
                 const btn = document.querySelector('.follow-btn');
                 if (btn) {
                     if (data.following) {
@@ -1155,11 +1395,9 @@
             const listContainer = document.getElementById('followersList');
             modal.style.display = 'flex';
             listContainer.innerHTML = 'Loading...';
-            
             try {
                 const response = await fetch(`/api/get_followers/${userId}`);
                 const data = await response.json();
-                
                 if (data.followers.length === 0) {
                     listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No followers yet</div>';
                 } else {
@@ -1174,7 +1412,6 @@
                     `).join('');
                 }
             } catch (error) {
-                console.error('Error loading followers:', error);
                 listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Error loading followers</div>';
             }
         }
@@ -1184,11 +1421,9 @@
             const listContainer = document.getElementById('followingList');
             modal.style.display = 'flex';
             listContainer.innerHTML = 'Loading...';
-            
             try {
                 const response = await fetch(`/api/get_following/${userId}`);
                 const data = await response.json();
-                
                 if (data.following.length === 0) {
                     listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Not following anyone yet</div>';
                 } else {
@@ -1203,22 +1438,13 @@
                     `).join('');
                 }
             } catch (error) {
-                console.error('Error loading following:', error);
                 listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Error loading following list</div>';
             }
         }
         
-        function closeFollowersModal() {
-            document.getElementById('followersModal').style.display = 'none';
-        }
-        
-        function closeFollowingModal() {
-            document.getElementById('followingModal').style.display = 'none';
-        }
-        
-        function viewProfile(userId) {
-            window.location.href = `/profile/${userId}`;
-        }
+        function closeFollowersModal() { document.getElementById('followersModal').style.display = 'none'; }
+        function closeFollowingModal() { document.getElementById('followingModal').style.display = 'none'; }
+        function viewProfile(userId) { window.location.href = `/profile/${userId}`; }
         
         window.onclick = function(event) {
             const followersModal = document.getElementById('followersModal');
@@ -1227,7 +1453,20 @@
             if (event.target === followingModal) closeFollowingModal();
         }
         
-        // Check if viewing own profile
+        // User data for mobile
+        const userData = {
+            user_id: '{{ user.user_id }}',
+            first_name: '{{ user.first_name }}',
+            last_name: '{{ user.last_name }}',
+            profile_photo: '{{ user.profile_photo or "" }}',
+            bio: '{{ user.bio or "" }}',
+            is_premium: {{ user.is_premium|lower }},
+            followers_count: {{ user.followers_count }},
+            following_count: {{ user.following_count }},
+            talos_count: {{ user.talos_count }}
+        };
+        
+        // Initialize
         const currentProfileUserId = '{{ user.user_id }}';
         if (currentProfileUserId !== loggedInUserId) {
             checkFollowStatus(currentProfileUserId);
@@ -1236,39 +1475,21 @@
             if (followContainer) followContainer.style.display = 'none';
         }
         
-        // Initialize character counter
         const taloTextarea = document.getElementById('taloContent');
         if (taloTextarea) {
             taloTextarea.addEventListener('input', updateCharCounter);
-            updateCharCounter(); // Initialize counter on page load
+            updateCharCounter();
         }
+        
+        // Apply hashtag highlighting after page load
+        applyHashtagHighlighting();
         
         // Pull to refresh
         let touchStartY = 0;
-        document.addEventListener('touchstart', (e) => {
-            touchStartY = e.touches[0].clientY;
-        });
+        document.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; });
         document.addEventListener('touchmove', (e) => {
-            if (window.scrollY === 0 && e.touches[0].clientY - touchStartY > 100) {
-                location.reload();
-            }
+            if (window.scrollY === 0 && e.touches[0].clientY - touchStartY > 100) location.reload();
         });
-        
-        // Check for new posts periodically
-        let lastCheck = new Date().toISOString();
-        setInterval(async () => {
-            try {
-                const response = await fetch(`/api/new_talos_count?last_seen=${lastCheck}`);
-                const data = await response.json();
-                if (data.count > 0) {
-                    const badge = document.getElementById('notificationCount');
-                    badge.textContent = data.count;
-                    badge.style.display = 'inline';
-                }
-            } catch (error) {
-                console.error('Error checking new posts:', error);
-            }
-        }, 30000);
     </script>
 </body>
 </html>

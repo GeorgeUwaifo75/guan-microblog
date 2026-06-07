@@ -891,6 +891,78 @@ async def get_following(user_id: str, request: Request):
     
     return {"following": following}
 
+@app.post("/api/update_profile")
+async def update_profile(request: Request):
+    """Update user profile including photo, name, and bio"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    user_index = None
+    
+    for i, u in enumerate(data.get("users", [])):
+        if u.get("session_token") == session_token:
+            user = u
+            user_index = i
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    form = await request.form()
+    
+    # Update name fields
+    if "first_name" in form:
+        user["first_name"] = form["first_name"]
+    if "last_name" in form:
+        user["last_name"] = form["last_name"]
+    if "bio" in form:
+        user["bio"] = form["bio"]
+    
+    # Handle profile photo upload
+    profile_photo = form.get("profile_photo")
+    if profile_photo and hasattr(profile_photo, 'file') and profile_photo.file:
+        try:
+            file_content = await profile_photo.read()
+            if file_content:
+                photo_base64 = base64.b64encode(file_content).decode('utf-8')
+                content_type = profile_photo.content_type
+                user["profile_photo"] = f"data:{content_type};base64,{photo_base64}"
+        except Exception as e:
+            logger.error(f"Error processing profile photo: {str(e)}")
+    
+    # Save updated user
+    if user_index is not None:
+        data["users"][user_index] = user
+        await save_jsonbin_data(data)
+    
+    return {"message": "Profile updated successfully"}
+
+@app.get("/api/search_hashtag/{hashtag}")
+async def search_by_hashtag(hashtag: str, request: Request):
+    """Search for posts with a specific hashtag"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    
+    # Filter talos containing the hashtag
+    filtered_talos = []
+    for talo in data.get("talos", []):
+        content = talo.get("content", "")
+        if hashtag.lower() in content.lower():
+            # Add user info
+            for u in data.get("users", []):
+                if u["user_id"] == talo["user_id"]:
+                    talo["user_name"] = f"{u['first_name']} {u['last_name']}"
+                    talo["user_photo"] = u.get("profile_photo")
+                    break
+            filtered_talos.append(talo)
+    
+    return {"talos": filtered_talos}
 
 @app.get("/logout")
 async def logout():
