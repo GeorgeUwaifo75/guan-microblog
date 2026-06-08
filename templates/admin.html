@@ -28,10 +28,56 @@
             align-items: center;
             gap: 10px;
         }
+        .super-badge {
+            background: #ffcc00;
+            color: #990000;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .admin-badge {
+            background: #666;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
         .container {
             max-width: 1400px;
             margin: 20px auto;
             padding: 0 20px;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .tab-btn.active {
+            background: #cc0000;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
         }
         .stats-grid {
             display: grid;
@@ -61,6 +107,8 @@
         .section h2 {
             color: #cc0000;
             margin-bottom: 15px;
+            border-bottom: 2px solid #ffcc00;
+            padding-bottom: 10px;
         }
         table {
             width: 100%;
@@ -99,6 +147,23 @@
             background: #28a745;
             color: white;
         }
+        .btn-approve {
+            background: #28a745;
+            color: white;
+        }
+        .btn-reject {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-create {
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
         .footer {
             background: #cc0000;
             color: white;
@@ -124,6 +189,47 @@
             background: #dc3545;
             color: white;
         }
+        .badge-pending {
+            background: #ffc107;
+            color: #000;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            max-width: 450px;
+            width: 90%;
+        }
+        .modal-content h3 {
+            color: #cc0000;
+            margin-bottom: 15px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
         @media (max-width: 768px) {
             table, thead, tbody, th, td, tr {
                 display: block;
@@ -135,6 +241,9 @@
                 padding: 10px;
                 border-bottom: 1px solid #ddd;
             }
+            .tabs {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
@@ -143,108 +252,308 @@
         <h1>
             <span style="font-size: 32px;">🐏</span>
             GuAn Admin Panel
+            {% if admin.role == 'super_admin' %}
+            <span class="super-badge">⭐ SUPER ADMIN</span>
+            {% else %}
+            <span class="admin-badge">👔 ADMIN</span>
+            {% endif %}
         </h1>
         <div>
-            <span>Welcome, {{ admin.user_id }}</span>
+            <span>Welcome, {{ admin.user_id }} ({{ admin.name }})</span>
             <a href="/dashboard" style="color: #ffcc00; margin-left: 20px;">← Back to Dashboard</a>
             <a href="/logout" style="color: #ffcc00; margin-left: 15px;">Logout</a>
         </div>
     </div>
 
     <div class="container">
+        <!-- Stats Overview -->
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-number">{{ users|length }}</div>
+                <div class="stat-number">{{ stats.total_users }}</div>
                 <div>Total Users</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">{{ users|selectattr('is_active', 'equalto', true)|list|length }}</div>
+                <div class="stat-number">{{ stats.active_users }}</div>
                 <div>Active Users</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">{{ users|selectattr('is_premium', 'equalto', true)|list|length }}</div>
+                <div class="stat-number">{{ stats.daily_active }}</div>
+                <div>Daily Active</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.premium_users }}</div>
                 <div>Premium Users</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">{{ users|sum(attribute='talos_count')|default(0) }}</div>
+                <div class="stat-number">{{ stats.total_talos }}</div>
                 <div>Total Talos</div>
             </div>
-        </div>
-
-        <div class="section">
-            <h2>📊 User Management</h2>
-            <div style="overflow-x: auto;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>User ID</th>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Age/Gender</th>
-                            <th>Country</th>
-                            <th>Status</th>
-                            <th>Premium</th>
-                            <th>Talos</th>
-                            <th>Registered</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for user in users %}
-                        <tr>
-                            <td><strong>@{{ user.user_id }}</strong></td>
-                            <td>{{ user.first_name }} {{ user.last_name }}</td>
-                            <td>{{ user.email }}</td>
-                            <td>{{ user.age }}/{{ user.gender }}</td>
-                            <td>{{ user.country }}</td>
-                            <td>
-                                {% if user.is_active %}
-                                <span class="badge badge-active">Active</span>
-                                {% else %}
-                                <span class="badge badge-inactive">Inactive</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if user.is_premium %}
-                                <span class="badge badge-premium">🐏 Premium</span>
-                                {% else %}
-                                Normal
-                                {% endif %}
-                            </td>
-                            <td>{{ user.talos_count }}</td>
-                            <td>{{ user.created_at[:10] if user.created_at else 'N/A' }}</td>
-                            <td>
-                                <button class="btn-sm btn-deactivate" onclick="toggleUserStatus('{{ user.user_id }}', {{ user.is_active|lower }})">
-                                    {% if user.is_active %}Deactivate{% else %}Activate{% endif %}
-                                </button>
-                                {% if admin.role == 'super_admin' %}
-                                <button class="btn-sm btn-delete" onclick="deleteUser('{{ user.user_id }}')">Delete</button>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.talos_today }}</div>
+                <div>Talos Today</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">₦{{ "%.2f"|format(stats.total_payment_amount) }}</div>
+                <div>Total Revenue</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.total_payments }}</div>
+                <div>Total Payments</div>
             </div>
         </div>
 
-        <div class="section">
-            <h2>📈 Platform Statistics</h2>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
-                <div style="padding: 15px; background: #f9f9f9; border-radius: 8px;">
-                    <strong>Total Users:</strong> {{ users|length }}<br>
-                    <strong>Active Users:</strong> {{ users|selectattr('is_active', 'equalto', true)|list|length }}<br>
-                    <strong>Inactive Users:</strong> {{ users|selectattr('is_active', 'equalto', false)|list|length }}
-                </div>
-                <div style="padding: 15px; background: #f9f9f9; border-radius: 8px;">
-                    <strong>Premium Users:</strong> {{ users|selectattr('is_premium', 'equalto', true)|list|length }}<br>
-                    <strong>Normal Users:</strong> {{ users|selectattr('is_premium', 'equalto', false)|list|length }}
-                </div>
-                <div style="padding: 15px; background: #f9f9f9; border-radius: 8px;">
-                    <strong>Male Users:</strong> {{ users|selectattr('gender', 'equalto', 'Male')|list|length }}<br>
-                    <strong>Female Users:</strong> {{ users|selectattr('gender', 'equalto', 'Female')|list|length }}
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('users')">👥 Users</button>
+            <button class="tab-btn" onclick="showTab('admins')">👑 Administrators</button>
+            <button class="tab-btn" onclick="showTab('premium')">⭐ Premium Requests</button>
+            <button class="tab-btn" onclick="showTab('payments')">💰 Payments</button>
+            <button class="tab-btn" onclick="showTab('reports')">📊 Reports</button>
+        </div>
+
+        <!-- Users Tab -->
+        <div id="usersTab" class="tab-content active">
+            <div class="section">
+                <h2>📊 User Management</h2>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Age/Gender</th>
+                                <th>Country</th>
+                                <th>Status</th>
+                                <th>Premium</th>
+                                <th>Talos</th>
+                                <th>Registered</th>
+                                <th>Last Active</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td><strong>@{{ user.user_id }}</strong></td>
+                                <td>{{ user.first_name }} {{ user.last_name }}</td>
+                                <td>{{ user.email }}</td>
+                                <td>{{ user.age }}/{{ user.gender }}</td>
+                                <td>{{ user.country }}</td>
+                                <td>
+                                    {% if user.is_active %}
+                                    <span class="badge badge-active">Active</span>
+                                    {% else %}
+                                    <span class="badge badge-inactive">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.is_premium %}
+                                    <span class="badge badge-premium">🐏 Premium</span>
+                                    {% else %}
+                                    Normal
+                                    {% endif %}
+                                </td>
+                                <td>{{ user.talos_count }}</td>
+                                <td>{{ user.created_at[:10] if user.created_at else 'N/A' }}</td>
+                                <td>{{ user.last_active[:10] if user.last_active else 'N/A' }}</td>
+                                <td>
+                                    <button class="btn-sm btn-deactivate" onclick="toggleUserStatus('{{ user.user_id }}', {{ user.is_active|lower }})">
+                                        {% if user.is_active %}Deactivate{% else %}Activate{% endif %}
+                                    </button>
+                                    {% if is_super_admin %}
+                                    <button class="btn-sm btn-delete" onclick="deleteUser('{{ user.user_id }}')">Delete</button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
+        </div>
+
+        <!-- Administrators Tab (Super Admin only) -->
+        <div id="adminsTab" class="tab-content">
+            {% if is_super_admin %}
+            <div class="section">
+                <h2>👑 Administrator Management</h2>
+                <button class="btn-create" onclick="openCreateAdminModal()">+ Create New Administrator</button>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Admin ID</th>
+                                <th>Name</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Created At</th>
+                                <th>Created By</th>
+                                <th>Last Login</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for a in admins %}
+                            <tr>
+                                <td>@{{ a.user_id }}</td>
+                                <td>{{ a.name }}</td>
+                                <td>
+                                    {% if a.role == 'super_admin' %}
+                                    <span class="badge badge-premium">Super Admin</span>
+                                    {% else %}
+                                    <span class="badge">Admin</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if a.is_active %}
+                                    <span class="badge badge-active">Active</span>
+                                    {% else %}
+                                    <span class="badge badge-inactive">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ a.created_at[:10] if a.created_at else 'N/A' }}</td>
+                                <td>{{ a.created_by if a.created_by else 'System' }}</td>
+                                <td>{{ a.last_login[:10] if a.last_login else 'Never' }}</td>
+                                <td>
+                                    {% if a.user_id != admin.user_id and a.role != 'super_admin' %}
+                                    <button class="btn-sm btn-deactivate" onclick="toggleAdminStatus('{{ a.user_id }}', {{ a.is_active|lower }})">
+                                        {% if a.is_active %}Deactivate{% else %}Activate{% endif %}
+                                    </button>
+                                    <button class="btn-sm btn-delete" onclick="deleteAdmin('{{ a.user_id }}')">Delete</button>
+                                    {% elif a.user_id != admin.user_id and a.role == 'super_admin' %}
+                                    <span class="badge">Cannot modify Super Admin</span>
+                                    {% else %}
+                                    <span class="badge">Current Account</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% else %}
+            <div class="section">
+                <p style="text-align: center; color: #666; padding: 40px;">
+                    🔒 This section is only accessible to Super Administrators.
+                </p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Premium Requests Tab -->
+        <div id="premiumTab" class="tab-content">
+            <div class="section">
+                <h2>⭐ Premium Upgrade Requests</h2>
+                <div id="premiumRequestsList">
+                    {% if premium_requests %}
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Amount</th>
+                                    <th>Payment Proof</th>
+                                    <th>Requested Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for req in premium_requests %}
+                                <tr>
+                                    <td>{{ req.user_name }} (@{{ req.user_id }})</td>
+                                    <td>₦{{ "%.2f"|format(req.amount) }}</td>
+                                    <td><a href="{{ req.payment_proof_url }}" target="_blank">View Proof</a></td>
+                                    <td>{{ req.created_at[:19] }}</td>
+                                    <td>
+                                        <button class="btn-sm btn-approve" onclick="processPremiumRequest('{{ req.id }}', 'approve')">Approve</button>
+                                        <button class="btn-sm btn-reject" onclick="processPremiumRequest('{{ req.id }}', 'reject')">Reject</button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p style="text-align: center; color: #666; padding: 20px;">No pending premium requests</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Payments Tab -->
+        <div id="paymentsTab" class="tab-content">
+            <div class="section">
+                <h2>💰 Payment History</h2>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Amount</th>
+                                <th>Payment Proof</th>
+                                <th>Requested Date</th>
+                                <th>Processed By</th>
+                                <th>Processed Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payment in payments %}
+                            <tr>
+                                <td>{{ payment.user_id }}</td>
+                                <td>₦{{ "%.2f"|format(payment.amount) }}</td>
+                                <td><a href="{{ payment.payment_proof_url }}" target="_blank">View Proof</a></td>
+                                <td>{{ payment.created_at[:19] }}</td>
+                                <td>{{ payment.processed_by }}</td>
+                                <td>{{ payment.processed_at[:19] }}</td>
+                                <td><span class="badge badge-active">Approved</span></td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" style="text-align: center;">No payments recorded</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Tab -->
+        <div id="reportsTab" class="tab-content">
+            <div class="section">
+                <h2>📈 Platform Reports</h2>
+                <div id="reportsData">Loading reports...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Admin Modal -->
+    <div id="createAdminModal" class="modal">
+        <div class="modal-content">
+            <h3>Create New Administrator</h3>
+            <form id="createAdminForm">
+                <div class="form-group">
+                    <label>Admin ID</label>
+                    <input type="text" id="newAdminId" required placeholder="e.g., admin01">
+                </div>
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="newAdminName" required placeholder="Full name">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="newAdminPassword" required>
+                </div>
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <input type="password" id="newAdminConfirmPassword" required>
+                </div>
+                <button type="submit" class="btn-create" style="width: 100%;">Create Administrator</button>
+                <button type="button" class="btn-sm btn-deactivate" style="margin-top: 10px; width: 100%;" onclick="closeCreateAdminModal()">Cancel</button>
+            </form>
         </div>
     </div>
 
@@ -254,6 +563,93 @@
     </div>
 
     <script>
+        const isSuperAdmin = {{ is_super_admin|lower }};
+        
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            // Add active class to clicked button
+            event.target.classList.add('active');
+            
+            // Load reports if needed
+            if (tabName === 'reports') {
+                loadReports();
+            }
+        }
+        
+        async function loadReports() {
+            const reportsDiv = document.getElementById('reportsData');
+            reportsDiv.innerHTML = '<div style="text-align: center;">Loading reports...</div>';
+            
+            try {
+                const response = await fetch('/api/admin/get_reports');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    reportsDiv.innerHTML = `
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                            <div style="background: #f9f9f9; padding: 15px; border-radius: 10px;">
+                                <h3 style="color: #cc0000;">👥 User Statistics</h3>
+                                <p><strong>Total Users:</strong> ${data.user_reports.total_users}</p>
+                                <p><strong>Active Users:</strong> ${data.user_reports.active_users}</p>
+                                <p><strong>Inactive Users:</strong> ${data.user_reports.inactive_users}</p>
+                                <p><strong>Premium Users:</strong> ${data.user_reports.premium_users}</p>
+                                <p><strong>Male/Female:</strong> ${data.user_reports.male_users}/${data.user_reports.female_users}</p>
+                                <p><strong>Daily Active:</strong> ${data.user_reports.daily_active}</p>
+                                <p><strong>New Users (7d):</strong> ${data.user_reports.users_last_7_days}</p>
+                                <p><strong>New Users (30d):</strong> ${data.user_reports.users_last_30_days}</p>
+                            </div>
+                            <div style="background: #f9f9f9; padding: 15px; border-radius: 10px;">
+                                <h3 style="color: #cc0000;">📝 Post Statistics</h3>
+                                <p><strong>Total Talos:</strong> ${data.post_reports.total_talos}</p>
+                                <p><strong>Total Replies:</strong> ${data.post_reports.total_replies}</p>
+                                <p><strong>Talos Today:</strong> ${data.post_reports.talos_today}</p>
+                                <p><strong>Replies Today:</strong> ${data.post_reports.replies_today}</p>
+                                <p><strong>Talos (7d):</strong> ${data.post_reports.talos_last_7_days}</p>
+                                <p><strong>Replies (7d):</strong> ${data.post_reports.replies_last_7_days}</p>
+                                <p><strong>Total Likes:</strong> ${data.post_reports.total_likes}</p>
+                                <p><strong>Total Follows:</strong> ${data.post_reports.total_follows}</p>
+                            </div>
+                            <div style="background: #f9f9f9; padding: 15px; border-radius: 10px;">
+                                <h3 style="color: #cc0000;">💰 Financial Reports</h3>
+                                <p><strong>Total Revenue:</strong> ₦${data.financial_reports.total_amount.toFixed(2)}</p>
+                                <p><strong>Total Payments:</strong> ${data.financial_reports.total_payments}</p>
+                                <p><strong>Revenue (7d):</strong> ₦${data.financial_reports.amount_last_7_days.toFixed(2)}</p>
+                                <p><strong>Payments (7d):</strong> ${data.financial_reports.payments_last_7_days}</p>
+                                <p><strong>Revenue (30d):</strong> ₦${data.financial_reports.amount_last_30_days.toFixed(2)}</p>
+                                <p><strong>Payments (30d):</strong> ${data.financial_reports.payments_last_30_days}</p>
+                            </div>
+                        </div>
+                        <div style="margin-top: 20px; background: #f9f9f9; padding: 15px; border-radius: 10px;">
+                            <h3 style="color: #cc0000;">🌍 Users by Country</h3>
+                            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                                ${Object.entries(data.user_reports.users_by_country).map(([country, count]) => 
+                                    `<span class="badge" style="background: #ddd;">${country}: ${count}</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                        <div style="margin-top: 20px; text-align: center; color: #666; font-size: 12px;">
+                            Report generated: ${data.generated_at}
+                        </div>
+                    `;
+                } else {
+                    reportsDiv.innerHTML = '<p style="text-align: center; color: #dc3545;">Failed to load reports</p>';
+                }
+            } catch (error) {
+                console.error('Error loading reports:', error);
+                reportsDiv.innerHTML = '<p style="text-align: center; color: #dc3545;">Error loading reports</p>';
+            }
+        }
+        
         async function toggleUserStatus(userId, currentlyActive) {
             const action = currentlyActive ? 'deactivate' : 'activate';
             if (confirm(`Are you sure you want to ${action} this user?`)) {
@@ -274,6 +670,95 @@
                 } else {
                     alert('Failed to delete user');
                 }
+            }
+        }
+        
+        async function toggleAdminStatus(adminId, currentlyActive) {
+            const action = currentlyActive ? 'deactivate' : 'activate';
+            if (confirm(`Are you sure you want to ${action} this administrator?`)) {
+                const response = await fetch(`/api/admin/deactivate_admin/${adminId}`, { method: 'POST' });
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('Failed to update admin status');
+                }
+            }
+        }
+        
+        async function deleteAdmin(adminId) {
+            if (confirm(`⚠️ WARNING: This will permanently delete the administrator "${adminId}". Are you absolutely sure?`)) {
+                const response = await fetch(`/api/admin/delete_admin/${adminId}`, { method: 'POST' });
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('Failed to delete administrator');
+                }
+            }
+        }
+        
+        async function processPremiumRequest(requestId, action) {
+            const confirmMsg = action === 'approve' ? 
+                'Approve this premium upgrade request?' : 
+                'Reject this premium upgrade request?';
+            
+            if (confirm(confirmMsg)) {
+                const response = await fetch(`/api/admin/process_premium_request/${requestId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: action })
+                });
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('Failed to process request');
+                }
+            }
+        }
+        
+        function openCreateAdminModal() {
+            document.getElementById('createAdminModal').style.display = 'flex';
+        }
+        
+        function closeCreateAdminModal() {
+            document.getElementById('createAdminModal').style.display = 'none';
+            document.getElementById('createAdminForm').reset();
+        }
+        
+        document.getElementById('createAdminForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const password = document.getElementById('newAdminPassword').value;
+            const confirmPassword = document.getElementById('newAdminConfirmPassword').value;
+            
+            if (password !== confirmPassword) {
+                alert('Passwords do not match');
+                return;
+            }
+            
+            const response = await fetch('/api/admin/create_admin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    admin_id: document.getElementById('newAdminId').value,
+                    password: password,
+                    name: document.getElementById('newAdminName').value
+                })
+            });
+            
+            if (response.ok) {
+                alert('Administrator created successfully');
+                closeCreateAdminModal();
+                location.reload();
+            } else {
+                const error = await response.json();
+                alert('Failed to create admin: ' + (error.detail || 'Unknown error'));
+            }
+        });
+        
+        window.onclick = function(event) {
+            const modal = document.getElementById('createAdminModal');
+            if (event.target === modal) {
+                closeCreateAdminModal();
             }
         }
     </script>
