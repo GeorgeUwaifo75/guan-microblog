@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <title>Dashboard - GuAn</title>
     <style>
         * {
@@ -17,11 +17,10 @@
         }
         .header {
             background: #cc0000;
-            padding: 12px 20px;
+            padding: 12px 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
             position: sticky;
             top: 0;
             z-index: 100;
@@ -30,7 +29,7 @@
         .logo-area {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
         .ram-icon {
             width: 40px;
@@ -43,18 +42,20 @@
             font-size: 22px;
         }
         .logo-text h2 {
-            font-size: 20px;
+            font-size: 18px;
             color: #ffcc00;
         }
         .logo-text p {
-            font-size: 10px;
+            font-size: 9px;
             color: white;
             font-style: italic;
         }
-        .nav-icons {
+        /* Right side icons container - always on extreme right */
+        .right-icons {
             display: flex;
             gap: 15px;
             align-items: center;
+            margin-left: auto;
         }
         .icon-btn {
             background: none;
@@ -63,10 +64,19 @@
             cursor: pointer;
             position: relative;
             color: white;
+            padding: 5px;
+        }
+        .menu-icon-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: white;
+            padding: 5px;
         }
         .notification-badge {
             position: absolute;
-            top: -8px;
+            top: -5px;
             right: -8px;
             background: #ffcc00;
             color: #cc0000;
@@ -74,6 +84,22 @@
             padding: 2px 6px;
             font-size: 10px;
             font-weight: bold;
+            min-width: 18px;
+            text-align: center;
+        }
+        /* New posts indicator on home button */
+        .home-indicator {
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #28a745;
+            border: 2px solid white;
+        }
+        .home-indicator.gray {
+            background: #888;
         }
         .dashboard-container {
             display: flex;
@@ -131,14 +157,6 @@
         }
         .mobile-menu-content {
             padding: 15px;
-        }
-        .menu-icon-btn {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: white;
-            margin-right: 10px;
         }
         .trending-modal {
             position: fixed;
@@ -417,6 +435,9 @@
         .stat-btn.liked {
             color: #ffcc00;
         }
+        .stat-btn.retaled {
+            color: #28a745;
+        }
         .new-post-btn {
             position: fixed;
             bottom: 80px;
@@ -441,6 +462,7 @@
             color: white;
             font-weight: bold;
         }
+        /* Home button with indicator */
         .home-btn {
             position: fixed;
             bottom: 20px;
@@ -455,6 +477,20 @@
             cursor: pointer;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
             z-index: 200;
+            position: relative;
+        }
+        .home-indicator-fab {
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #28a745;
+            border: 2px solid white;
+        }
+        .home-indicator-fab.gray {
+            background: #888;
         }
         .notifications-panel {
             position: fixed;
@@ -476,6 +512,13 @@
             padding: 12px;
             border-bottom: 1px solid #eee;
             font-size: 13px;
+            cursor: pointer;
+        }
+        .notification-item:hover {
+            background: #f9f9f9;
+        }
+        .notification-item.unread {
+            background: #fff8e8;
         }
         .footer {
             background: #cc0000;
@@ -611,6 +654,7 @@
         @media (max-width: 768px) {
             .dashboard-container {
                 flex-direction: column;
+                padding: 12px;
             }
             .sidebar {
                 display: none;
@@ -618,9 +662,18 @@
             .new-post-btn, .home-btn {
                 transform: scale(0.9);
             }
-            .nav-icons {
-                display: flex;
-                align-items: center;
+            /* Header adjustments for mobile */
+            .header {
+                padding: 10px 12px;
+            }
+            .logo-text h2 {
+                font-size: 16px;
+            }
+            .logo-text p {
+                display: none;
+            }
+            .right-icons {
+                gap: 12px;
             }
         }
         
@@ -630,6 +683,9 @@
             }
             .sidebar {
                 display: block !important;
+            }
+            .right-icons {
+                display: flex !important;
             }
         }
         
@@ -779,7 +835,6 @@
             text-decoration: underline;
         }
         
-        /* Loading indicator */
         .loading-spinner {
             display: inline-block;
             width: 20px;
@@ -793,6 +848,15 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        .retalo-original {
+            background: #f0f8f0;
+            border-left: 3px solid #28a745;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
@@ -804,7 +868,8 @@
                 <p>Freedom of expression is right but don't hurt others with yours.</p>
             </div>
         </div>
-        <div class="nav-icons">
+        <!-- Right side icons - always on extreme right -->
+        <div class="right-icons">
             <button class="menu-icon-btn" onclick="toggleMobileMenu()" id="menuIconBtn">☰</button>
             <button class="icon-btn" onclick="toggleNotifications()">🔔 <span id="notificationCount" class="notification-badge" style="display: none;">0</span></button>
             <a href="/logout"><button class="icon-btn">🚪</button></a>
@@ -868,7 +933,7 @@
 
     <div id="notificationsPanel" class="notifications-panel">
         <div style="padding: 12px; font-weight: bold; border-bottom: 1px solid #ddd;">Notifications</div>
-        <div id="notificationsList">No new notifications</div>
+        <div id="notificationsList">Loading...</div>
     </div>
 
     <div class="dashboard-container">
@@ -971,10 +1036,17 @@
                         {% endfor %}
                     </div>
                     {% endif %}
+                    <!-- Show original post if this is a retalo -->
+                    {% if talo.original_talo %}
+                    <div class="retalo-original">
+                        <small>🔄 Reposted from @{{ talo.original_user_id }}</small>
+                        <div>{{ talo.original_content }}</div>
+                    </div>
+                    {% endif %}
                     <div class="talo-stats">
                         <button class="stat-btn like-btn" data-id="{{ talo.id }}">💎 <span class="like-count">{{ talo.likes }}</span></button>
                         <button class="stat-btn dislike-btn" data-id="{{ talo.id }}">👎 <span class="dislike-count">{{ talo.dislikes }}</span></button>
-                        <button class="stat-btn retalo-btn" data-id="{{ talo.id }}">🔄 <span class="retalo-count">{{ talo.retalos }}</span></button>
+                        <button class="stat-btn retalo-btn" data-id="{{ talo.id }}" data-user-id="{{ talo.user_id }}" data-content="{{ talo.content }}">🔄 <span class="retalo-count">{{ talo.retalos }}</span></button>
                         <a href="/post/{{ talo.id }}" class="reply-btn" style="background: none; border: none; color: #666; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
                             💬 <span>{{ talo.reply_count }}</span>
                         </a>
@@ -993,8 +1065,10 @@
         <span>+</span>
     </div>
 
-    <div class="home-btn" onclick="location.href='/dashboard'">
+    <!-- Home button with new posts indicator -->
+    <div class="home-btn" onclick="refreshTimeline()" id="homeBtn">
         <span>🏠</span>
+        <div class="home-indicator-fab gray" id="homeIndicator"></div>
     </div>
 
     <div class="footer">
@@ -1073,6 +1147,10 @@
         let photoFiles = [];
         let currentHashtagFilter = null;
         let allTalos = [];
+        let latestTaloTimestamp = null;
+        let isRefreshing = false;
+        let unreadNotifications = 0;
+        
         const loggedInUserId = '{{ user.user_id }}';
         const MAX_CHARS = 250;
         
@@ -1082,6 +1160,148 @@
             {word: "{{ word }}", count: {{ count }}},
             {% endfor %}
         ];
+        
+        // Load last seen timestamp from localStorage
+        function loadLastSeenTimestamp() {
+            const saved = localStorage.getItem('lastSeenTimestamp');
+            if (saved) {
+                latestTaloTimestamp = saved;
+            }
+            checkForNewTalos();
+        }
+        
+        // Check for new talos periodically
+        async function checkForNewTalos() {
+            if (isRefreshing) return;
+            
+            try {
+                const response = await fetch('/api/get_latest_talo_timestamp');
+                const data = await response.json();
+                
+                if (data.latest_timestamp) {
+                    const indicator = document.getElementById('homeIndicator');
+                    if (!latestTaloTimestamp || data.latest_timestamp > latestTaloTimestamp) {
+                        // New posts available
+                        indicator.classList.remove('gray');
+                        indicator.style.background = '#28a745';
+                    } else {
+                        indicator.classList.add('gray');
+                        indicator.style.background = '#888';
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking for new talos:', error);
+            }
+        }
+        
+        // Refresh timeline
+        async function refreshTimeline() {
+            if (isRefreshing) return;
+            isRefreshing = true;
+            
+            const indicator = document.getElementById('homeIndicator');
+            indicator.classList.add('gray');
+            indicator.style.background = '#888';
+            
+            // Update last seen timestamp
+            const now = new Date().toISOString();
+            latestTaloTimestamp = now;
+            localStorage.setItem('lastSeenTimestamp', now);
+            
+            // Reload the page to refresh timeline
+            location.reload();
+        }
+        
+        // Retalo function
+        async function retalo(taloId, originalUserId, originalContent) {
+            try {
+                const response = await fetch('/api/retalo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        original_talo_id: taloId,
+                        original_user_id: originalUserId,
+                        original_content: originalContent
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Update retalo count on the button
+                    const btn = document.querySelector(`.retalo-btn[data-id="${taloId}"]`);
+                    if (btn) {
+                        const countSpan = btn.querySelector('.retalo-count');
+                        if (countSpan) {
+                            countSpan.textContent = parseInt(countSpan.textContent) + 1;
+                        }
+                        btn.classList.add('retaled');
+                    }
+                    
+                    // Show success message
+                    alert('Post retaled successfully!');
+                    
+                    // Reload to show the retalo
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    alert('Failed to retalo: ' + (data.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error retaling:', error);
+                alert('Failed to retalo. Please try again.');
+            }
+        }
+        
+        // Load notifications
+        async function loadNotifications() {
+            try {
+                const response = await fetch('/api/get_notifications');
+                const data = await response.json();
+                
+                const notificationsList = document.getElementById('notificationsList');
+                const notificationCountSpan = document.getElementById('notificationCount');
+                
+                if (data.notifications && data.notifications.length > 0) {
+                    const unreadCount = data.notifications.filter(n => !n.read).length;
+                    if (unreadCount > 0) {
+                        notificationCountSpan.style.display = 'inline-block';
+                        notificationCountSpan.textContent = unreadCount;
+                        unreadNotifications = unreadCount;
+                    } else {
+                        notificationCountSpan.style.display = 'none';
+                    }
+                    
+                    notificationsList.innerHTML = data.notifications.map(notif => `
+                        <div class="notification-item ${notif.read ? '' : 'unread'}" onclick="markNotificationRead('${notif.id}')">
+                            <strong>${notif.type === 'retalo' ? '🔄 Repost' : notif.type === 'like' ? '💎 Like' : notif.type === 'follow' ? '👥 Follow' : '💬 Reply'}</strong><br>
+                            <small>${notif.message}</small><br>
+                            <small style="color: #999;">${new Date(notif.created_at).toLocaleString()}</small>
+                        </div>
+                    `).join('');
+                } else {
+                    notificationsList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No notifications</div>';
+                    notificationCountSpan.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+                document.getElementById('notificationsList').innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">Error loading notifications</div>';
+            }
+        }
+        
+        async function markNotificationRead(notificationId) {
+            try {
+                await fetch(`/api/mark_notification_read/${notificationId}`, { method: 'POST' });
+                unreadNotifications--;
+                if (unreadNotifications <= 0) {
+                    document.getElementById('notificationCount').style.display = 'none';
+                } else {
+                    document.getElementById('notificationCount').textContent = unreadNotifications;
+                }
+                loadNotifications();
+            } catch (error) {
+                console.error('Error marking notification read:', error);
+            }
+        }
         
         function highlightHashtagsInContent(content) {
             const hashtagRegex = /(#\w+)/g;
@@ -1236,6 +1456,17 @@
             btn.addEventListener('click', () => likeTalo(btn.dataset.id, btn));
         });
         
+        // Retalo button handlers
+        document.querySelectorAll('.retalo-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const taloId = btn.dataset.id;
+                const userId = btn.dataset.userId;
+                const content = btn.dataset.content;
+                retalo(taloId, userId, content);
+            });
+        });
+        
         function addPhotoInput() {
             if (photoFiles.length >= 4) {
                 alert('Maximum 4 photos per post');
@@ -1348,6 +1579,9 @@
                 });
                 
                 if (response.ok) {
+                    // Update last seen timestamp
+                    latestTaloTimestamp = new Date().toISOString();
+                    localStorage.setItem('lastSeenTimestamp', latestTaloTimestamp);
                     location.reload();
                 } else {
                     const error = await response.json();
@@ -1367,6 +1601,13 @@
         function toggleNotifications() {
             const panel = document.getElementById('notificationsPanel');
             panel.classList.toggle('show');
+            if (panel.classList.contains('show')) {
+                loadNotifications();
+                // Mark all as read when opened
+                fetch('/api/mark_all_notifications_read', { method: 'POST' }).catch(console.error);
+                document.getElementById('notificationCount').style.display = 'none';
+                unreadNotifications = 0;
+            }
         }
         
         function openProfileEditModal() {
@@ -1609,6 +1850,10 @@
         }
         
         applyHashtagHighlighting();
+        loadLastSeenTimestamp();
+        
+        // Check for new talos every 30 seconds
+        setInterval(checkForNewTalos, 30000);
         
         let touchStartY = 0;
         document.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; });
