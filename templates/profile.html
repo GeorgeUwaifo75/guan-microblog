@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <title>{{ profile_user.first_name }}'s Profile - GuAn</title>
     <style>
         * {
@@ -15,14 +15,14 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
             background: #f5f5f5;
             color: #000;
+            padding-bottom: 20px;
         }
         .header {
             background: #cc0000;
-            padding: 12px 20px;
+            padding: 12px 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
             position: sticky;
             top: 0;
             z-index: 100;
@@ -31,7 +31,9 @@
         .logo-area {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
+            flex: 1;
+            min-width: 0;
         }
         .ram-icon {
             width: 40px;
@@ -42,20 +44,27 @@
             align-items: center;
             justify-content: center;
             font-size: 22px;
+            flex-shrink: 0;
         }
         .logo-text h2 {
-            font-size: 20px;
+            font-size: 18px;
             color: #ffcc00;
+            white-space: nowrap;
         }
         .logo-text p {
-            font-size: 10px;
+            font-size: 9px;
             color: white;
             font-style: italic;
+            white-space: normal;
+            line-height: 1.2;
         }
-        .nav-icons {
+        /* Right side icons container - always on extreme right */
+        .right-icons {
             display: flex;
             gap: 15px;
             align-items: center;
+            margin-left: auto;
+            flex-shrink: 0;
         }
         .icon-btn {
             background: none;
@@ -63,6 +72,15 @@
             font-size: 24px;
             cursor: pointer;
             color: white;
+            padding: 5px;
+        }
+        .menu-icon-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: white;
+            padding: 5px;
         }
         .container {
             max-width: 800px;
@@ -274,7 +292,32 @@
         }
         @media (max-width: 768px) {
             .container {
-                padding: 0 10px;
+                padding: 0 12px;
+            }
+            .logo-text p {
+                display: block;
+                font-size: 8px;
+                max-width: 180px;
+            }
+            .logo-text h2 {
+                font-size: 16px;
+            }
+            .ram-icon {
+                width: 35px;
+                height: 35px;
+                font-size: 18px;
+            }
+            .right-icons {
+                gap: 10px;
+            }
+            .icon-btn, .menu-icon-btn {
+                font-size: 22px;
+                padding: 4px;
+            }
+        }
+        @media (min-width: 769px) {
+            .menu-icon-btn {
+                display: none !important;
             }
         }
     </style>
@@ -288,9 +331,23 @@
                 <p>Freedom of expression is right but don't hurt others with yours.</p>
             </div>
         </div>
-        <div class="nav-icons">
+        <!-- Right side icons - always on extreme right -->
+        <div class="right-icons">
+            <button class="menu-icon-btn" onclick="toggleMobileMenu()" id="menuIconBtn">☰</button>
             <a href="/dashboard"><button class="icon-btn">🏠</button></a>
             <a href="/logout"><button class="icon-btn">🚪</button></a>
+        </div>
+    </div>
+
+    <!-- Mobile Menu (if needed for profile page) -->
+    <div id="mobileMenuOverlay" class="mobile-menu-overlay" style="display: none;" onclick="closeMobileMenu()"></div>
+    <div id="mobileMenu" class="mobile-menu" style="display: none;">
+        <div class="mobile-menu-header">
+            <span>Menu</span>
+            <button class="mobile-menu-close" onclick="closeMobileMenu()">&times;</button>
+        </div>
+        <div class="mobile-menu-content">
+            <div id="mobileProfileCard"></div>
         </div>
     </div>
 
@@ -305,6 +362,9 @@
             {% endif %}
             <h3>{{ profile_user.first_name }} {{ profile_user.last_name }}</h3>
             <p>@{{ profile_user.user_id }}</p>
+            {% if profile_user.bio %}
+            <p style="font-size: 12px; color: #666; margin-top: 8px;">{{ profile_user.bio }}</p>
+            {% endif %}
             {% if profile_user.is_premium %}
             <div class="premium-badge">🐏 PREMIUM</div>
             {% endif %}
@@ -346,7 +406,7 @@
                 {% if talo.photos and talo.photos|length > 0 %}
                 <div class="talo-photos">
                     {% for photo in talo.photos %}
-                        <img src="data:{{ photo.type }};base64,{{ photo.data }}" alt="Photo">
+                        <img src="{{ photo.url }}" alt="Photo">
                     {% endfor %}
                 </div>
                 {% endif %}
@@ -387,6 +447,83 @@
     <div class="footer">
         <p>&copy; 2026 GuAn Microblogging Platform. All rights reserved.</p>
     </div>
+
+    <style>
+        .mobile-menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 300;
+        }
+        .mobile-menu {
+            position: fixed;
+            top: 0;
+            left: -280px;
+            width: 280px;
+            height: 100%;
+            background: white;
+            z-index: 301;
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+        }
+        .mobile-menu.active {
+            left: 0;
+            display: block !important;
+        }
+        .mobile-menu-overlay.active {
+            display: block !important;
+        }
+        .mobile-menu-header {
+            background: #cc0000;
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .mobile-menu-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+        }
+        .mobile-menu-content {
+            padding: 15px;
+        }
+        .profile-card-mobile {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .profile-photo-mobile {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 3px solid #cc0000;
+            object-fit: cover;
+            margin-bottom: 10px;
+        }
+        .stats-mobile {
+            display: flex;
+            justify-content: space-around;
+            margin: 15px 0;
+        }
+        .stat-mobile {
+            text-align: center;
+        }
+        .stat-number-mobile {
+            font-size: 18px;
+            font-weight: bold;
+            color: #cc0000;
+        }
+    </style>
 
     <script>
         const profileUserId = '{{ profile_user.user_id }}';
@@ -517,6 +654,56 @@
             window.location.href = `/profile/${userId}`;
         }
         
+        // Mobile menu functions
+        function toggleMobileMenu() {
+            const overlay = document.getElementById('mobileMenuOverlay');
+            const menu = document.getElementById('mobileMenu');
+            overlay.classList.toggle('active');
+            menu.classList.toggle('active');
+            if (menu.classList.contains('active')) {
+                populateMobileMenu();
+            }
+        }
+        
+        function closeMobileMenu() {
+            const overlay = document.getElementById('mobileMenuOverlay');
+            const menu = document.getElementById('mobileMenu');
+            overlay.classList.remove('active');
+            menu.classList.remove('active');
+        }
+        
+        function populateMobileMenu() {
+            const mobileProfileDiv = document.getElementById('mobileProfileCard');
+            const profilePhotoHtml = '{{ profile_user.profile_photo }}' ? 
+                `<img class="profile-photo-mobile" src="{{ profile_user.profile_photo }}" alt="Profile">` :
+                `<div class="profile-photo-mobile" style="background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto;">👤</div>`;
+            
+            mobileProfileDiv.innerHTML = `
+                <div class="profile-card-mobile">
+                    ${profilePhotoHtml}
+                    <h3>{{ profile_user.first_name }} {{ profile_user.last_name }}</h3>
+                    <p>@{{ profile_user.user_id }}</p>
+                    {% if profile_user.bio %}
+                    <p style="font-size: 12px; color: #666; margin-top: 8px;">{{ profile_user.bio }}</p>
+                    {% endif %}
+                    <div class="stats-mobile">
+                        <div class="stat-mobile">
+                            <div class="stat-number-mobile">{{ profile_user.followers_count }}</div>
+                            <div>Followers</div>
+                        </div>
+                        <div class="stat-mobile">
+                            <div class="stat-number-mobile">{{ profile_user.following_count }}</div>
+                            <div>Following</div>
+                        </div>
+                        <div class="stat-mobile">
+                            <div class="stat-number-mobile">{{ profile_user.talos_count }}</div>
+                            <div>Talos</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
         window.onclick = function(event) {
             const followersModal = document.getElementById('followersModal');
             const followingModal = document.getElementById('followingModal');
@@ -525,8 +712,10 @@
         }
         
         // Initialize
-        if (profileUserId !== loggedInUserId) {
+        if (profileUserId !== loggedInUserId && loggedInUserId) {
             checkFollowStatus();
+        } else if (!loggedInUserId) {
+            document.getElementById('followBtn').style.display = 'none';
         } else {
             document.getElementById('followBtn').style.display = 'none';
         }
