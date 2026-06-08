@@ -186,7 +186,11 @@
             background: #990000;
         }
 
-        /* Themed Reply Card - Red, Yellow, White theme */
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .reply-card {
             background: linear-gradient(135deg, #fff5f5 0%, #fff8e8 100%);
             border-radius: 12px;
@@ -294,6 +298,31 @@
             border-bottom: 2px solid #ffcc00;
         }
 
+        .photo-preview-container {
+            margin-top: 10px;
+        }
+
+        .photo-preview-img {
+            max-width: 100px;
+            max-height: 100px;
+            border-radius: 8px;
+            margin-top: 5px;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #cc0000;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         @media (max-width: 600px) {
             .container {
                 padding: 10px;
@@ -337,7 +366,7 @@
             {% if talo.photos %}
             <div class="post-images">
                 {% for photo in talo.photos %}
-                    <img src="data:{{ photo.type }};base64,{{ photo.data }}" class="post-image" alt="Post image">
+                    <img src="{{ photo.url }}" class="post-image" alt="Post image">
                 {% endfor %}
             </div>
             {% endif %}
@@ -349,66 +378,163 @@
 
         <!-- Reply Form -->
         <div class="reply-form">
-            <form action="/api/create_reply/{{ talo.id }}" method="post" enctype="multipart/form-data">
-                <textarea name="content" class="reply-textarea" rows="3" placeholder="Write your reply..." required></textarea>
-                <div class="reply-actions">
-                    <div class="photo-upload">
-                        <label class="photo-label">
-                            📷 Attach Photo
-                            <input type="file" name="photo" class="photo-input" accept="image/*" onchange="showSelectedFileName(this)">
-                        </label>
-                        <div class="selected-photo" id="selected-photo"></div>
-                    </div>
-                    <button type="submit" class="submit-btn">Post Reply</button>
+            <textarea id="replyContent" class="reply-textarea" rows="3" placeholder="Write your reply... (max 250 characters)"></textarea>
+            <div class="reply-actions">
+                <div class="photo-upload">
+                    <label class="photo-label">
+                        📷 Attach Photo
+                        <input type="file" id="replyPhoto" class="photo-input" accept="image/*" onchange="previewReplyPhoto(this)">
+                    </label>
+                    <div id="replyPhotoPreview" class="selected-photo"></div>
                 </div>
-            </form>
+                <button type="button" class="submit-btn" onclick="submitReplyWithFirebase()">Post Reply</button>
+            </div>
         </div>
 
         <!-- Replies Section -->
         <div class="replies-section">
             <h3 class="replies-title">Replies ({{ replies|length }})</h3>
-            {% if replies %}
-                {% for reply in replies %}
-                <div class="reply-card" id="reply-{{ reply.id }}">
-                    <div class="reply-header">
-                        <div class="reply-avatar">
-                            {{ reply.user_name[0] if reply.user_name else 'U' }}
+            <div id="repliesContainer">
+                {% if replies %}
+                    {% for reply in replies %}
+                    <div class="reply-card" id="reply-{{ reply.id }}">
+                        <div class="reply-header">
+                            <div class="reply-avatar">
+                                {{ reply.user_name[0] if reply.user_name else 'U' }}
+                            </div>
+                            <div class="reply-user">{{ reply.user_name }}</div>
+                            <div class="reply-time">{{ reply.created_at[:19].replace('T', ' ') }}</div>
                         </div>
-                        <div class="reply-user">{{ reply.user_name }}</div>
-                        <div class="reply-time">{{ reply.created_at[:19].replace('T', ' ') }}</div>
+                        <div class="reply-content">{{ reply.content }}</div>
+                        {% if reply.photos %}
+                            {% for photo in reply.photos %}
+                                <img src="{{ photo.url }}" class="reply-image" alt="Reply image">
+                            {% endfor %}
+                        {% endif %}
+                        <div class="reply-stats">
+                            <button class="like-btn" onclick="likeReply('{{ reply.id }}', this)">
+                                ❤️ <span class="like-count">{{ reply.likes }}</span>
+                            </button>
+                        </div>
                     </div>
-                    <div class="reply-content">{{ reply.content }}</div>
-                    {% if reply.photos %}
-                        {% for photo in reply.photos %}
-                            <img src="data:{{ photo.type }};base64,{{ photo.data }}" class="reply-image" alt="Reply image">
-                        {% endfor %}
-                    {% endif %}
-                    <div class="reply-stats">
-                        <button class="like-btn" onclick="likeReply('{{ reply.id }}', this)">
-                            ❤️ <span class="like-count">{{ reply.likes }}</span>
-                        </button>
+                    {% endfor %}
+                {% else %}
+                    <div class="no-replies">
+                        No replies yet. Be the first to reply!
                     </div>
-                </div>
-                {% endfor %}
-            {% else %}
-                <div class="no-replies">
-                    No replies yet. Be the first to reply!
-                </div>
-            {% endif %}
+                {% endif %}
+            </div>
         </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyBj9wQ04hnfPjowVvEa_yf8_Fq3VXVaH5I",
+            authDomain: "giteksolhub-project.firebaseapp.com",
+            projectId: "giteksolhub-project",
+            storageBucket: "giteksolhub-project.firebasestorage.app",
+            messagingSenderId: "917911843059",
+            appId: "1:917911843059:web:0aa2438be6605d1f400786"
+        };
+        
+        const firebaseApp = initializeApp(firebaseConfig);
+        const storage = getStorage(firebaseApp);
+        
+        window.firebaseStorage = storage;
+        window.firebaseRef = ref;
+        window.uploadBytes = uploadBytes;
+        window.getDownloadURL = getDownloadURL;
+    </script>
+
     <script>
-        function showSelectedFileName(input) {
-            const fileName = input.files[0]?.name;
-            const display = document.getElementById('selected-photo');
-            if (fileName) {
-                display.textContent = `Selected: ${fileName}`;
-            } else {
-                display.textContent = '';
+        let selectedPhotoFile = null;
+        const taloId = '{{ talo.id }}';
+        const loggedInUserId = '{{ user.user_id }}';
+        
+        function previewReplyPhoto(input) {
+            const previewDiv = document.getElementById('replyPhotoPreview');
+            if (input.files && input.files[0]) {
+                selectedPhotoFile = input.files[0];
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewDiv.innerHTML = `
+                        <img src="${e.target.result}" class="photo-preview-img" alt="Preview">
+                        <button type="button" onclick="clearReplyPhoto()" style="margin-left: 5px;">✖</button>
+                    `;
+                };
+                reader.readAsDataURL(selectedPhotoFile);
             }
         }
-
+        
+        function clearReplyPhoto() {
+            selectedPhotoFile = null;
+            document.getElementById('replyPhoto').value = '';
+            document.getElementById('replyPhotoPreview').innerHTML = '';
+        }
+        
+        async function submitReplyWithFirebase() {
+            const content = document.getElementById('replyContent').value;
+            
+            if (!content.trim()) {
+                alert('Please enter a reply');
+                return;
+            }
+            
+            if (content.length > 250) {
+                alert('Reply cannot exceed 250 characters');
+                return;
+            }
+            
+            const submitBtn = document.querySelector('.submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading-spinner"></span> Posting...';
+            
+            try {
+                let photoData = null;
+                
+                // Upload photo to Firebase if selected
+                if (selectedPhotoFile) {
+                    const fileExt = selectedPhotoFile.name.split('.').pop();
+                    const fileName = `${loggedInUserId}/replies/${taloId}/${Date.now()}.${fileExt}`;
+                    const storageRef = window.firebaseRef(window.firebaseStorage, `replies/${fileName}`);
+                    const snapshot = await window.uploadBytes(storageRef, selectedPhotoFile);
+                    const downloadURL = await window.getDownloadURL(snapshot.ref);
+                    photoData = {
+                        url: downloadURL,
+                        path: `replies/${fileName}`,
+                        type: selectedPhotoFile.type
+                    };
+                }
+                
+                // Send to backend
+                const response = await fetch(`/api/create_reply/${taloId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content: content,
+                        photo: photoData
+                    })
+                });
+                
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    const error = await response.json();
+                    alert('Failed to post reply: ' + (error.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error posting reply:', error);
+                alert('Failed to post reply. Please try again.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Post Reply';
+            }
+        }
+        
         async function likeReply(replyId, button) {
             try {
                 const response = await fetch(`/api/like_reply/${replyId}`, {

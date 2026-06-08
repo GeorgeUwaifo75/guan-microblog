@@ -1,10 +1,10 @@
-# main.py - Complete with image storage and reply functionality
+# main.py - Modified with Firebase photo URL support
 from fastapi import FastAPI, HTTPException, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 import hashlib
 import secrets
 import uuid
@@ -27,12 +27,10 @@ app = FastAPI(title="GuAn - Microblogging Platform")
 BASE_DIR = Path(__file__).parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
-UPLOADS_DIR = STATIC_DIR / "uploads"
 
 # Create directories
 TEMPLATES_DIR.mkdir(exist_ok=True)
 STATIC_DIR.mkdir(exist_ok=True)
-UPLOADS_DIR.mkdir(exist_ok=True)
 
 # Setup templates
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -63,7 +61,6 @@ async def get_jsonbin_data() -> Dict:
             if response.status_code == 200:
                 result = response.json()
                 
-                # Parse the response based on the structure
                 if 'data' in result:
                     data_content = result['data']
                     if isinstance(data_content, dict):
@@ -134,58 +131,6 @@ async def save_jsonbin_data(data: Dict) -> bool:
         logger.error(f"Error saving data: {str(e)}")
         raise HTTPException(status_code=503, detail=f"Unable to save: {str(e)}")
 
-def save_image_file(file: UploadFile) -> Optional[str]:
-    """Save uploaded image file to local storage and return filename"""
-    try:
-        # Generate unique filename
-        file_ext = file.filename.split('.')[-1].lower()
-        if file_ext not in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
-            return None
-        
-        filename = f"{uuid.uuid4().hex}.{file_ext}"
-        filepath = UPLOADS_DIR / filename
-        
-        # Save file
-        with open(filepath, "wb") as f:
-            f.write(file.file.read())
-        
-        # Return relative URL
-        return f"/static/uploads/{filename}"
-    except Exception as e:
-        logger.error(f"Error saving image: {str(e)}")
-        return None
-
-def image_to_base64(image_url: str) -> Optional[str]:
-    """Convert image file to base64 for API storage"""
-    try:
-        if image_url.startswith('/static/uploads/'):
-            filepath = BASE_DIR / image_url[1:]  # Remove leading slash
-            if filepath.exists():
-                with open(filepath, "rb") as f:
-                    return base64.b64encode(f.read()).decode('utf-8')
-        return None
-    except Exception as e:
-        logger.error(f"Error converting image to base64: {str(e)}")
-        return None
-
-def base64_to_image(base64_str: str, filename: str) -> Optional[str]:
-    """Convert base64 string back to image file"""
-    try:
-        if ',' in base64_str:
-            # Handle data URL format
-            base64_str = base64_str.split(',')[1]
-        
-        image_data = base64.b64decode(base64_str)
-        filepath = UPLOADS_DIR / filename
-        
-        with open(filepath, "wb") as f:
-            f.write(image_data)
-        
-        return f"/static/uploads/{filename}"
-    except Exception as e:
-        logger.error(f"Error converting base64 to image: {str(e)}")
-        return None
-
 # Helper functions
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
@@ -210,6 +155,21 @@ class UserSignup(BaseModel):
 class UserLogin(BaseModel):
     user_id: str
     password: str
+
+class CreateTaloRequest(BaseModel):
+    content: str
+    photos: List[Dict[str, str]] = []
+
+class CreateReplyRequest(BaseModel):
+    content: str
+    photo: Optional[Dict[str, str]] = None
+
+class UpdateProfileRequest(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    bio: Optional[str] = None
+    profile_photo_url: Optional[str] = None
+    profile_photo_path: Optional[str] = None
 
 # ===== ROUTES =====
 
@@ -370,8 +330,6 @@ async def dashboard(request: Request):
         "trending": trending
     })
 
-# Add this route to main.py after the dashboard route
-
 @app.get("/profile/{user_id}", response_class=HTMLResponse)
 async def view_profile(request: Request, user_id: str):
     """View another user's profile"""
@@ -422,7 +380,6 @@ async def view_profile(request: Request, user_id: str):
         "profile_user": profile_user,
         "talos": user_talos[:50]
     })
-
 
 @app.get("/post/{talo_id}", response_class=HTMLResponse)
 async def view_post(request: Request, talo_id: str):
@@ -487,7 +444,7 @@ async def view_post(request: Request, talo_id: str):
 
 @app.post("/api/create_talo")
 async def create_talo(request: Request):
-    """Create a new talo/post"""
+    """Create a new talo/post with Firebase photo URLs"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -503,40 +460,18 @@ async def create_talo(request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     
-    form = await request.form()
-    content = form.get("content", "")
+    body = await request.json()
+    content = body.get("content", "")
+    photos = body.get("photos", [])  # Expecting list of {url, path, type}
     
     if len(content) > 250:
         raise HTTPException(status_code=400, detail="Talo cannot exceed 250 characters")
-    
-    # Handle photo uploads - save images locally and store as base64 for API
-    photos = []
-    photo_files = []
-    
-    for i in range(1, 5):
-        photo_file = form.get(f"photo_{i}")
-        if photo_file and hasattr(photo_file, 'file') and photo_file.file:
-            try:
-                # Read file content
-                file_content = await photo_file.read()
-                if file_content:
-                    # Convert to base64 for storage
-                    photo_base64 = base64.b64encode(file_content).decode('utf-8')
-                    # Store with metadata
-                    photos.append({
-                        "data": photo_base64,
-                        "type": photo_file.content_type,
-                        "filename": photo_file.filename
-                    })
-                    photo_files.append(photo_file)
-            except Exception as e:
-                logger.error(f"Error processing photo: {str(e)}")
     
     talo = {
         "id": str(uuid.uuid4()),
         "user_id": user["user_id"],
         "content": content,
-        "photos": photos,  # Store base64 data
+        "photos": photos,  # Store Firebase URLs
         "likes": 0,
         "dislikes": 0,
         "retalos": 0,
@@ -552,11 +487,11 @@ async def create_talo(request: Request):
     user["talos_count"] = user.get("talos_count", 0) + 1
     await save_jsonbin_data(data)
     
-    return RedirectResponse(url="/dashboard", status_code=303)
+    return {"message": "Talo created successfully", "talo_id": talo["id"]}
 
 @app.post("/api/create_reply/{parent_talo_id}")
 async def create_reply(request: Request, parent_talo_id: str):
-    """Create a reply to a talo"""
+    """Create a reply to a talo with Firebase photo URL"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -582,34 +517,19 @@ async def create_reply(request: Request, parent_talo_id: str):
     if not parent_talo:
         raise HTTPException(status_code=404, detail="Parent post not found")
     
-    form = await request.form()
-    content = form.get("content", "")
+    body = await request.json()
+    content = body.get("content", "")
+    photo = body.get("photo")  # Expecting {url, path, type} or None
     
     if not content or len(content) > 250:
         raise HTTPException(status_code=400, detail="Reply must be between 1 and 250 characters")
-    
-    # Handle photo uploads for reply
-    photos = []
-    photo_file = form.get("photo")
-    if photo_file and hasattr(photo_file, 'file') and photo_file.file:
-        try:
-            file_content = await photo_file.read()
-            if file_content:
-                photo_base64 = base64.b64encode(file_content).decode('utf-8')
-                photos.append({
-                    "data": photo_base64,
-                    "type": photo_file.content_type,
-                    "filename": photo_file.filename
-                })
-        except Exception as e:
-            logger.error(f"Error processing reply photo: {str(e)}")
     
     reply = {
         "id": str(uuid.uuid4()),
         "parent_talo_id": parent_talo_id,
         "user_id": user["user_id"],
         "content": content,
-        "photos": photos,
+        "photos": [photo] if photo else [],
         "likes": 0,
         "created_at": datetime.now().isoformat()
     }
@@ -623,8 +543,7 @@ async def create_reply(request: Request, parent_talo_id: str):
     
     await save_jsonbin_data(data)
     
-    # Redirect back to the post page
-    return RedirectResponse(url=f"/post/{parent_talo_id}", status_code=303)
+    return {"message": "Reply created successfully", "reply_id": reply["id"]}
 
 @app.post("/api/like/{talo_id}")
 async def like_talo(talo_id: str, request: Request):
@@ -731,8 +650,6 @@ async def like_reply(reply_id: str, request: Request):
     
     await save_jsonbin_data(data)
     return {"liked": False, "count": 0}
-
-# Add these new endpoints to main.py after the existing like endpoints
 
 @app.post("/api/follow/{user_id_to_follow}")
 async def follow_user(user_id_to_follow: str, request: Request):
@@ -921,17 +838,11 @@ async def update_profile(request: Request):
     if "bio" in form:
         user["bio"] = form["bio"]
     
-    # Handle profile photo upload
-    profile_photo = form.get("profile_photo")
-    if profile_photo and hasattr(profile_photo, 'file') and profile_photo.file:
-        try:
-            file_content = await profile_photo.read()
-            if file_content:
-                photo_base64 = base64.b64encode(file_content).decode('utf-8')
-                content_type = profile_photo.content_type
-                user["profile_photo"] = f"data:{content_type};base64,{photo_base64}"
-        except Exception as e:
-            logger.error(f"Error processing profile photo: {str(e)}")
+    # Handle profile photo URL from Firebase
+    if "profile_photo_url" in form:
+        user["profile_photo"] = form["profile_photo_url"]
+        if "profile_photo_path" in form:
+            user["profile_photo_path"] = form["profile_photo_path"]
     
     # Save updated user
     if user_index is not None:
@@ -997,6 +908,48 @@ async def deactivate_user(user_id: str, request: Request):
     
     raise HTTPException(status_code=404, detail="User not found")
 
+@app.post("/api/admin/delete_user/{user_id}")
+async def delete_user(user_id: str, request: Request):
+    """Admin: Delete a user (super admin only)"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+    
+    if not admin or admin.get("role") != "super_admin":
+        raise HTTPException(status_code=403, detail="Super admin only")
+    
+    # Delete user
+    user_index = None
+    for i, user in enumerate(data.get("users", [])):
+        if user["user_id"] == user_id:
+            user_index = i
+            break
+    
+    if user_index is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Delete user's talos
+    data["talos"] = [t for t in data.get("talos", []) if t["user_id"] != user_id]
+    # Delete user's replies
+    data["replies"] = [r for r in data.get("replies", []) if r["user_id"] != user_id]
+    # Delete user's likes
+    data["likes"] = [l for l in data.get("likes", []) if l["user_id"] != user_id]
+    # Delete user's follows
+    data["follows"] = [f for f in data.get("follows", []) if f["follower_id"] != user_id and f["following_id"] != user_id]
+    
+    data["users"].pop(user_index)
+    await save_jsonbin_data(data)
+    
+    return {"message": "User deleted successfully"}
+
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
@@ -1015,8 +968,6 @@ async def health_check():
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}
 
-
-
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
@@ -1025,16 +976,6 @@ if __name__ == "__main__":
     print("🐏 GuAn Microblogging Platform")
     print("=" * 60)
     print(f"Server starting at http://{host}:{port}")
-    print(f"Using jsonbinbro API")
+    print(f"Using jsonbinbro API for data, Firebase for photo storage")
     print("=" * 60)
     uvicorn.run(app, host=host, port=port)
-
-#if __name__ == "__main__":
-#    import uvicorn
-#    print("=" * 60)
-#    print("🐏 GuAn Microblogging Platform")
-#    print("=" * 60)
-#    print(f"Server starting at http://127.0.0.1:8000")
-#    print(f"Using jsonbinbro API")
-#    print("=" * 60)
-#    uvicorn.run(app, host="127.0.0.1", port=8000)

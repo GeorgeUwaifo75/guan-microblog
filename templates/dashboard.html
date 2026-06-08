@@ -82,12 +82,10 @@
             padding: 20px;
             gap: 20px;
         }
-        /* Desktop Sidebar - visible on larger screens */
         .sidebar {
             width: 280px;
             flex-shrink: 0;
         }
-        /* Mobile Menu Overlay */
         .mobile-menu-overlay {
             position: fixed;
             top: 0;
@@ -142,7 +140,6 @@
             color: white;
             margin-right: 10px;
         }
-        /* Trending Modal for Mobile */
         .trending-modal {
             position: fixed;
             bottom: 0;
@@ -375,7 +372,6 @@
             margin: 10px 0;
             line-height: 1.4;
         }
-        /* Highlighted hashtag style */
         .hashtag-highlight {
             background: #ffcc00;
             color: #990000;
@@ -524,7 +520,6 @@
             display: inline-block;
         }
         
-        /* Profile Edit Modal */
         .profile-edit-modal {
             position: fixed;
             top: 0;
@@ -757,7 +752,6 @@
             transform: translateY(-2px);
         }
         
-        /* Filter bar for hashtag search */
         .filter-bar {
             background: white;
             border-radius: 15px;
@@ -783,6 +777,21 @@
             cursor: pointer;
             font-size: 14px;
             text-decoration: underline;
+        }
+        
+        /* Loading indicator */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #cc0000;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -909,14 +918,14 @@
         </div>
 
         <div class="main-feed">
-            <!-- Filter bar (shown when filtering by hashtag) -->
+            <!-- Filter bar -->
             <div id="filterBar" class="filter-bar" style="display: none;">
                 <span>Showing posts with tag: <span id="activeFilterTag" class="filter-tag"></span></span>
                 <button class="clear-filter" onclick="clearHashtagFilter()">Clear filter</button>
             </div>
 
             <div class="create-talo" id="createTaloSection">
-                <form id="createTaloForm" enctype="multipart/form-data" action="/api/create_talo" method="post">
+                <form id="createTaloForm" enctype="multipart/form-data">
                     <textarea name="content" id="taloContent" rows="3" placeholder="What's happening? (max 250 characters)" maxlength="250"></textarea>
                     <div class="char-counter" id="charCounter">250 characters remaining</div>
                     <div id="photoPreview" class="photo-preview"></div>
@@ -924,9 +933,15 @@
                         <div class="photo-buttons">
                             <button type="button" class="photo-btn" onclick="addPhotoInput()">📷 Add Photo (max 4)</button>
                         </div>
-                        <button type="submit" id="submitTaloBtn" class="btn btn-primary">Talo →</button>
+                        <button type="button" id="submitTaloBtn" class="btn btn-primary" onclick="createTaloWithFirebase()">Talo →</button>
                     </div>
                 </form>
+                <div id="uploadProgress" style="display: none; margin-top: 10px;">
+                    <div style="background: #f0f0f0; border-radius: 10px; overflow: hidden;">
+                        <div id="progressBar" style="width: 0%; height: 4px; background: #cc0000; transition: width 0.3s;"></div>
+                    </div>
+                    <p id="progressText" style="font-size: 12px; color: #666; margin-top: 5px;">Uploading...</p>
+                </div>
             </div>
 
             <div id="talosFeed">
@@ -950,8 +965,8 @@
                     {% if talo.photos and talo.photos|length > 0 %}
                     <div class="talo-photos">
                         {% for photo in talo.photos %}
-                            {% if photo.data and photo.type %}
-                                <img src="data:{{ photo.type }};base64,{{ photo.data }}" alt="Photo">
+                            {% if photo.url %}
+                                <img src="{{ photo.url }}" alt="Photo">
                             {% endif %}
                         {% endfor %}
                     </div>
@@ -975,8 +990,8 @@
     </div>
 
     <div class="new-post-btn" onclick="scrollToTopAndHighlight()">
-    <span>+</span>
-</div>
+        <span>+</span>
+    </div>
 
     <div class="home-btn" onclick="location.href='/dashboard'">
         <span>🏠</span>
@@ -1007,8 +1022,55 @@
         </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+        
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBj9wQ04hnfPjowVvEa_yf8_Fq3VXVaH5I",
+            authDomain: "giteksolhub-project.firebaseapp.com",
+            projectId: "giteksolhub-project",
+            storageBucket: "giteksolhub-project.firebasestorage.app",
+            messagingSenderId: "917911843059",
+            appId: "1:917911843059:web:0aa2438be6605d1f400786"
+        };
+        
+        // Initialize Firebase
+        const firebaseApp = initializeApp(firebaseConfig);
+        const storage = getStorage(firebaseApp);
+        
+        // Make storage available globally
+        window.firebaseStorage = storage;
+        window.firebaseRef = ref;
+        window.uploadBytes = uploadBytes;
+        window.getDownloadURL = getDownloadURL;
+        
+        // Store Firebase functions globally
+        window.uploadPhotoToFirebase = async function(file, userId, taloId, photoIndex) {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${userId}/${taloId}/${photoIndex}_${Date.now()}.${fileExt}`;
+            const storageRef = ref(storage, `talos/${fileName}`);
+            const snapshot = await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(snapshot.ref);
+            return { url: downloadURL, path: `talos/${fileName}`, type: file.type };
+        };
+        
+        window.uploadProfilePhotoToFirebase = async function(file, userId) {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `profile_${Date.now()}.${fileExt}`;
+            const storageRef = ref(storage, `profiles/${userId}/${fileName}`);
+            const snapshot = await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(snapshot.ref);
+            return { url: downloadURL, path: `profiles/${userId}/${fileName}` };
+        };
+        
+        console.log('Firebase initialized for photo storage');
+    </script>
+
     <script>
-        let photoInputs = [];
+        let photoFiles = [];
         let currentHashtagFilter = null;
         let allTalos = [];
         const loggedInUserId = '{{ user.user_id }}';
@@ -1021,11 +1083,7 @@
             {% endfor %}
         ];
         
-        // Store all talos data for filtering
-        const allTalosData = {{ talos|tojson }};
-        
         function highlightHashtagsInContent(content) {
-            // Match hashtags (#word)
             const hashtagRegex = /(#\w+)/g;
             return content.replace(hashtagRegex, match => {
                 return `<span class="hashtag-highlight" onclick="event.stopPropagation(); filterByHashtag('${match}')" style="cursor: pointer;">${match}</span>`;
@@ -1052,7 +1110,6 @@
                     }
                 });
                 
-                // Show message if no results
                 let noResultsMsg = document.getElementById('noFilterResults');
                 if (!noResultsMsg) {
                     noResultsMsg = document.createElement('div');
@@ -1084,12 +1141,9 @@
         function filterByHashtag(hashtag) {
             currentHashtagFilter = hashtag;
             applyHashtagFilter();
-            
-            // Close mobile menu and trending modal if open
             closeMobileMenu();
             closeTrendingModal();
             
-            // Highlight the create section
             const createSection = document.getElementById('createTaloSection');
             createSection.classList.add('highlight');
             setTimeout(() => {
@@ -1102,31 +1156,18 @@
             applyHashtagFilter();
         }
         
-        // Replace the highlightAndFocusCreateSection function with this:
-function scrollToTopAndHighlight() {
-    // Scroll to the very top of the page
-    window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-    });
-    
-    // Get the create section
-    const createSection = document.getElementById('createTaloSection');
-    
-    // Add highlight effect after a slight delay to ensure scroll is complete
-    setTimeout(() => {
-        createSection.classList.add('highlight');
+        function scrollToTopAndHighlight() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            setTimeout(() => {
+                const createSection = document.getElementById('createTaloSection');
+                createSection.classList.add('highlight');
+                createSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                setTimeout(() => {
+                    createSection.classList.remove('highlight');
+                }, 1000);
+            }, 300);
+        }
         
-        // Also ensure the create section is fully visible
-        createSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        
-        // Remove highlight after animation
-        setTimeout(() => {
-            createSection.classList.remove('highlight');
-        }, 1000);
-    }, 300);
-}
-        // Apply hashtag highlighting to all talo contents after page load
         function applyHashtagHighlighting() {
             document.querySelectorAll('.talo-content').forEach(contentDiv => {
                 const originalContent = contentDiv.innerText;
@@ -1196,20 +1237,21 @@ function scrollToTopAndHighlight() {
         });
         
         function addPhotoInput() {
-            if (photoInputs.length >= 4) {
+            if (photoFiles.length >= 4) {
                 alert('Maximum 4 photos per post');
                 return;
             }
             
-            const index = photoInputs.length;
             const input = document.createElement('input');
             input.type = 'file';
-            input.name = `photo_${index + 1}`;
             input.accept = 'image/*';
             input.style.display = 'none';
             input.onchange = (e) => {
                 if (e.target.files && e.target.files[0]) {
                     const file = e.target.files[0];
+                    const index = photoFiles.length;
+                    photoFiles.push(file);
+                    
                     const reader = new FileReader();
                     reader.onload = (ev) => {
                         const preview = document.getElementById('photoPreview');
@@ -1231,13 +1273,9 @@ function scrollToTopAndHighlight() {
                         removeBtn.className = 'remove-photo';
                         removeBtn.onclick = () => {
                             container.remove();
-                            if (input.parentNode) input.parentNode.removeChild(input);
-                            const inputIndex = photoInputs.indexOf(input);
-                            if (inputIndex > -1) {
-                                photoInputs.splice(inputIndex, 1);
-                                photoInputs.forEach((inp, idx) => {
-                                    inp.name = `photo_${idx + 1}`;
-                                });
+                            const fileIndex = photoFiles.indexOf(file);
+                            if (fileIndex > -1) {
+                                photoFiles.splice(fileIndex, 1);
                             }
                         };
                         
@@ -1250,8 +1288,80 @@ function scrollToTopAndHighlight() {
             };
             
             document.getElementById('createTaloForm').appendChild(input);
-            photoInputs.push(input);
             input.click();
+        }
+        
+        // Create talo with Firebase photo upload
+        async function createTaloWithFirebase() {
+            const content = document.getElementById('taloContent').value;
+            
+            if (!content.trim()) {
+                alert('Please enter some content');
+                return;
+            }
+            
+            if (content.length > MAX_CHARS) {
+                alert(`Content cannot exceed ${MAX_CHARS} characters`);
+                return;
+            }
+            
+            const submitBtn = document.getElementById('submitTaloBtn');
+            const progressDiv = document.getElementById('uploadProgress');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Uploading...';
+            progressDiv.style.display = 'block';
+            
+            try {
+                // Upload photos to Firebase first
+                const photoUrls = [];
+                for (let i = 0; i < photoFiles.length; i++) {
+                    progressBar.style.width = `${((i + 1) / (photoFiles.length + 1)) * 100}%`;
+                    progressText.textContent = `Uploading photo ${i + 1}/${photoFiles.length}...`;
+                    
+                    const file = photoFiles[i];
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `${loggedInUserId}/${Date.now()}/${i}_${Date.now()}.${fileExt}`;
+                    const storageRef = window.firebaseRef(window.firebaseStorage, `talos/${fileName}`);
+                    const snapshot = await window.uploadBytes(storageRef, file);
+                    const downloadURL = await window.getDownloadURL(snapshot.ref);
+                    photoUrls.push({
+                        url: downloadURL,
+                        path: `talos/${fileName}`,
+                        type: file.type
+                    });
+                }
+                
+                progressBar.style.width = '100%';
+                progressText.textContent = 'Creating post...';
+                
+                // Send to backend
+                const response = await fetch('/api/create_talo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content: content,
+                        photos: photoUrls
+                    })
+                });
+                
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    const error = await response.json();
+                    alert('Failed to create post: ' + (error.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error creating post:', error);
+                alert('Failed to create post. Please try again.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Talo →';
+                progressDiv.style.display = 'none';
+                progressBar.style.width = '0%';
+            }
         }
         
         function toggleNotifications() {
@@ -1259,7 +1369,6 @@ function scrollToTopAndHighlight() {
             panel.classList.toggle('show');
         }
         
-        // Profile Edit Functions
         function openProfileEditModal() {
             document.getElementById('profileEditModal').classList.add('active');
         }
@@ -1281,7 +1390,14 @@ function scrollToTopAndHighlight() {
         async function saveProfileChanges() {
             const formData = new FormData();
             const photoFile = document.getElementById('editProfilePhoto').files[0];
-            if (photoFile) formData.append('profile_photo', photoFile);
+            
+            // If new profile photo selected, upload to Firebase first
+            if (photoFile) {
+                const uploadResult = await window.uploadProfilePhotoToFirebase(photoFile, loggedInUserId);
+                formData.append('profile_photo_url', uploadResult.url);
+                formData.append('profile_photo_path', uploadResult.path);
+            }
+            
             formData.append('first_name', document.getElementById('editFirstName').value);
             formData.append('last_name', document.getElementById('editLastName').value);
             formData.append('bio', document.getElementById('editBio').value);
@@ -1303,7 +1419,6 @@ function scrollToTopAndHighlight() {
             }
         }
         
-        // Mobile Menu Functions
         function toggleMobileMenu() {
             const overlay = document.getElementById('mobileMenuOverlay');
             const menu = document.getElementById('mobileMenu');
@@ -1367,7 +1482,6 @@ function scrollToTopAndHighlight() {
             document.getElementById('trendingModal').classList.remove('active');
         }
         
-        // Follow Functions
         async function checkFollowStatus(profileUserId) {
             try {
                 const response = await fetch(`/api/get_follow_status/${profileUserId}`);
@@ -1468,7 +1582,6 @@ function scrollToTopAndHighlight() {
             if (event.target === followingModal) closeFollowingModal();
         }
         
-        // User data for mobile
         const userData = {
             user_id: '{{ user.user_id }}',
             first_name: '{{ user.first_name }}',
@@ -1481,7 +1594,6 @@ function scrollToTopAndHighlight() {
             talos_count: {{ user.talos_count }}
         };
         
-        // Initialize
         const currentProfileUserId = '{{ user.user_id }}';
         if (currentProfileUserId !== loggedInUserId) {
             checkFollowStatus(currentProfileUserId);
@@ -1496,10 +1608,8 @@ function scrollToTopAndHighlight() {
             updateCharCounter();
         }
         
-        // Apply hashtag highlighting after page load
         applyHashtagHighlighting();
         
-        // Pull to refresh
         let touchStartY = 0;
         document.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; });
         document.addEventListener('touchmove', (e) => {
