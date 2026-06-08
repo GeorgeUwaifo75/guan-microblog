@@ -978,6 +978,114 @@
     font-size: 12px;
 }
 
+
+/* Promotion button styling */
+.promote-btn {
+    background: linear-gradient(135deg, #ffcc00 0%, #ffaa00 100%);
+    border: none;
+    color: #990000;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: transform 0.2s;
+}
+
+.promote-btn:hover {
+    transform: scale(1.05);
+}
+
+.promoted-badge {
+    background: #ffcc00;
+    color: #990000;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: bold;
+    margin-left: 8px;
+}
+
+/* Promotion modal */
+.promotion-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 1000;
+    display: none;
+    justify-content: center;
+    align-items: center;
+}
+
+.promotion-modal-content {
+    background: white;
+    border-radius: 20px;
+    width: 90%;
+    max-width: 400px;
+    padding: 25px;
+}
+
+.payment-option {
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 15px;
+    margin: 10px 0;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.payment-option.selected {
+    border-color: #cc0000;
+    background: #fff5f5;
+}
+
+.payment-option:hover {
+    border-color: #cc0000;
+}
+
+.paystack-btn, .paypal-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 15px;
+}
+
+.paystack-btn {
+    background: #1e3c72;
+    color: white;
+}
+
+.paypal-btn {
+    background: #0070ba;
+    color: white;
+}
+
+.progress-container {
+    margin-top: 20px;
+    text-align: center;
+}
+
+/* Feed filter info */
+.feed-info {
+    background: #e8f5e9;
+    border-radius: 10px;
+    padding: 10px 15px;
+    margin-bottom: 15px;
+    font-size: 13px;
+    color: #2e7d32;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
     </style>
 </head>
 <body>
@@ -2124,6 +2232,241 @@ async function retalo(taloId, originalUserId, originalContent, originalPhotos = 
         document.addEventListener('touchmove', (e) => {
             if (window.scrollY === 0 && e.touches[0].clientY - touchStartY > 100) location.reload();
         });
+
+
+// Promotion functionality  //New additions
+let currentPromotionTalo = null;
+
+function openPromotionModal(taloId, content) {
+    currentPromotionTalo = taloId;
+    document.getElementById('promotionModal').style.display = 'flex';
+}
+
+function closePromotionModal() {
+    document.getElementById('promotionModal').style.display = 'none';
+    currentPromotionTalo = null;
+}
+
+function selectPaymentMethod(method) {
+    document.querySelectorAll('.payment-option').forEach(opt => {
+        opt.classList.remove('selected');
+    });
+    document.getElementById(`option-${method}`).classList.add('selected');
+}
+
+async function initiatePromotion() {
+    const selectedOption = document.querySelector('.payment-option.selected');
+    if (!selectedOption) {
+        alert('Please select a payment method');
+        return;
+    }
+    
+    const paymentMethod = selectedOption.dataset.method;
+    const amount = parseFloat(document.getElementById('promotionAmount').value);
+    
+    if (!amount || amount < 100) {
+        alert('Minimum promotion amount is $100/N50,000');
+        return;
+    }
+    
+    const response = await fetch('/api/promote_post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            talo_id: currentPromotionTalo,
+            amount: amount,
+            payment_method: paymentMethod
+        })
+    });
+    
+    if (response.ok) {
+        const data = await response.json();
+        
+        if (paymentMethod === 'paystack') {
+            // Initialize Paystack payment
+            const paystack = new PaystackPop();
+            paystack.newTransaction({
+                key: '{{ paystack_public_key }}',
+                amount: amount * (amount >= 50000 ? 100 : 100), // For NGN or USD conversion
+                email: '{{ user.email }}',
+                onSuccess: async (transaction) => {
+                    await confirmPromotionPayment(data.promotion_id);
+                },
+                onCancel: () => {
+                    alert('Payment cancelled');
+                }
+            });
+        } else if (paymentMethod === 'paypal') {
+            // For PayPal, just confirm and await admin
+            await confirmPromotionPayment(data.promotion_id);
+            alert('Payment recorded. Your post promotion will be activated once admin verifies the PayPal payment to victor_uwafo@yahoo.com');
+            closePromotionModal();
+        }
+    } else {
+        const error = await response.json();
+        alert('Failed to initiate promotion: ' + (error.detail || 'Unknown error'));
+    }
+}
+
+async function confirmPromotionPayment(promotionId) {
+    const response = await fetch(`/api/confirm_promotion_payment/${promotionId}`, {
+        method: 'POST'
+    });
+    
+    if (response.ok) {
+        alert('Promotion request submitted successfully!');
+        closePromotionModal();
+        location.reload();
+    } else {
+        alert('Failed to confirm payment');
+    }
+}
+
+// Update the talo-card HTML to include promote button
+function updateTaloCardHTML(talo) {
+    return `
+        <div class="talo-card" data-talo-id="${talo.id}">
+            <div class="talo-header">
+                <img class="talo-user-photo" src="${talo.user_photo || '/static/default-avatar.png'}" alt="">
+                <div class="talo-user-info">
+                    <a href="/profile/${talo.user_id}" style="text-decoration: none; color: inherit;">
+                        <span class="talo-user-name">${talo.user_name}</span>
+                        <span class="talo-user-id">@${talo.user_id}</span>
+                        ${talo.promoted ? '<span class="promoted-badge">⭐ Promoted</span>' : ''}
+                    </a>
+                    <div class="talo-time">${formatTimeAgo(talo.created_at)}</div>
+                </div>
+                ${talo.user_id === loggedInUserId && !talo.promoted ? 
+                    `<button class="promote-btn" onclick="openPromotionModal('${talo.id}', '${talo.content.replace(/'/g, "\\'")}')">⭐ Promote</button>` : 
+                    ''}
+            </div>
+            <div class="talo-content">${highlightHashtags(talo.content)}</div>
+            ${talo.photos && talo.photos.length > 0 ? `
+                <div class="talo-photos">
+                    ${talo.photos.map(photo => `<img src="${photo.url}" alt="Photo">`).join('')}
+                </div>
+            ` : ''}
+            <div class="talo-stats">
+                <button class="stat-btn like-btn" data-id="${talo.id}">💎 <span class="like-count">${talo.likes}</span></button>
+                <button class="stat-btn dislike-btn" data-id="${talo.id}">👎 <span class="dislike-count">${talo.dislikes || 0}</span></button>
+                <button class="stat-btn retalo-btn" data-id="${talo.id}" data-user-id="${talo.user_id}" data-content="${talo.content.replace(/'/g, "\\'")}" data-photos='${JSON.stringify(talo.photos || [])}'>
+                    🔄 <span class="retalo-count">${talo.retalos}</span>
+                </button>
+                <a href="/post/${talo.id}" class="reply-btn">💬 <span>${talo.reply_count}</span></a>
+            </div>
+        </div>
+    `;
+}
+
+// Update notification loading
+async function loadNotifications() {
+    try {
+        const response = await fetch('/api/get_notifications');
+        const data = await response.json();
+        
+        const notificationsList = document.getElementById('notificationsList');
+        const notificationCountSpan = document.getElementById('notificationCount');
+        
+        if (data.unread_count > 0) {
+            notificationCountSpan.style.display = 'inline-block';
+            notificationCountSpan.textContent = data.unread_count;
+        } else {
+            notificationCountSpan.style.display = 'none';
+        }
+        
+        if (data.notifications && data.notifications.length > 0) {
+            notificationsList.innerHTML = data.notifications.map(notif => `
+                <div class="notification-item ${notif.read ? '' : 'unread'}" onclick="markNotificationRead('${notif.id}')">
+                    <strong>${getNotificationIcon(notif.type)} ${getNotificationTitle(notif.type)}</strong><br>
+                    <small>${notif.message}</small><br>
+                    <small style="color: #999;">${new Date(notif.created_at).toLocaleString()}</small>
+                </div>
+            `).join('');
+        } else {
+            notificationsList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No notifications</div>';
+        }
+    } catch (error) {
+        console.error('Error loading notifications:', error);
+    }
+}
+
+function getNotificationIcon(type) {
+    const icons = {
+        'like': '💎',
+        'reply': '💬',
+        'follow': '👥',
+        'retalo': '🔄',
+        'new_post': '📝',
+        'promotion': '⭐'
+    };
+    return icons[type] || '🔔';
+}
+
+function getNotificationTitle(type) {
+    const titles = {
+        'like': 'Like',
+        'reply': 'Reply',
+        'follow': 'Follow',
+        'retalo': 'Repost',
+        'new_post': 'New Post',
+        'promotion': 'Promotion'
+    };
+    return titles[type] || 'Notification';
+}
+
+function highlightHashtags(content) {
+    const hashtagRegex = /(#\w+)/g;
+    return content.replace(hashtagRegex, match => {
+        return `<span class="hashtag-highlight" onclick="event.stopPropagation(); filterByHashtag('${match}')" style="cursor: pointer;">${match}</span>`;
+    });
+}
+
+function formatTimeAgo(dateStr) {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = Math.floor((now - date) / 1000);
+    if (diff < 60) return `${diff}s`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+    return date.toLocaleDateString();
+}
+
+// Add this HTML for promotion modal at the end of body
+
+
+
+
     </script>
+
+<!-- Promotion Modal -->
+<div id="promotionModal" class="promotion-modal">
+    <div class="promotion-modal-content">
+        <h3 style="color: #cc0000; margin-bottom: 20px;">⭐ Promote Your Post</h3>
+        <p style="margin-bottom: 15px;">Promoted posts get higher visibility in feeds and appear at the top!</p>
+        
+        <div class="form-group">
+            <label>Amount ($USD / ₦NGN)</label>
+            <input type="number" id="promotionAmount" class="form-control" placeholder="Minimum $100 / ₦50,000" min="100" step="1">
+        </div>
+        
+        <div class="payment-option" id="option-paystack" data-method="paystack" onclick="selectPaymentMethod('paystack')">
+            <strong>🇳🇬 Paystack</strong> - Pay with card, bank transfer, USSD
+        </div>
+        
+        <div class="payment-option" id="option-paypal" data-method="paypal" onclick="selectPaymentMethod('paypal')">
+            <strong>🌍 PayPal</strong> - Pay with PayPal (International)
+        </div>
+        
+        <p style="font-size: 12px; color: #666; margin-top: 10px;">
+            Note: PayPal payments require admin verification. You will be notified once your post is promoted.
+        </p>
+        
+        <button class="paystack-btn" onclick="initiatePromotion()">Continue to Payment →</button>
+        <button style="width: 100%; padding: 10px; margin-top: 10px; background: #ccc; border: none; border-radius: 10px; cursor: pointer;" onclick="closePromotionModal()">Cancel</button>
+    </div>
+</div>
+
+<!-- Paystack Script -->
+<script src="https://js.paystack.co/v1/inline.js"></script>
 </body>
 </html>

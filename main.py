@@ -17,6 +17,52 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import os
 
+import re
+from typing import List, Set
+
+# ===== BANNED WORDS CONFIGURATION =====
+BANNED_WORDS = {
+    'kill', 'bomb', 'have sex', 'porn', 'cum', 'fuck', 'penis', 'dick', 'blow job',
+    'ass', 'boob', 'butt', 'bullets', 'guns', 'weapon', 'pussy', 'tits', 'titties',
+    'doggy', 'yansh', 'yash', 'prick', 'toto', 'homosexual', 'gay', 'terrorist',
+    'lgbt', 'lgbtq+', 'bitch', 'whore', 'slut', 'ugly', 'retard', 'vagina',
+    'clitoris', 'seggs', 'prostitute', 'cocaine', 'crack cocaine', 'booty', 'nigga',
+    'nigger', 'zionist', 'heroin', 'meth', 'weed', 'marijuana', 'cannabis', 'suicide',
+    'suicidal', 'shoot', 'obidiots', 'slave', 'died', 'queer', 'transgender',
+    'intersex', 'abortion', 'sexual', 'orgasm', 'nipple', 'onlyfans', 'sex worker',
+    'stripper', 'lingerie', 'rape', 'sexual assault', 'pedophile', 'nazi', 'swastika',
+    'hitler', 'jews', 'lesbian'
+}
+
+# Compile regex pattern for banned words (case insensitive)
+BANNED_PATTERN = re.compile(r'\b(' + '|'.join(re.escape(word) for word in BANNED_WORDS) + r')\b', re.IGNORECASE)
+
+def contains_banned_words(text: str) -> bool:
+    """Check if text contains any banned words"""
+    if not text:
+        return False
+    return bool(BANNED_PATTERN.search(text))
+
+def filter_banned_words(text: str) -> str:
+    """Replace banned words with asterisks"""
+    if not text:
+        return text
+    
+    def replace_word(match):
+        return '*' * len(match.group(0))
+    
+    return BANNED_PATTERN.sub(replace_word, text)
+
+# ===== PROMOTION SYSTEM =====
+class PromotionRequest(BaseModel):
+    talo_id: str
+    amount: float
+    payment_method: str  # 'paystack' or 'paypal'
+
+# ===== PAYPAL CONFIGURATION =====
+PAYPAL_EMAIL = 'victor_uwafo@yahoo.com'
+
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -312,7 +358,7 @@ async def api_login(login_data: UserLogin):
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    """User dashboard"""
+    """User dashboard with personalized feed"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         return RedirectResponse(url="/", status_code=303)
@@ -326,7 +372,7 @@ async def dashboard(request: Request):
             break
     
     if not user:
-        # Check if it's an admin trying to access user dashboard
+        # Check if it's an admin
         for admin in data.get("admins", []):
             if admin.get("session_token") == session_token:
                 return RedirectResponse(url="/admin", status_code=303)
@@ -338,23 +384,38 @@ async def dashboard(request: Request):
     user["last_active"] = datetime.now().isoformat()
     await save_jsonbin_data(data)
     
-    # Get talos (main posts)
+    # Get personalized feed (only posts from followed users + own posts)
+    followed_user_ids = set()
+    for follow in data.get("follows", []):
+        if follow.get("follower_id") == user["user_id"]:
+            followed_user_ids.add(follow.get("following_id"))
+    followed_user_ids.add(user["user_id"])
+    
+    # Get talos from followed users
     talos = data.get("talos", [])
-    # Get replies
-    replies = data.get("replies", [])
+    personal_talos = []
     
-    # Add user info to talos and count replies
     for talo in talos:
-        for u in data.get("users", []):
-            if u["user_id"] == talo["user_id"]:
-                talo["user_name"] = f"{u['first_name']} {u['last_name']}"
-                talo["user_photo"] = u.get("profile_photo")
-                break
-        talo["reply_count"] = len([r for r in replies if r.get("parent_talo_id") == talo["id"]])
+        if talo["user_id"] in followed_user_ids:
+            # Add user info
+            for u in data.get("users", []):
+                if u["user_id"] == talo["user_id"]:
+                    talo["user_name"] = f"{u['first_name']} {u['last_name']}"
+                    talo["user_photo"] = u.get("profile_photo")
+                    break
+            talo["reply_count"] = len([r for r in data.get("replies", []) if r.get("parent_talo_id") == talo["id"]])
+            personal_talos.append(talo)
     
-    # Calculate trending topics
+    # Sort by creation date (newest first) - promoted posts get priority
+    def sort_priority(talo):
+        promotion_boost = 1000 if talo.get("promoted", False) else 0
+        return (datetime.now() - datetime.fromisoformat(talo.get("created_at", datetime.now().isoformat()))).total_seconds() - promotion_boost
+    
+    personal_talos.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    
+    # Get trending topics (from visible posts only)
     words = []
-    for talo in talos:
+    for talo in personal_talos:
         words.extend(talo.get("content", "").split())
     word_count = {}
     for word in words:
@@ -366,13 +427,83 @@ async def dashboard(request: Request):
     day_ago = (datetime.now() - timedelta(days=1)).isoformat()
     active_users = len([u for u in data.get("users", []) if u.get("last_active", "") > day_ago])
     
+    # Get unread notifications count
+    notifications = [n for n in data.get("notifications", []) if n.get("user_id") == user["user_id"]]
+    unread_notifications = len([n for n in notifications if not n.get("read", False)])
+    
+    # Get Paystack public key
+    paystack_public_key = PAYSTACK_PUBLIC_KEY
+    
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "user": user,
-        "talos": talos[:50],
+        "talos": personal_talos[:50],
         "trending": trending,
-        "active_users": active_users
+        "active_users": active_users,
+        "unread_notifications": unread_notifications,
+        "paystack_public_key": paystack_public_key
     })
+
+
+@app.post("/api/admin/check_banned_words")
+async def check_banned_words_content(request: Request):
+    """Check content for banned words (for admin use)"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+    
+    if not admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    body = await request.json()
+    content = body.get("content", "")
+    
+    return {
+        "contains_banned_words": contains_banned_words(content),
+        "banned_words_found": [w for w in BANNED_WORDS if w.lower() in content.lower()]
+    }
+
+@app.get("/api/admin/get_promotion_requests")
+async def get_admin_promotion_requests(request: Request):
+    """Get pending promotion requests for admin"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+    
+    if not admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    pending_promotions = [p for p in data.get("promotions", []) if p.get("status") == "pending_admin"]
+    
+    # Add user info
+    for p in pending_promotions:
+        for u in data.get("users", []):
+            if u["user_id"] == p["user_id"]:
+                p["user_name"] = f"{u['first_name']} {u['last_name']}"
+                break
+        # Get talo content
+        for t in data.get("talos", []):
+            if t["id"] == p["talo_id"]:
+                p["talo_content"] = t["content"][:100]
+                break
+    
+    return {"promotions": pending_promotions}
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
@@ -560,7 +691,7 @@ async def view_post(request: Request, talo_id: str):
 
 @app.post("/api/create_talo")
 async def create_talo(request: Request):
-    """Create a new talo/post with Firebase photo URLs"""
+    """Create a new talo/post with Firebase photo URLs and banned word filtering"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -579,6 +710,10 @@ async def create_talo(request: Request):
     body = await request.json()
     content = body.get("content", "")
     photos = body.get("photos", [])
+    
+    # Check for banned words
+    if contains_banned_words(content):
+        raise HTTPException(status_code=400, detail="Your post contains inappropriate language. Please review and try again.")
     
     if len(content) > 250:
         raise HTTPException(status_code=400, detail="Talo cannot exceed 250 characters")
@@ -603,11 +738,35 @@ async def create_talo(request: Request):
     user["talos_count"] = user.get("talos_count", 0) + 1
     await save_jsonbin_data(data)
     
+    # Create notifications for followers
+    followers = []
+    for follow in data.get("follows", []):
+        if follow.get("following_id") == user["user_id"]:
+            followers.append(follow.get("follower_id"))
+    
+    for follower_id in followers:
+        if "notifications" not in data:
+            data["notifications"] = []
+        
+        notification = {
+            "id": str(uuid.uuid4()),
+            "user_id": follower_id,
+            "type": "new_post",
+            "message": f"@{user['user_id']} posted a new talo: {content[:50]}...",
+            "related_talo_id": talo["id"],
+            "from_user_id": user["user_id"],
+            "read": False,
+            "created_at": datetime.now().isoformat()
+        }
+        data["notifications"].append(notification)
+    
+    await save_jsonbin_data(data)
+    
     return {"message": "Talo created successfully", "talo_id": talo["id"]}
 
 @app.post("/api/create_reply/{parent_talo_id}")
 async def create_reply(request: Request, parent_talo_id: str):
-    """Create a reply to a talo with Firebase photo URL"""
+    """Create a reply to a talo with Firebase photo URL and banned word filtering"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -625,9 +784,11 @@ async def create_reply(request: Request, parent_talo_id: str):
     
     # Check if parent talo exists
     parent_talo = None
+    talo_owner_id = None
     for t in data.get("talos", []):
         if t["id"] == parent_talo_id:
             parent_talo = t
+            talo_owner_id = t["user_id"]
             break
     
     if not parent_talo:
@@ -636,6 +797,10 @@ async def create_reply(request: Request, parent_talo_id: str):
     body = await request.json()
     content = body.get("content", "")
     photo = body.get("photo")
+    
+    # Check for banned words
+    if contains_banned_words(content):
+        raise HTTPException(status_code=400, detail="Your reply contains inappropriate language. Please review and try again.")
     
     if not content or len(content) > 250:
         raise HTTPException(status_code=400, detail="Reply must be between 1 and 250 characters")
@@ -656,6 +821,24 @@ async def create_reply(request: Request, parent_talo_id: str):
     
     # Update reply count on parent talo
     parent_talo["reply_count"] = len([r for r in data["replies"] if r.get("parent_talo_id") == parent_talo_id])
+    
+    # Create notification for talo owner
+    if talo_owner_id != user["user_id"]:
+        if "notifications" not in data:
+            data["notifications"] = []
+        
+        notification = {
+            "id": str(uuid.uuid4()),
+            "user_id": talo_owner_id,
+            "type": "reply",
+            "message": f"@{user['user_id']} replied to your post: {content[:50]}...",
+            "related_talo_id": parent_talo_id,
+            "reply_id": reply["id"],
+            "from_user_id": user["user_id"],
+            "read": False,
+            "created_at": datetime.now().isoformat()
+        }
+        data["notifications"].append(notification)
     
     await save_jsonbin_data(data)
     
@@ -1670,7 +1853,7 @@ async def create_retalo(request: Request):
 
 @app.get("/api/get_notifications")
 async def get_notifications(request: Request):
-    """Get notifications for the current user"""
+    """Get notifications for the current user with unread count"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -1690,7 +1873,33 @@ async def get_notifications(request: Request):
     # Sort by created_at descending
     notifications.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     
-    return {"notifications": notifications}
+    unread_count = len([n for n in notifications if not n.get("read", False)])
+    
+    return {"notifications": notifications, "unread_count": unread_count}
+@app.post("/api/mark_all_notifications_read")
+async def mark_all_notifications_read(request: Request):
+    """Mark all notifications as read for the current user"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    for notification in data.get("notifications", []):
+        if notification.get("user_id") == user["user_id"]:
+            notification["read"] = True
+    
+    await save_jsonbin_data(data)
+    return {"message": "All notifications marked as read"}
 
 @app.post("/api/mark_notification_read/{notification_id}")
 async def mark_notification_read(notification_id: str, request: Request):
@@ -1898,6 +2107,265 @@ async def follow_user_with_notification(user_id_to_follow: str, request: Request
         
         await save_jsonbin_data(data)
         return {"following": True, "followers_count": target_user["followers_count"]}
+
+@app.get("/api/feed")
+async def get_personalized_feed(request: Request):
+    """Get personalized feed based on follows (only show posts from followed users)"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    # Get IDs of users this user follows
+    followed_user_ids = set()
+    for follow in data.get("follows", []):
+        if follow.get("follower_id") == user["user_id"]:
+            followed_user_ids.add(follow.get("following_id"))
+    
+    # Also include the user's own posts
+    followed_user_ids.add(user["user_id"])
+    
+    # Get talos from followed users
+    talos = data.get("talos", [])
+    filtered_talos = []
+    
+    for talo in talos:
+        if talo["user_id"] in followed_user_ids:
+            # Add user info
+            for u in data.get("users", []):
+                if u["user_id"] == talo["user_id"]:
+                    talo["user_name"] = f"{u['first_name']} {u['last_name']}"
+                    talo["user_photo"] = u.get("profile_photo")
+                    break
+            
+            # Get reply count
+            talo["reply_count"] = len([r for r in data.get("replies", []) if r.get("parent_talo_id") == talo["id"]])
+            filtered_talos.append(talo)
+    
+    # Sort by creation date (newest first)
+    filtered_talos.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    
+    # Get replies for these talos
+    replies = data.get("replies", [])
+    
+    return {
+        "talos": filtered_talos[:100],
+        "replies": replies
+    }
+
+@app.post("/api/promote_post")
+async def promote_post(request: Request, promotion: PromotionRequest):
+    """Initiate post promotion payment"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    # Find the talo
+    talo = None
+    for t in data.get("talos", []):
+        if t["id"] == promotion.talo_id:
+            talo = t
+            break
+    
+    if not talo:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    if talo["user_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="You can only promote your own posts")
+    
+    # Create promotion request record
+    promotion_id = str(uuid.uuid4())
+    promotion_record = {
+        "id": promotion_id,
+        "talo_id": promotion.talo_id,
+        "user_id": user["user_id"],
+        "amount": promotion.amount,
+        "payment_method": promotion.payment_method,
+        "status": "pending",
+        "created_at": datetime.now().isoformat()
+    }
+    
+    if "promotions" not in data:
+        data["promotions"] = []
+    data["promotions"].append(promotion_record)
+    await save_jsonbin_data(data)
+    
+    return {
+        "promotion_id": promotion_id,
+        "message": "Promotion request created. Complete payment to activate."
+    }
+
+@app.post("/api/confirm_promotion_payment/{promotion_id}")
+async def confirm_promotion_payment(promotion_id: str, request: Request):
+    """Confirm promotion payment (for PayPal - requires admin approval)"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    # Find promotion
+    promotion = None
+    for p in data.get("promotions", []):
+        if p["id"] == promotion_id:
+            promotion = p
+            break
+    
+    if not promotion:
+        raise HTTPException(status_code=404, detail="Promotion not found")
+    
+    if promotion["user_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    # Update promotion status to pending_admin (for PayPal)
+    promotion["status"] = "pending_admin"
+    promotion["payment_confirmed_at"] = datetime.now().isoformat()
+    
+    # Create admin notification for PayPal payment
+    if promotion["payment_method"] == "paypal":
+        if "admin_notifications" not in data:
+            data["admin_notifications"] = []
+        
+        admin_notification = {
+            "id": str(uuid.uuid4()),
+            "type": "promotion_payment",
+            "promotion_id": promotion_id,
+            "user_id": user["user_id"],
+            "amount": promotion["amount"],
+            "message": f"User @{user['user_id']} has paid for post promotion (${promotion['amount']}) via PayPal. Please verify and activate.",
+            "read": False,
+            "created_at": datetime.now().isoformat()
+        }
+        data["admin_notifications"].append(admin_notification)
+    
+    await save_jsonbin_data(data)
+    
+    return {"message": "Payment recorded. Awaiting admin verification for PayPal payments, or promotion activated for Paystack."}
+
+@app.post("/api/admin/activate_promotion/{promotion_id}")
+async def activate_promotion(promotion_id: str, request: Request):
+    """Admin: Activate a promoted post (for PayPal payments)"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+    
+    if not admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Find promotion
+    promotion = None
+    promotion_index = None
+    for i, p in enumerate(data.get("promotions", [])):
+        if p["id"] == promotion_id:
+            promotion = p
+            promotion_index = i
+            break
+    
+    if not promotion:
+        raise HTTPException(status_code=404, detail="Promotion not found")
+    
+    # Find the talo and mark as promoted
+    for talo in data.get("talos", []):
+        if talo["id"] == promotion["talo_id"]:
+            talo["promoted"] = True
+            talo["promotion_level"] = promotion.get("amount", 0) // 100  # $100 = level 1
+            talo["promoted_at"] = datetime.now().isoformat()
+            talo["promoted_by"] = admin["user_id"]
+            break
+    
+    # Update promotion status
+    promotion["status"] = "activated"
+    promotion["activated_at"] = datetime.now().isoformat()
+    promotion["activated_by"] = admin["user_id"]
+    
+    data["promotions"][promotion_index] = promotion
+    await save_jsonbin_data(data)
+    
+    # Create notification for user
+    if "notifications" not in data:
+        data["notifications"] = []
+    
+    notification = {
+        "id": str(uuid.uuid4()),
+        "user_id": promotion["user_id"],
+        "type": "promotion",
+        "message": "Your post promotion has been activated! Your post will get higher visibility.",
+        "related_talo_id": promotion["talo_id"],
+        "read": False,
+        "created_at": datetime.now().isoformat()
+    }
+    data["notifications"].append(notification)
+    await save_jsonbin_data(data)
+    
+    return {"message": "Promotion activated successfully"}
+
+@app.get("/api/get_admin_promotion_requests")
+async def get_admin_promotion_requests(request: Request):
+    """Get pending promotion requests for admin"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+    
+    if not admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    pending_promotions = [p for p in data.get("promotions", []) if p.get("status") == "pending_admin"]
+    
+    # Add user info
+    for p in pending_promotions:
+        for u in data.get("users", []):
+            if u["user_id"] == p["user_id"]:
+                p["user_name"] = f"{u['first_name']} {u['last_name']}"
+                break
+    
+    return {"promotions": pending_promotions}
+
 
 @app.get("/api/health")
 async def health_check():

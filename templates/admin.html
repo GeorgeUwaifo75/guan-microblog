@@ -309,6 +309,7 @@
             <button class="tab-btn" onclick="showTab('premium')">⭐ Premium Requests</button>
             <button class="tab-btn" onclick="showTab('payments')">💰 Payments</button>
             <button class="tab-btn" onclick="showTab('reports')">📊 Reports</button>
+            <button class="tab-btn" onclick="showTab('promotions')">⭐ Promotions</button>
         </div>
 
         <!-- Users Tab -->
@@ -521,6 +522,16 @@
             </div>
         </div>
 
+<!-- Promotions Tab -->
+<div id="promotionsTab" class="tab-content">
+    <div class="section">
+        <h2>⭐ Post Promotion Requests (PayPal)</h2>
+        <div id="promotionsList">
+            Loading promotion requests...
+        </div>
+    </div>
+</div>
+
         <!-- Reports Tab -->
         <div id="reportsTab" class="tab-content">
             <div class="section">
@@ -715,6 +726,76 @@
             }
         }
         
+
+async function loadPromotions() {
+    const promotionsDiv = document.getElementById('promotionsList');
+    try {
+        const response = await fetch('/api/admin/get_promotion_requests');
+        const data = await response.json();
+        
+        if (data.promotions && data.promotions.length > 0) {
+            promotionsDiv.innerHTML = `
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Post Preview</th>
+                                <th>Amount</th>
+                                <th>Payment Method</th>
+                                <th>Requested Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.promotions.map(p => `
+                                <tr>
+                                    <td>${p.user_name} (@${p.user_id})</td>
+                                    <td>${p.talo_content || 'N/A'}</td>
+                                    <td>${p.payment_method === 'paystack' ? '₦' : '$'}${p.amount}</td>
+                                    <td>${p.payment_method.toUpperCase()}</td>
+                                    <td>${new Date(p.created_at).toLocaleString()}</td>
+                                    <td>
+                                        <button class="btn-sm btn-approve" onclick="activatePromotion('${p.id}')">Activate Promotion</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        } else {
+            promotionsDiv.innerHTML = '<p style="text-align: center; padding: 20px;">No pending promotion requests</p>';
+        }
+    } catch (error) {
+        console.error('Error loading promotions:', error);
+        promotionsDiv.innerHTML = '<p style="text-align: center; color: #dc3545;">Error loading promotion requests</p>';
+    }
+}
+
+async function activatePromotion(promotionId) {
+    if (confirm('Activate this post promotion? The post will get higher visibility.')) {
+        const response = await fetch(`/api/admin/activate_promotion/${promotionId}`, { method: 'POST' });
+        if (response.ok) {
+            alert('Promotion activated successfully!');
+            loadPromotions();
+        } else {
+            alert('Failed to activate promotion');
+        }
+    }
+}
+
+// Update showTab function to include promotions
+const originalShowTab = window.showTab;
+window.showTab = function(tabName) {
+    originalShowTab(tabName);
+    if (tabName === 'promotions') {
+        loadPromotions();
+    }
+}
+
+
+
         function openCreateAdminModal() {
             document.getElementById('createAdminModal').style.display = 'flex';
         }
