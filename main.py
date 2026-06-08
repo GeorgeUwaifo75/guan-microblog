@@ -1535,6 +1535,8 @@ async def get_latest_talo_timestamp(request: Request):
     
     return {"latest_timestamp": None}
 
+# Replace the existing retalo endpoint in main.py with this enhanced version:
+
 @app.post("/api/retalo")
 async def create_retalo(request: Request):
     """Create a retalo/repost - shares original post to followers and notifies original poster"""
@@ -1557,14 +1559,25 @@ async def create_retalo(request: Request):
     original_talo_id = body.get("original_talo_id")
     original_user_id = body.get("original_user_id")
     original_content = body.get("original_content")
+    original_photos = body.get("original_photos", [])  # Get original photos
     
     if not original_talo_id:
         raise HTTPException(status_code=400, detail="Original talo ID required")
     
+    # Get the original talo details
+    original_talo = None
+    for talo in data.get("talos", []):
+        if talo["id"] == original_talo_id:
+            original_talo = talo
+            break
+    
+    if not original_talo:
+        raise HTTPException(status_code=404, detail="Original post not found")
+    
     # Check if user already retaled this post
     for retalo in data.get("retalos", []):
         if retalo.get("user_id") == user["user_id"] and retalo.get("original_talo_id") == original_talo_id:
-            raise HTTPException(status_code=400, detail="You have already retaled this post")
+            raise HTTPException(status_code=400, detail="You have already reposted this post")
     
     # Create retalo record
     retalo = {
@@ -1573,6 +1586,7 @@ async def create_retalo(request: Request):
         "original_talo_id": original_talo_id,
         "original_user_id": original_user_id,
         "original_content": original_content,
+        "original_photos": original_talo.get("photos", []),  # Store original photos
         "created_at": datetime.now().isoformat()
     }
     
@@ -1586,12 +1600,12 @@ async def create_retalo(request: Request):
             talo["retalos"] = talo.get("retalos", 0) + 1
             break
     
-    # Create a visible retalo post in the feed
+    # Create a visible retalo post in the feed with original content
     retalo_post = {
         "id": str(uuid.uuid4()),
         "user_id": user["user_id"],
-        "content": f"🔄 Reposted from @{original_user_id}",
-        "photos": [],
+        "content": original_content,  # Use original content instead of just a message
+        "photos": original_talo.get("photos", []),  # Include original photos
         "likes": 0,
         "dislikes": 0,
         "retalos": 0,
@@ -1600,7 +1614,8 @@ async def create_retalo(request: Request):
         "is_retalo": True,
         "original_talo_id": original_talo_id,
         "original_user_id": original_user_id,
-        "original_content": original_content[:200]  # Limit content length
+        "retalo_user_name": f"{user['first_name']} {user['last_name']}",
+        "retalo_user_id": user["user_id"]
     }
     
     data["talos"].insert(0, retalo_post)
@@ -1615,7 +1630,7 @@ async def create_retalo(request: Request):
             "id": str(uuid.uuid4()),
             "user_id": original_user_id,
             "type": "retalo",
-            "message": f"@{user['user_id']} reposted your talo",
+            "message": f"@{user['user_id']} reposted your post: {original_content[:50]}...",
             "related_talo_id": original_talo_id,
             "from_user_id": user["user_id"],
             "read": False,
@@ -1623,7 +1638,7 @@ async def create_retalo(request: Request):
         }
         data["notifications"].append(notification)
     
-    # Create notifications for followers
+    # Create notifications for all followers of the user
     followers = []
     for follow in data.get("follows", []):
         if follow.get("following_id") == user["user_id"]:
@@ -1647,7 +1662,11 @@ async def create_retalo(request: Request):
     
     await save_jsonbin_data(data)
     
-    return {"message": "Talo retaled successfully", "retalo_id": retalo["id"]}
+    return {
+        "message": "Post reposted successfully!", 
+        "retalo_id": retalo["id"],
+        "retalo_post": retalo_post
+    }
 
 @app.get("/api/get_notifications")
 async def get_notifications(request: Request):

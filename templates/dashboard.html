@@ -862,6 +862,122 @@
             border-radius: 8px;
             font-size: 13px;
         }
+
+/* Add to the style section of dashboard.html */
+.flash-notification {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 50px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
+
+.flash-notification.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.flash-notification.error {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+}
+
+.flash-notification.warning {
+    background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+    color: #333;
+}
+
+.flash-notification-icon {
+    font-size: 20px;
+}
+
+.flash-notification-message {
+    flex: 1;
+}
+
+/* Updated retalo card styling */
+.retalo-card {
+    background: #f8f9fa;
+    border-left: 3px solid #28a745;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 10px;
+    font-size: 13px;
+}
+
+.retalo-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed #ddd;
+    font-size: 12px;
+    color: #28a745;
+}
+
+.retalo-original-content {
+    color: #555;
+    line-height: 1.4;
+}
+
+.retalo-original-photos {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.retalo-original-photos img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+/* Add to style section - better repost styling */
+.repost-info {
+    background: #e8f5e9;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    color: #2e7d32;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.repost-info::before {
+    content: '🔄';
+    font-size: 14px;
+}
+
+.repost-original-author {
+    font-weight: bold;
+    color: #1b5e20;
+}
+
+.original-post-preview {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed #c8e6c9;
+    color: #555;
+    font-size: 12px;
+}
+
     </style>
 </head>
 <body>
@@ -1032,6 +1148,30 @@
                         </div>
                     </div>
                     <div class="talo-content" id="taloContent_{{ talo.id }}">{{ talo.content }}</div>
+
+<!-- After the talo content, before photos -->
+{% if talo.is_retalo %}
+<div class="repost-info">
+    <span>🔄 Reposted from @{{ talo.original_user_id }}</span>
+</div>
+<div class="original-post-preview">
+    <div style="font-weight: 500; margin-bottom: 5px;">Original post:</div>
+    <div>{{ talo.content[:150] }}{% if talo.content|length > 150 %}...{% endif %}</div>
+    {% if talo.photos and talo.photos|length > 0 %}
+    <div class="talo-photos" style="margin-top: 8px;">
+        {% for photo in talo.photos[:2] %}
+            <img src="{{ photo.url }}" alt="Photo" style="width: 50px; height: 50px; object-fit: cover;">
+        {% endfor %}
+        {% if talo.photos|length > 2 %}
+            <span style="font-size: 11px; color: #666;">+{{ talo.photos|length - 2 }} more</span>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+
+
                     {% if talo.photos and talo.photos|length > 0 %}
                     <div class="talo-photos">
                         {% for photo in talo.photos %}
@@ -1051,7 +1191,10 @@
                     <div class="talo-stats">
                         <button class="stat-btn like-btn" data-id="{{ talo.id }}">💎 <span class="like-count">{{ talo.likes }}</span></button>
                         <button class="stat-btn dislike-btn" data-id="{{ talo.id }}">👎 <span class="dislike-count">{{ talo.dislikes }}</span></button>
-                        <button class="stat-btn retalo-btn" data-id="{{ talo.id }}" data-user-id="{{ talo.user_id }}" data-content="{{ talo.content }}">🔄 <span class="retalo-count">{{ talo.retalos }}</span></button>
+                        <button class="stat-btn retalo-btn" data-id="{{ talo.id }}" data-user-id="{{ talo.user_id }}" data-content="{{ talo.content }}" 
+                           data-photos='{{ talo.photos|tojson }}'>
+                             🔄 <span class="retalo-count">{{ talo.retalos }}</span>
+                          </button>
                         <a href="/post/{{ talo.id }}" class="reply-btn" style="background: none; border: none; color: #666; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
                             💬 <span>{{ talo.reply_count }}</span>
                         </a>
@@ -1221,6 +1364,11 @@
         }
         
         // Retalo function
+
+
+
+
+/*
         async function retalo(taloId, originalUserId, originalContent) {
             try {
                 const response = await fetch('/api/retalo', {
@@ -1260,6 +1408,103 @@
             }
         }
         
+*/
+
+// Replace the existing retalo function with this enhanced version:
+
+// Flash notification function
+function showFlashNotification(message, type = 'success') {
+    // Remove existing notification if any
+    const existingNotification = document.querySelector('.flash-notification');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `flash-notification ${type}`;
+    
+    let icon = '🔄';
+    if (type === 'success') icon = '✅';
+    else if (type === 'error') icon = '❌';
+    else if (type === 'warning') icon = '⚠️';
+    
+    notification.innerHTML = `
+        <span class="flash-notification-icon">${icon}</span>
+        <span class="flash-notification-message">${message}</span>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Trigger animation
+    setTimeout(() => notification.classList.add('show'), 10);
+    
+    // Remove after 2.5 seconds
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
+    }, 2500);
+}
+
+async function retalo(taloId, originalUserId, originalContent, originalPhotos = []) {
+    // Show loading state on the button
+    const btn = document.querySelector(`.retalo-btn[data-id="${taloId}"]`);
+    const originalText = btn.innerHTML;
+    
+    if (btn) {
+        btn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px;"></span> Reposting...';
+        btn.disabled = true;
+    }
+    
+    try {
+        const response = await fetch('/api/retalo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                original_talo_id: taloId,
+                original_user_id: originalUserId,
+                original_content: originalContent,
+                original_photos: originalPhotos
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Update retalo count on the original button
+            if (btn) {
+                const countSpan = btn.querySelector('.retalo-count');
+                if (countSpan) {
+                    countSpan.textContent = parseInt(countSpan.textContent) + 1;
+                }
+                btn.classList.add('retaled');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+            
+            // Show success flash notification
+            showFlashNotification('✓ Post reposted successfully! It will appear in your followers\' feeds.', 'success');
+            
+            // Reload after a short delay to show the repost in feed
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            showFlashNotification(data.detail || 'Failed to repost. Please try again.', 'error');
+            if (btn) {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+    } catch (error) {
+        console.error('Error retaling:', error);
+        showFlashNotification('Network error. Please check your connection.', 'error');
+        if (btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+}
+
+
         // Load notifications
         async function loadNotifications() {
             try {
@@ -1466,14 +1711,25 @@
         
         // Retalo button handlers
         document.querySelectorAll('.retalo-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const taloId = btn.dataset.id;
-                const userId = btn.dataset.userId;
-                const content = btn.dataset.content;
-                retalo(taloId, userId, content);
-            });
-        });
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const taloId = btn.dataset.id;
+        const userId = btn.dataset.userId;
+        const content = btn.dataset.content;
+        let photos = [];
+        
+        // Parse photos if present
+        if (btn.dataset.photos && btn.dataset.photos !== '[]') {
+            try {
+                photos = JSON.parse(btn.dataset.photos);
+            } catch (e) {
+                photos = [];
+            }
+        }
+        
+        retalo(taloId, userId, content, photos);
+    });
+});
         
         function addPhotoInput() {
             if (photoFiles.length >= 4) {
