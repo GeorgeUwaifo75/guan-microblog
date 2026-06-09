@@ -772,6 +772,7 @@
         }
 
 <!-- Add these styles to the existing <style> section in dashboard.html -->
+/* Profile Edit Modal - Fixed centered popup overlay */
 .profile-edit-modal {
     position: fixed;
     top: 0;
@@ -785,12 +786,12 @@
     visibility: hidden;
     opacity: 0;
     transition: visibility 0.3s, opacity 0.3s;
+    display: flex !important;
 }
 
 .profile-edit-modal.active {
     visibility: visible;
     opacity: 1;
-    display: flex !important;
 }
 
 .profile-edit-content {
@@ -803,12 +804,117 @@
     position: relative;
     transform: scale(0.9);
     transition: transform 0.3s ease;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 }
 
 .profile-edit-modal.active .profile-edit-content {
     transform: scale(1);
 }
 
+.profile-edit-header {
+    background: #cc0000;
+    color: white;
+    padding: 18px 20px;
+    border-radius: 20px 20px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.profile-edit-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.profile-edit-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 28px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.profile-edit-close:hover {
+    opacity: 1;
+}
+
+.profile-edit-content .form-group {
+    margin-bottom: 20px;
+    padding: 0 20px;
+}
+
+.profile-edit-content .form-group label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #333;
+}
+
+.profile-edit-content .form-group input,
+.profile-edit-content .form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+.profile-edit-content .form-group input:focus,
+.profile-edit-content .form-group textarea:focus {
+    outline: none;
+    border-color: #cc0000;
+}
+
+.profile-photo-preview {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: 12px;
+    border: 3px solid #cc0000;
+    display: block;
+}
+
+.photo-upload-label {
+    display: inline-block;
+    background: #f0f0f0;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.2s;
+    margin-top: 8px;
+}
+
+.photo-upload-label:hover {
+    background: #e0e0e0;
+}
+
+.save-profile-btn {
+    background: #cc0000;
+    color: white;
+    border: none;
+    padding: 14px 20px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    width: calc(100% - 40px);
+    margin: 0 20px 20px 20px;
+    transition: transform 0.2s, background 0.2s;
+}
+
+.save-profile-btn:hover {
+    background: #990000;
+    transform: translateY(-1px);
+}
 /* The rest of the modal styles remain the same */
 </style>
 
@@ -1046,6 +1152,7 @@
         </form>
     </div>
 </div>
+
 
     <div id="promotionModal" class="promotion-modal">
         <div class="promotion-modal-content">
@@ -1600,12 +1707,62 @@
         }
         
      function openProfileEditModal() { 
-    document.getElementById('profileEditModal').classList.add('active'); 
+    const modal = document.getElementById('profileEditModal');
+    if (modal) {
+        modal.classList.add('active');
+        // Also populate the form with current values
+        document.getElementById('editFirstName').value = userData.first_name || '';
+        document.getElementById('editLastName').value = userData.last_name || '';
+        document.getElementById('editBio').value = userData.bio || '';
+        const previewImg = document.getElementById('editProfilePhotoPreview');
+        if (previewImg && userData.profile_photo) {
+            previewImg.src = userData.profile_photo;
+        }
+    }
 }
 
 function closeProfileEditModal() { 
-    document.getElementById('profileEditModal').classList.remove('active'); 
+    const modal = document.getElementById('profileEditModal');
+    if (modal) {
+        modal.classList.remove('active');
+        // Clear file input
+        const fileInput = document.getElementById('editProfilePhoto');
+        if (fileInput) fileInput.value = '';
+    }
 }
+
+
+function previewProfilePhoto(input) {
+    const preview = document.getElementById('editProfilePhotoPreview');
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// Close modal on escape key press
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const modal = document.getElementById('profileEditModal');
+        if (modal && modal.classList.contains('active')) {
+            closeProfileEditModal();
+        }
+    }
+});
+
+// Close modal when clicking outside the content
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('profileEditModal');
+    if (modal && modal.classList.contains('active')) {
+        const content = modal.querySelector('.profile-edit-content');
+        if (content && !content.contains(event.target)) {
+            closeProfileEditModal();
+        }
+    }
+});
 
 // Close modal on escape key press
 document.addEventListener('keydown', function(event) {
