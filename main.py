@@ -92,9 +92,6 @@ BIN_ID = '6a1c737827e57e6773a47627'
 USER_ID = 'Admin01'
 API_KEY = 'admin_97375e28712d7627e7cea67c8c86d60d'
 
-
-https://jsonbinbro.onrender.com/api/bins/6a1c737827e57e6773a47627?api_key=admin_97375e28712d7627e7cea67c8c86d60d
-
 # Configuration
 PAYSTACK_PUBLIC_KEY = 'pk_live_2018244c913523ab0751249b240bc3e3448c3c19'
 SUPER_ADMIN_ID = "Adminxx01"
