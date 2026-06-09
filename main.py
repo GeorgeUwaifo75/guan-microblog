@@ -1,4 +1,4 @@
-# main.py - Complete with Search, Trending System, Promotion Icon, and @wa_guan Account
+# main.py - With Working Search and Original Trending System
 
 from fastapi import FastAPI, HTTPException, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -18,7 +18,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import os
 import re
-from collections import defaultdict
 
 # ===== BANNED WORDS CONFIGURATION =====
 BANNED_WORDS = {
@@ -94,7 +93,6 @@ async def ensure_wa_guan_account():
     """Ensure the @wa_guan support account exists"""
     data = await get_jsonbin_data()
     
-    # Check if wa_guan account exists
     wa_guan_exists = False
     for user in data.get("users", []):
         if user.get("user_id") == WA_GUAN_USER_ID:
@@ -155,12 +153,9 @@ async def get_jsonbin_data() -> Dict:
     """Fetch data from jsonbinbro API"""
     try:
         url = f"{API_BASE}/bins/{BIN_ID}?api_key={API_KEY}"
-        logger.info(f"Attempting to fetch data from: {url}")
         
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(url)
-            
-            logger.info(f"API Response Status: {response.status_code}")
             
             if response.status_code == 200:
                 result = response.json()
@@ -171,7 +166,7 @@ async def get_jsonbin_data() -> Dict:
                         collections = ["users", "talos", "replies", "admins", "likes", 
                                       "dislikes", "retalos", "follows", "blocks", 
                                       "payments", "notifications", "adverts", "premium_requests",
-                                      "promotions", "word_trends"]
+                                      "promotions"]
                         for col in collections:
                             if col not in data_content:
                                 data_content[col] = []
@@ -181,7 +176,7 @@ async def get_jsonbin_data() -> Dict:
                             "users": [], "talos": [], "replies": [], "admins": [],
                             "likes": [], "dislikes": [], "retalos": [], "follows": [],
                             "blocks": [], "payments": [], "notifications": [], "adverts": [],
-                            "premium_requests": [], "promotions": [], "word_trends": []
+                            "premium_requests": [], "promotions": []
                         }
                 else:
                     return result
@@ -191,7 +186,7 @@ async def get_jsonbin_data() -> Dict:
                     "users": [], "talos": [], "replies": [], "admins": [],
                     "likes": [], "dislikes": [], "retalos": [], "follows": [],
                     "blocks": [], "payments": [], "notifications": [], "adverts": [],
-                    "premium_requests": [], "promotions": [], "word_trends": []
+                    "premium_requests": [], "promotions": []
                 }
                 await save_jsonbin_data(initial_data)
                 return initial_data
@@ -269,59 +264,11 @@ class CreateAdminRequest(BaseModel):
     password: str
     name: str
 
-# ===== TRENDING WORDS SYSTEM =====
-def update_word_trends(talo_content: str, talo_created_at: str, data: Dict):
-    """Update trending words tracking"""
-    words = re.findall(r'\b\w+\b', talo_content.lower())
-    hashtags = [w for w in words if w.startswith('#')]
-    
-    if "word_trends" not in data:
-        data["word_trends"] = []
-    
-    for word in hashtags + words[:10]:  # Track hashtags and top regular words
-        data["word_trends"].append({
-            "word": word,
-            "timestamp": talo_created_at,
-            "is_hashtag": word.startswith('#')
-        })
-
-def get_trending_words(data: Dict) -> List[tuple]:
-    """Get trending words (appear in >=10% of posts in last 3 hours)"""
-    three_hours_ago = (datetime.now() - timedelta(hours=3)).isoformat()
-    
-    # Get recent posts from last 3 hours
-    recent_talos = [t for t in data.get("talos", []) 
-                   if t.get("created_at", "") > three_hours_ago]
-    
-    if not recent_talos:
-        return []
-    
-    total_posts = len(recent_talos)
-    threshold = max(1, int(total_posts * 0.1))  # 10% threshold
-    
-    # Count word frequencies
-    word_count = defaultdict(int)
-    for talo in recent_talos:
-        words = re.findall(r'\b\w+\b', talo.get("content", "").lower())
-        # Track unique words per post to avoid skew
-        unique_words = set(words)
-        for word in unique_words:
-            if len(word) > 2:  # Ignore very short words
-                word_count[word] += 1
-    
-    # Filter by threshold and sort
-    trending = [(word, count) for word, count in word_count.items() 
-                if count >= threshold]
-    trending.sort(key=lambda x: x[1], reverse=True)
-    
-    return trending[:15]  # Return top 15 trending words
-
 # ===== SEARCH SYSTEM =====
-async def search_posts_and_users(search_query: str, data: Dict) -> Dict:
-    """Search for posts and users based on query"""
+async def search_all_posts(search_query: str, data: Dict) -> List[Dict]:
+    """Search through all posts in the database"""
     query_lower = search_query.lower().strip()
     
-    # Search in posts
     matched_posts = []
     for talo in data.get("talos", []):
         content_lower = talo.get("content", "").lower()
@@ -336,7 +283,36 @@ async def search_posts_and_users(search_query: str, data: Dict) -> Dict:
                                        if r.get("parent_talo_id") == talo["id"]])
             matched_posts.append(talo)
     
-    # Search in users (by user_id or name)
+    # Also search for @username specifically
+    if query_lower.startswith('@'):
+        username = query_lower[1:]
+        for user in data.get("users", []):
+            if username in user.get("user_id", "").lower():
+                # Get all posts from this user
+                for talo in data.get("talos", []):
+                    if talo["user_id"].lower() == username and talo not in matched_posts:
+                        for u in data.get("users", []):
+                            if u["user_id"] == talo["user_id"]:
+                                talo["user_name"] = f"{u['first_name']} {u['last_name']}"
+                                talo["user_photo"] = u.get("profile_photo")
+                                break
+                        talo["reply_count"] = len([r for r in data.get("replies", []) 
+                                                   if r.get("parent_talo_id") == talo["id"]])
+                        matched_posts.append(talo)
+    
+    # Sort by date (newest first)
+    matched_posts.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    
+    return matched_posts
+
+async def search_users(search_query: str, data: Dict) -> List[Dict]:
+    """Search for users by user_id or name"""
+    query_lower = search_query.lower().strip()
+    
+    # Remove @ prefix if present
+    if query_lower.startswith('@'):
+        query_lower = query_lower[1:]
+    
     matched_users = []
     for user in data.get("users", []):
         user_id_lower = user.get("user_id", "").lower()
@@ -347,18 +323,11 @@ async def search_posts_and_users(search_query: str, data: Dict) -> Dict:
                 "first_name": user["first_name"],
                 "last_name": user["last_name"],
                 "profile_photo": user.get("profile_photo"),
-                "followers_count": user.get("followers_count", 0)
+                "followers_count": user.get("followers_count", 0),
+                "bio": user.get("bio", "")
             })
     
-    # Sort posts by date (newest first)
-    matched_posts.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-    
-    return {
-        "posts": matched_posts[:50],
-        "users": matched_users[:20],
-        "total_posts": len(matched_posts),
-        "total_users": len(matched_users)
-    }
+    return matched_users
 
 # ===== ROUTES =====
 
@@ -443,9 +412,8 @@ async def api_signup(user_data: UserSignup):
 async def api_login(login_data: UserLogin):
     data = await get_jsonbin_data()
     
-    # Ensure wa_guan account exists
     await ensure_wa_guan_account()
-    data = await get_jsonbin_data()  # Refresh data
+    data = await get_jsonbin_data()
     
     if login_data.user_id == SUPER_ADMIN_ID and login_data.password == SUPER_ADMIN_PASSWORD:
         token = generate_token()
@@ -526,7 +494,6 @@ async def dashboard(request: Request):
     user["last_active"] = datetime.now().isoformat()
     await save_jsonbin_data(data)
     
-    # Get personalized feed (posts from followed users + own posts)
     followed_user_ids = set()
     for follow in data.get("follows", []):
         if follow.get("follower_id") == user["user_id"]:
@@ -537,7 +504,7 @@ async def dashboard(request: Request):
     personal_talos = []
     
     for talo in talos:
-        if talo["user_id"] in followed_user_ids or talo.get("promoted", False):
+        if talo["user_id"] in followed_user_ids:
             for u in data.get("users", []):
                 if u["user_id"] == talo["user_id"]:
                     talo["user_name"] = f"{u['first_name']} {u['last_name']}"
@@ -546,16 +513,17 @@ async def dashboard(request: Request):
             talo["reply_count"] = len([r for r in data.get("replies", []) if r.get("parent_talo_id") == talo["id"]])
             personal_talos.append(talo)
     
-    # Sort with promoted posts first, then by date
-    def sort_priority(talo):
-        promotion_boost = 1000000 if talo.get("promoted", False) else 0
-        created_at = datetime.fromisoformat(talo.get("created_at", datetime.now().isoformat()))
-        return (created_at.timestamp() + promotion_boost)
+    personal_talos.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     
-    personal_talos.sort(key=sort_priority, reverse=True)
-    
-    # Get trending words (from all posts, not just followed)
-    trending = get_trending_words(data)
+    # Original trending system - based on word frequency in visible posts
+    words = []
+    for talo in personal_talos:
+        words.extend(talo.get("content", "").split())
+    word_count = {}
+    for word in words:
+        if word.startswith("#"):
+            word_count[word] = word_count.get(word, 0) + 1
+    trending = sorted(word_count.items(), key=lambda x: x[1], reverse=True)[:10]
     
     active_users = len([u for u in data.get("users", []) if u.get("last_active", "") > (datetime.now() - timedelta(days=1)).isoformat()])
     
@@ -572,7 +540,7 @@ async def dashboard(request: Request):
         "paystack_public_key": PAYSTACK_PUBLIC_KEY
     })
 
-# ===== SEARCH ENDPOINT =====
+# ===== SEARCH ENDPOINTS =====
 @app.get("/api/search")
 async def search_global(request: Request, q: str = ""):
     """Global search for posts and users"""
@@ -580,49 +548,24 @@ async def search_global(request: Request, q: str = ""):
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
-    if not q or len(q.strip()) < 2:
+    if not q or len(q.strip()) < 1:
         return {"posts": [], "users": [], "total_posts": 0, "total_users": 0}
     
     data = await get_jsonbin_data()
     
-    # Check if searching for @username
-    if q.startswith('@'):
-        search_term = q[1:].lower()
-        # Search for user
-        matched_users = []
-        for user in data.get("users", []):
-            if search_term in user.get("user_id", "").lower():
-                matched_users.append({
-                    "user_id": user["user_id"],
-                    "first_name": user["first_name"],
-                    "last_name": user["last_name"],
-                    "profile_photo": user.get("profile_photo"),
-                    "followers_count": user.get("followers_count", 0)
-                })
-        
-        # Get posts from that user
-        matched_posts = []
-        for talo in data.get("talos", []):
-            if talo["user_id"].lower() == search_term:
-                for user in data.get("users", []):
-                    if user["user_id"] == talo["user_id"]:
-                        talo["user_name"] = f"{user['first_name']} {user['last_name']}"
-                        talo["user_photo"] = user.get("profile_photo")
-                        break
-                talo["reply_count"] = len([r for r in data.get("replies", []) if r.get("parent_talo_id") == talo["id"]])
-                matched_posts.append(talo)
-        
-        matched_posts.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-        
-        return {
-            "posts": matched_posts[:50],
-            "users": matched_users[:20],
-            "total_posts": len(matched_posts),
-            "total_users": len(matched_users)
-        }
-    else:
-        # Regular text search
-        return await search_posts_and_users(q, data)
+    # Search posts
+    matched_posts = await search_all_posts(q, data)
+    
+    # Search users
+    matched_users = await search_users(q, data)
+    
+    return {
+        "posts": matched_posts[:100],
+        "users": matched_users[:20],
+        "total_posts": len(matched_posts),
+        "total_users": len(matched_users),
+        "search_query": q
+    }
 
 @app.get("/search", response_class=HTMLResponse)
 async def search_page(request: Request, q: str = ""):
@@ -644,7 +587,12 @@ async def search_page(request: Request, q: str = ""):
         response.delete_cookie("session_token")
         return response
     
-    search_results = await search_posts_and_users(q, data) if q else {"posts": [], "users": [], "total_posts": 0, "total_users": 0}
+    search_results = {"posts": [], "users": [], "total_posts": 0, "total_users": 0}
+    if q:
+        search_results["posts"] = await search_all_posts(q, data)
+        search_results["users"] = await search_users(q, data)
+        search_results["total_posts"] = len(search_results["posts"])
+        search_results["total_users"] = len(search_results["users"])
     
     return templates.TemplateResponse("search.html", {
         "request": request,
@@ -798,13 +746,8 @@ async def create_talo(request: Request):
         data["talos"] = []
     data["talos"].insert(0, talo)
     user["talos_count"] = user.get("talos_count", 0) + 1
-    
-    # Update word trends for trending system
-    update_word_trends(content, talo["created_at"], data)
-    
     await save_jsonbin_data(data)
     
-    # Create notifications for followers
     followers = []
     for follow in data.get("follows", []):
         if follow.get("following_id") == user["user_id"]:
@@ -1174,17 +1117,99 @@ async def update_profile(request: Request):
     
     return {"message": "Profile updated successfully"}
 
-@app.get("/api/trending")
-async def get_trending(request: Request):
-    """Get trending words/hashtags"""
+@app.get("/api/search_hashtag/{hashtag}")
+async def search_by_hashtag(hashtag: str, request: Request):
+    """Search for posts with a specific hashtag"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
     data = await get_jsonbin_data()
-    trending = get_trending_words(data)
     
-    return {"trending": [{"word": word, "count": count} for word, count in trending]}
+    filtered_talos = []
+    for talo in data.get("talos", []):
+        content = talo.get("content", "")
+        if hashtag.lower() in content.lower():
+            for u in data.get("users", []):
+                if u["user_id"] == talo["user_id"]:
+                    talo["user_name"] = f"{u['first_name']} {u['last_name']}"
+                    talo["user_photo"] = u.get("profile_photo")
+                    break
+            filtered_talos.append(talo)
+    
+    return {"talos": filtered_talos}
+
+@app.get("/logout")
+async def logout():
+    response = RedirectResponse(url="/", status_code=303)
+    response.delete_cookie("session_token")
+    return response
+
+# ===== ADMIN API ENDPOINTS =====
+
+@app.post("/api/admin/create_admin")
+async def create_admin(request: Request, admin_data: CreateAdminRequest):
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+    
+    if not admin or admin.get("role") != "super_admin":
+        raise HTTPException(status_code=403, detail="Only Super Administrator can create new admins")
+    
+    for a in data.get("admins", []):
+        if a.get("user_id") == admin_data.admin_id:
+            raise HTTPException(status_code=400, detail="Admin ID already exists")
+    
+    new_admin = {
+        "user_id": admin_data.admin_id,
+        "password_hash": hash_password(admin_data.password),
+        "name": admin_data.name,
+        "role": "admin",
+        "is_active": True,
+        "created_at": datetime.now().isoformat(),
+        "created_by": admin["user_id"],
+        "last_login": None
+    }
+    
+    if "admins" not in data:
+        data["admins"] = []
+    data["admins"].append(new_admin)
+    await save_jsonbin_data(data)
+    
+    return {"message": f"Administrator {admin_data.admin_id} created successfully"}
+
+@app.post("/api/admin/deactivate_user/{user_id}")
+async def deactivate_user(user_id: str, request: Request):
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+    
+    if not admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    for user in data.get("users", []):
+        if user["user_id"] == user_id:
+            user["is_active"] = not user.get("is_active", True)
+            await save_jsonbin_data(data)
+            return {"message": f"User {'activated' if user['is_active'] else 'deactivated'}"}
+    
+    raise HTTPException(status_code=404, detail="User not found")
 
 @app.post("/api/promote_post")
 async def promote_post(request: Request, promotion: PromotionRequest):
@@ -1268,7 +1293,6 @@ async def confirm_promotion_payment(promotion_id: str, request: Request):
     promotion["status"] = "activated"
     promotion["payment_confirmed_at"] = datetime.now().isoformat()
     
-    # Mark talo as promoted
     for talo in data.get("talos", []):
         if talo["id"] == promotion["talo_id"]:
             talo["promoted"] = True
@@ -1279,78 +1303,6 @@ async def confirm_promotion_payment(promotion_id: str, request: Request):
     await save_jsonbin_data(data)
     
     return {"message": "Promotion activated successfully!"}
-
-@app.get("/logout")
-async def logout():
-    response = RedirectResponse(url="/", status_code=303)
-    response.delete_cookie("session_token")
-    return response
-
-# ===== ADMIN API ENDPOINTS =====
-
-@app.post("/api/admin/create_admin")
-async def create_admin(request: Request, admin_data: CreateAdminRequest):
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    admin = None
-    
-    for a in data.get("admins", []):
-        if a.get("session_token") == session_token:
-            admin = a
-            break
-    
-    if not admin or admin.get("role") != "super_admin":
-        raise HTTPException(status_code=403, detail="Only Super Administrator can create new admins")
-    
-    for a in data.get("admins", []):
-        if a.get("user_id") == admin_data.admin_id:
-            raise HTTPException(status_code=400, detail="Admin ID already exists")
-    
-    new_admin = {
-        "user_id": admin_data.admin_id,
-        "password_hash": hash_password(admin_data.password),
-        "name": admin_data.name,
-        "role": "admin",
-        "is_active": True,
-        "created_at": datetime.now().isoformat(),
-        "created_by": admin["user_id"],
-        "last_login": None
-    }
-    
-    if "admins" not in data:
-        data["admins"] = []
-    data["admins"].append(new_admin)
-    await save_jsonbin_data(data)
-    
-    return {"message": f"Administrator {admin_data.admin_id} created successfully"}
-
-@app.post("/api/admin/deactivate_user/{user_id}")
-async def deactivate_user(user_id: str, request: Request):
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    admin = None
-    
-    for a in data.get("admins", []):
-        if a.get("session_token") == session_token:
-            admin = a
-            break
-    
-    if not admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    for user in data.get("users", []):
-        if user["user_id"] == user_id:
-            user["is_active"] = not user.get("is_active", True)
-            await save_jsonbin_data(data)
-            return {"message": f"User {'activated' if user['is_active'] else 'deactivated'}"}
-    
-    raise HTTPException(status_code=404, detail="User not found")
 
 @app.get("/api/health")
 async def health_check():
@@ -1371,7 +1323,6 @@ async def health_check():
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize wa_guan account on startup"""
     await ensure_wa_guan_account()
 
 if __name__ == "__main__":
