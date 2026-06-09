@@ -773,8 +773,11 @@
 
 <!-- Add these styles to the existing <style> section in dashboard.html -->
 
-/* Profile Edit Modal Styles */
-/* Profile Edit Modal - Complete working implementation */
+<!-- Replace the existing profile edit modal styles and structure with these updated versions -->
+
+<!-- Add/update these styles in the <style> section (replace the existing profile edit modal styles) -->
+<style>
+/* Profile Edit Modal - Fixed positioning as centered popup */
 .profile-edit-modal {
     position: fixed;
     top: 0;
@@ -788,12 +791,12 @@
     visibility: hidden;
     opacity: 0;
     transition: visibility 0.3s, opacity 0.3s;
+    display: flex !important;
 }
 
 .profile-edit-modal.active {
     visibility: visible;
     opacity: 1;
-    display: flex !important;
 }
 
 .profile-edit-content {
@@ -806,6 +809,7 @@
     position: relative;
     transform: scale(0.9);
     transition: transform 0.3s ease;
+    margin: auto;
 }
 
 .profile-edit-modal.active .profile-edit-content {
@@ -936,15 +940,18 @@
     transform: translateY(0);
 }
 
-/* Ensure the modal HTML is hidden initially */
+/* Ensure the modal is hidden initially */
 #profileEditModal {
-    display: none;
+    visibility: hidden;
+    opacity: 0;
 }
 
 #profileEditModal.active {
-    display: flex !important;
+    visibility: visible;
+    opacity: 1;
 }
 
+</style>
 </style>
 
 </head>
@@ -1149,37 +1156,38 @@
         </div>
     </div>
 
-    <div id="profileEditModal" class="profile-edit-modal">
-        <div class="profile-edit-content">
-            <div class="profile-edit-header">
-                <h3>Edit Profile</h3>
-                <button class="profile-edit-close" onclick="closeProfileEditModal()">&times;</button>
-            </div>
-            <form id="profileEditForm">
-                <div class="form-group">
-                    <label>Profile Photo</label>
-                    <img id="editProfilePhotoPreview" class="profile-photo-preview" src="{{ user.profile_photo or '/static/default-avatar.png' }}" alt="Profile Photo">
-                    <label class="photo-upload-label">
-                        📷 Change Photo
-                        <input type="file" id="editProfilePhoto" accept="image/*" style="display: none;" onchange="previewProfilePhoto(this)">
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label>First Name</label>
-                    <input type="text" id="editFirstName" value="{{ user.first_name }}">
-                </div>
-                <div class="form-group">
-                    <label>Last Name</label>
-                    <input type="text" id="editLastName" value="{{ user.last_name }}">
-                </div>
-                <div class="form-group">
-                    <label>Bio/Bio</label>
-                    <textarea id="editBio" rows="3" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;" placeholder="Tell us about yourself...">{{ user.bio or '' }}</textarea>
-                </div>
-                <button type="button" class="save-profile-btn" onclick="saveProfileChanges()">Save Changes</button>
-            </form>
+    <!-- Profile Edit Modal - Fixed centered popup -->
+<div id="profileEditModal" class="profile-edit-modal">
+    <div class="profile-edit-content">
+        <div class="profile-edit-header">
+            <h3>Edit Profile</h3>
+            <button class="profile-edit-close" onclick="closeProfileEditModal()">&times;</button>
         </div>
+        <form id="profileEditForm">
+            <div class="form-group">
+                <label>Profile Photo</label>
+                <img id="editProfilePhotoPreview" class="profile-photo-preview" src="{{ user.profile_photo or '/static/default-avatar.png' }}" alt="Profile Photo">
+                <label class="photo-upload-label">
+                    📷 Change Photo
+                    <input type="file" id="editProfilePhoto" accept="image/*" style="display: none;" onchange="previewProfilePhoto(this)">
+                </label>
+            </div>
+            <div class="form-group">
+                <label>First Name</label>
+                <input type="text" id="editFirstName" value="{{ user.first_name }}">
+            </div>
+            <div class="form-group">
+                <label>Last Name</label>
+                <input type="text" id="editLastName" value="{{ user.last_name }}">
+            </div>
+            <div class="form-group">
+                <label>Bio/Bio</label>
+                <textarea id="editBio" rows="3" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;" placeholder="Tell us about yourself...">{{ user.bio or '' }}</textarea>
+            </div>
+            <button type="button" class="save-profile-btn" onclick="saveProfileChanges()">Save Changes</button>
+        </form>
     </div>
+</div>
 
     <div id="promotionModal" class="promotion-modal">
         <div class="promotion-modal-content">
@@ -1733,8 +1741,19 @@
             mobileTrendingDiv.innerHTML = trendingHtml;
         }
         
-        function openProfileEditModal() { document.getElementById('profileEditModal').classList.add('active'); }
-        function closeProfileEditModal() { document.getElementById('profileEditModal').classList.remove('active'); }
+        function openProfileEditModal() {
+    const modal = document.getElementById('profileEditModal');
+    modal.classList.add('active');
+    // Prevent body scrolling when modal is open
+    document.body.style.overflow = 'hidden';
+}
+
+function closeProfileEditModal() {
+    const modal = document.getElementById('profileEditModal');
+    modal.classList.remove('active');
+    // Re-enable body scrolling
+    document.body.style.overflow = '';
+}
         
         function previewProfilePhoto(input) {
             if (input.files && input.files[0]) {
@@ -1743,7 +1762,28 @@
                 reader.readAsDataURL(input.files[0]);
             }
         }
-        
+   
+// Close modal when clicking outside the content area
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('profileEditModal');
+    if (modal.classList.contains('active')) {
+        const modalContent = modal.querySelector('.profile-edit-content');
+        if (modalContent && !modalContent.contains(event.target)) {
+            closeProfileEditModal();
+        }
+    }
+});
+
+// Close modal on escape key press
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const modal = document.getElementById('profileEditModal');
+        if (modal.classList.contains('active')) {
+            closeProfileEditModal();
+        }
+    }
+});
+     
         async function saveProfileChanges() {
             const formData = new FormData();
             const photoFile = document.getElementById('editProfilePhoto').files[0];
