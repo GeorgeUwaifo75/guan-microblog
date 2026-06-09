@@ -1241,6 +1241,7 @@
     <!-- Right side icons - always on extreme right -->
     <div class="right-icons">
         <button class="menu-icon-btn" onclick="toggleMobileMenu()" id="menuIconBtn">☰</button>
+        <button class="icon-btn" onclick="openSearchModal()">🔍</button>
         <button class="icon-btn" onclick="toggleNotifications()">🔔 <span id="notificationCount" class="notification-badge" style="display: none;">0</span></button>
         <a href="/logout"><button class="icon-btn">🚪</button></a>
     </div>
@@ -2573,7 +2574,12 @@ function formatTimeAgo(dateStr) {
 }
 
 // Add this HTML for promotion modal at the end of body
-
+function openSearchModal() {
+    const searchQuery = prompt("Search for posts, hashtags, or @username:", "");
+    if (searchQuery && searchQuery.trim()) {
+        window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
+    }
+}
     </script>
 
 <!-- Add this JavaScript for real-time notifications -->

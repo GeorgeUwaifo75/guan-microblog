@@ -1,4 +1,5 @@
-# main.py - Modified with Full Admin Hierarchy System
+# main.py - Complete with Search, Trending System, Promotion Icon, and @wa_guan Account
+
 from fastapi import FastAPI, HTTPException, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -16,9 +17,8 @@ import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 import os
-
 import re
-from typing import List, Set
+from collections import defaultdict
 
 # ===== BANNED WORDS CONFIGURATION =====
 BANNED_WORDS = {
@@ -34,34 +34,28 @@ BANNED_WORDS = {
     'hitler', 'jews', 'lesbian'
 }
 
-# Compile regex pattern for banned words (case insensitive)
 BANNED_PATTERN = re.compile(r'\b(' + '|'.join(re.escape(word) for word in BANNED_WORDS) + r')\b', re.IGNORECASE)
 
 def contains_banned_words(text: str) -> bool:
-    """Check if text contains any banned words"""
     if not text:
         return False
     return bool(BANNED_PATTERN.search(text))
 
 def filter_banned_words(text: str) -> str:
-    """Replace banned words with asterisks"""
     if not text:
         return text
-    
     def replace_word(match):
         return '*' * len(match.group(0))
-    
     return BANNED_PATTERN.sub(replace_word, text)
 
 # ===== PROMOTION SYSTEM =====
 class PromotionRequest(BaseModel):
     talo_id: str
     amount: float
-    payment_method: str  # 'paystack' or 'paypal'
+    payment_method: str
 
 # ===== PAYPAL CONFIGURATION =====
 PAYPAL_EMAIL = 'victor_uwafo@yahoo.com'
-
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -74,28 +68,88 @@ BASE_DIR = Path(__file__).parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 
-# Create directories
 TEMPLATES_DIR.mkdir(exist_ok=True)
 STATIC_DIR.mkdir(exist_ok=True)
 
-# Setup templates
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # ===== JSONBINBRO API CONFIGURATION =====
 API_BASE = 'https://jsonbinbro.onrender.com/api'
-#BIN_ID = '6a23239439cde2dacaf968e2'
-#USER_ID = 'george01'
-#API_KEY = 'XcymJbykd573XqKLEHsZvSBo3hYMDv7uRo5P3PKRYDI'
-
 BIN_ID = '6a1c737827e57e6773a47627'
 USER_ID = 'Admin01'
 API_KEY = 'admin_97375e28712d7627e7cea67c8c86d60d'
 
-# Configuration
 PAYSTACK_PUBLIC_KEY = 'pk_live_2018244c913523ab0751249b240bc3e3448c3c19'
 SUPER_ADMIN_ID = "Adminxx01"
 SUPER_ADMIN_PASSWORD = "kijiXmart4140#"
+
+# ===== WA_GUAN ACCOUNT CONFIGURATION =====
+WA_GUAN_USER_ID = "wa_guan"
+WA_GUAN_FIRST_NAME = "Support"
+WA_GUAN_LAST_NAME = "GuAn"
+WA_GUAN_EMAIL = "support@guan.com"
+
+async def ensure_wa_guan_account():
+    """Ensure the @wa_guan support account exists"""
+    data = await get_jsonbin_data()
+    
+    # Check if wa_guan account exists
+    wa_guan_exists = False
+    for user in data.get("users", []):
+        if user.get("user_id") == WA_GUAN_USER_ID:
+            wa_guan_exists = True
+            break
+    
+    if not wa_guan_exists:
+        new_user = {
+            "id": str(uuid.uuid4()),
+            "user_id": WA_GUAN_USER_ID,
+            "email": WA_GUAN_EMAIL,
+            "first_name": WA_GUAN_FIRST_NAME,
+            "last_name": WA_GUAN_LAST_NAME,
+            "password_hash": hash_password("support123"),
+            "gender": "Male",
+            "age": 25,
+            "country": "Nigeria",
+            "profile_photo": None,
+            "background_image": None,
+            "is_active": True,
+            "is_premium": True,
+            "user_category": "Support",
+            "followers_count": 0,
+            "following_count": 0,
+            "talos_count": 0,
+            "created_at": datetime.now().isoformat(),
+            "last_active": datetime.now().isoformat(),
+            "bio": "Official Support Account for GuAn Microblogging Platform"
+        }
+        data["users"].append(new_user)
+        
+        # Create welcome post
+        welcome_content = "Wa guan. 👋 Welcome to GuAn! Connect with others of like minds by following them and being followed. Stay positive, objective, and truthful with your posts. Together we build a great community! #WelcomeToGuAn #StayPositive"
+        
+        talo = {
+            "id": str(uuid.uuid4()),
+            "user_id": WA_GUAN_USER_ID,
+            "content": welcome_content,
+            "photos": [],
+            "likes": 0,
+            "dislikes": 0,
+            "retalos": 0,
+            "reply_count": 0,
+            "created_at": datetime.now().isoformat(),
+            "promoted": True,
+            "promotion_level": 1,
+            "is_welcome": True
+        }
+        
+        if "talos" not in data:
+            data["talos"] = []
+        data["talos"].insert(0, talo)
+        
+        await save_jsonbin_data(data)
+        logger.info(f"Created @{WA_GUAN_USER_ID} support account with welcome post")
 
 async def get_jsonbin_data() -> Dict:
     """Fetch data from jsonbinbro API"""
@@ -114,10 +168,10 @@ async def get_jsonbin_data() -> Dict:
                 if 'data' in result:
                     data_content = result['data']
                     if isinstance(data_content, dict):
-                        # Ensure all required collections exist
                         collections = ["users", "talos", "replies", "admins", "likes", 
                                       "dislikes", "retalos", "follows", "blocks", 
-                                      "payments", "notifications", "adverts", "premium_requests"]
+                                      "payments", "notifications", "adverts", "premium_requests",
+                                      "promotions", "word_trends"]
                         for col in collections:
                             if col not in data_content:
                                 data_content[col] = []
@@ -127,7 +181,7 @@ async def get_jsonbin_data() -> Dict:
                             "users": [], "talos": [], "replies": [], "admins": [],
                             "likes": [], "dislikes": [], "retalos": [], "follows": [],
                             "blocks": [], "payments": [], "notifications": [], "adverts": [],
-                            "premium_requests": []
+                            "premium_requests": [], "promotions": [], "word_trends": []
                         }
                 else:
                     return result
@@ -137,7 +191,7 @@ async def get_jsonbin_data() -> Dict:
                     "users": [], "talos": [], "replies": [], "admins": [],
                     "likes": [], "dislikes": [], "retalos": [], "follows": [],
                     "blocks": [], "payments": [], "notifications": [], "adverts": [],
-                    "premium_requests": []
+                    "premium_requests": [], "promotions": [], "word_trends": []
                 }
                 await save_jsonbin_data(initial_data)
                 return initial_data
@@ -203,10 +257,6 @@ class CreateTaloRequest(BaseModel):
     content: str
     photos: List[Dict[str, str]] = []
 
-class CreateReplyRequest(BaseModel):
-    content: str
-    photo: Optional[Dict[str, str]] = None
-
 class UpdateProfileRequest(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -219,16 +269,101 @@ class CreateAdminRequest(BaseModel):
     password: str
     name: str
 
-class PremiumRequest(BaseModel):
-    user_id: str
-    payment_proof_url: str
-    payment_amount: float
+# ===== TRENDING WORDS SYSTEM =====
+def update_word_trends(talo_content: str, talo_created_at: str, data: Dict):
+    """Update trending words tracking"""
+    words = re.findall(r'\b\w+\b', talo_content.lower())
+    hashtags = [w for w in words if w.startswith('#')]
+    
+    if "word_trends" not in data:
+        data["word_trends"] = []
+    
+    for word in hashtags + words[:10]:  # Track hashtags and top regular words
+        data["word_trends"].append({
+            "word": word,
+            "timestamp": talo_created_at,
+            "is_hashtag": word.startswith('#')
+        })
+
+def get_trending_words(data: Dict) -> List[tuple]:
+    """Get trending words (appear in >=10% of posts in last 3 hours)"""
+    three_hours_ago = (datetime.now() - timedelta(hours=3)).isoformat()
+    
+    # Get recent posts from last 3 hours
+    recent_talos = [t for t in data.get("talos", []) 
+                   if t.get("created_at", "") > three_hours_ago]
+    
+    if not recent_talos:
+        return []
+    
+    total_posts = len(recent_talos)
+    threshold = max(1, int(total_posts * 0.1))  # 10% threshold
+    
+    # Count word frequencies
+    word_count = defaultdict(int)
+    for talo in recent_talos:
+        words = re.findall(r'\b\w+\b', talo.get("content", "").lower())
+        # Track unique words per post to avoid skew
+        unique_words = set(words)
+        for word in unique_words:
+            if len(word) > 2:  # Ignore very short words
+                word_count[word] += 1
+    
+    # Filter by threshold and sort
+    trending = [(word, count) for word, count in word_count.items() 
+                if count >= threshold]
+    trending.sort(key=lambda x: x[1], reverse=True)
+    
+    return trending[:15]  # Return top 15 trending words
+
+# ===== SEARCH SYSTEM =====
+async def search_posts_and_users(search_query: str, data: Dict) -> Dict:
+    """Search for posts and users based on query"""
+    query_lower = search_query.lower().strip()
+    
+    # Search in posts
+    matched_posts = []
+    for talo in data.get("talos", []):
+        content_lower = talo.get("content", "").lower()
+        if query_lower in content_lower:
+            # Add user info
+            for user in data.get("users", []):
+                if user["user_id"] == talo["user_id"]:
+                    talo["user_name"] = f"{user['first_name']} {user['last_name']}"
+                    talo["user_photo"] = user.get("profile_photo")
+                    break
+            talo["reply_count"] = len([r for r in data.get("replies", []) 
+                                       if r.get("parent_talo_id") == talo["id"]])
+            matched_posts.append(talo)
+    
+    # Search in users (by user_id or name)
+    matched_users = []
+    for user in data.get("users", []):
+        user_id_lower = user.get("user_id", "").lower()
+        name_lower = f"{user.get('first_name', '')} {user.get('last_name', '')}".lower()
+        if query_lower in user_id_lower or query_lower in name_lower:
+            matched_users.append({
+                "user_id": user["user_id"],
+                "first_name": user["first_name"],
+                "last_name": user["last_name"],
+                "profile_photo": user.get("profile_photo"),
+                "followers_count": user.get("followers_count", 0)
+            })
+    
+    # Sort posts by date (newest first)
+    matched_posts.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    
+    return {
+        "posts": matched_posts[:50],
+        "users": matched_users[:20],
+        "total_posts": len(matched_posts),
+        "total_users": len(matched_users)
+    }
 
 # ===== ROUTES =====
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    """Home page"""
     session_token = request.cookies.get("session_token")
     user = None
     
@@ -246,12 +381,10 @@ async def home(request: Request):
 
 @app.get("/signup", response_class=HTMLResponse)
 async def signup_page(request: Request):
-    """Signup page"""
     return templates.TemplateResponse("signup.html", {"request": request})
 
 @app.post("/api/signup")
 async def api_signup(user_data: UserSignup):
-    """Signup API endpoint"""
     data = await get_jsonbin_data()
     
     if user_data.age < 18:
@@ -290,18 +423,33 @@ async def api_signup(user_data: UserSignup):
     data["users"].append(new_user)
     await save_jsonbin_data(data)
     
+    # Auto-follow wa_guan for new users
+    for user in data.get("users", []):
+        if user["user_id"] == WA_GUAN_USER_ID:
+            if "follows" not in data:
+                data["follows"] = []
+            data["follows"].append({
+                "follower_id": user_data.user_id,
+                "following_id": WA_GUAN_USER_ID,
+                "created_at": datetime.now().isoformat()
+            })
+            user["followers_count"] = user.get("followers_count", 0) + 1
+            await save_jsonbin_data(data)
+            break
+    
     return {"message": "User created successfully", "user_id": user_data.user_id}
 
 @app.post("/api/login")
 async def api_login(login_data: UserLogin):
-    """Login API endpoint"""
     data = await get_jsonbin_data()
     
-    # Check for super admin
+    # Ensure wa_guan account exists
+    await ensure_wa_guan_account()
+    data = await get_jsonbin_data()  # Refresh data
+    
     if login_data.user_id == SUPER_ADMIN_ID and login_data.password == SUPER_ADMIN_PASSWORD:
         token = generate_token()
         
-        # Check if super admin already exists
         super_admin_exists = False
         for admin in data.get("admins", []):
             if admin.get("user_id") == SUPER_ADMIN_ID:
@@ -323,37 +471,30 @@ async def api_login(login_data: UserLogin):
             })
         
         await save_jsonbin_data(data)
-        
         response = RedirectResponse(url="/admin", status_code=303)
         response.set_cookie(key="session_token", value=token, httponly=True)
         return response
     
-    # Check for normal admin
     for admin in data.get("admins", []):
         if admin["user_id"] == login_data.user_id and verify_password(login_data.password, admin.get("password_hash", "")):
             if not admin.get("is_active", True):
                 raise HTTPException(status_code=403, detail="Admin account deactivated")
-            
             token = generate_token()
             admin["session_token"] = token
             admin["last_login"] = datetime.now().isoformat()
             await save_jsonbin_data(data)
-            
             response = RedirectResponse(url="/admin", status_code=303)
             response.set_cookie(key="session_token", value=token, httponly=True)
             return response
     
-    # Check for normal user
     for user in data.get("users", []):
         if user["user_id"] == login_data.user_id and verify_password(login_data.password, user["password_hash"]):
             if not user.get("is_active"):
                 raise HTTPException(status_code=403, detail="Account deactivated")
-            
             token = generate_token()
             user["session_token"] = token
             user["last_active"] = datetime.now().isoformat()
             await save_jsonbin_data(data)
-            
             response = RedirectResponse(url="/dashboard", status_code=303)
             response.set_cookie(key="session_token", value=token, httponly=True)
             return response
@@ -362,7 +503,6 @@ async def api_login(login_data: UserLogin):
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    """User dashboard with personalized feed"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         return RedirectResponse(url="/", status_code=303)
@@ -376,7 +516,6 @@ async def dashboard(request: Request):
             break
     
     if not user:
-        # Check if it's an admin
         for admin in data.get("admins", []):
             if admin.get("session_token") == session_token:
                 return RedirectResponse(url="/admin", status_code=303)
@@ -384,24 +523,21 @@ async def dashboard(request: Request):
         response.delete_cookie("session_token")
         return response
     
-    # Update last active
     user["last_active"] = datetime.now().isoformat()
     await save_jsonbin_data(data)
     
-    # Get personalized feed (only posts from followed users + own posts)
+    # Get personalized feed (posts from followed users + own posts)
     followed_user_ids = set()
     for follow in data.get("follows", []):
         if follow.get("follower_id") == user["user_id"]:
             followed_user_ids.add(follow.get("following_id"))
     followed_user_ids.add(user["user_id"])
     
-    # Get talos from followed users
     talos = data.get("talos", [])
     personal_talos = []
     
     for talo in talos:
-        if talo["user_id"] in followed_user_ids:
-            # Add user info
+        if talo["user_id"] in followed_user_ids or talo.get("promoted", False):
             for u in data.get("users", []):
                 if u["user_id"] == talo["user_id"]:
                     talo["user_name"] = f"{u['first_name']} {u['last_name']}"
@@ -410,33 +546,21 @@ async def dashboard(request: Request):
             talo["reply_count"] = len([r for r in data.get("replies", []) if r.get("parent_talo_id") == talo["id"]])
             personal_talos.append(talo)
     
-    # Sort by creation date (newest first) - promoted posts get priority
+    # Sort with promoted posts first, then by date
     def sort_priority(talo):
-        promotion_boost = 1000 if talo.get("promoted", False) else 0
-        return (datetime.now() - datetime.fromisoformat(talo.get("created_at", datetime.now().isoformat()))).total_seconds() - promotion_boost
+        promotion_boost = 1000000 if talo.get("promoted", False) else 0
+        created_at = datetime.fromisoformat(talo.get("created_at", datetime.now().isoformat()))
+        return (created_at.timestamp() + promotion_boost)
     
-    personal_talos.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    personal_talos.sort(key=sort_priority, reverse=True)
     
-    # Get trending topics (from visible posts only)
-    words = []
-    for talo in personal_talos:
-        words.extend(talo.get("content", "").split())
-    word_count = {}
-    for word in words:
-        if word.startswith("#"):
-            word_count[word] = word_count.get(word, 0) + 1
-    trending = sorted(word_count.items(), key=lambda x: x[1], reverse=True)[:10]
+    # Get trending words (from all posts, not just followed)
+    trending = get_trending_words(data)
     
-    # Get active users count (last 24 hours)
-    day_ago = (datetime.now() - timedelta(days=1)).isoformat()
-    active_users = len([u for u in data.get("users", []) if u.get("last_active", "") > day_ago])
+    active_users = len([u for u in data.get("users", []) if u.get("last_active", "") > (datetime.now() - timedelta(days=1)).isoformat()])
     
-    # Get unread notifications count
     notifications = [n for n in data.get("notifications", []) if n.get("user_id") == user["user_id"]]
     unread_notifications = len([n for n in notifications if not n.get("read", False)])
-    
-    # Get Paystack public key
-    paystack_public_key = PAYSTACK_PUBLIC_KEY
     
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
@@ -445,145 +569,92 @@ async def dashboard(request: Request):
         "trending": trending,
         "active_users": active_users,
         "unread_notifications": unread_notifications,
-        "paystack_public_key": paystack_public_key
+        "paystack_public_key": PAYSTACK_PUBLIC_KEY
     })
 
-
-@app.post("/api/admin/check_banned_words")
-async def check_banned_words_content(request: Request):
-    """Check content for banned words (for admin use)"""
+# ===== SEARCH ENDPOINT =====
+@app.get("/api/search")
+async def search_global(request: Request, q: str = ""):
+    """Global search for posts and users"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
-    data = await get_jsonbin_data()
-    admin = None
-    
-    for a in data.get("admins", []):
-        if a.get("session_token") == session_token:
-            admin = a
-            break
-    
-    if not admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    body = await request.json()
-    content = body.get("content", "")
-    
-    return {
-        "contains_banned_words": contains_banned_words(content),
-        "banned_words_found": [w for w in BANNED_WORDS if w.lower() in content.lower()]
-    }
-
-@app.get("/api/admin/get_promotion_requests")
-async def get_admin_promotion_requests(request: Request):
-    """Get pending promotion requests for admin"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    if not q or len(q.strip()) < 2:
+        return {"posts": [], "users": [], "total_posts": 0, "total_users": 0}
     
     data = await get_jsonbin_data()
-    admin = None
     
-    for a in data.get("admins", []):
-        if a.get("session_token") == session_token:
-            admin = a
-            break
-    
-    if not admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    pending_promotions = [p for p in data.get("promotions", []) if p.get("status") == "pending_admin"]
-    
-    # Add user info
-    for p in pending_promotions:
-        for u in data.get("users", []):
-            if u["user_id"] == p["user_id"]:
-                p["user_name"] = f"{u['first_name']} {u['last_name']}"
-                break
-        # Get talo content
-        for t in data.get("talos", []):
-            if t["id"] == p["talo_id"]:
-                p["talo_content"] = t["content"][:100]
-                break
-    
-    return {"promotions": pending_promotions}
+    # Check if searching for @username
+    if q.startswith('@'):
+        search_term = q[1:].lower()
+        # Search for user
+        matched_users = []
+        for user in data.get("users", []):
+            if search_term in user.get("user_id", "").lower():
+                matched_users.append({
+                    "user_id": user["user_id"],
+                    "first_name": user["first_name"],
+                    "last_name": user["last_name"],
+                    "profile_photo": user.get("profile_photo"),
+                    "followers_count": user.get("followers_count", 0)
+                })
+        
+        # Get posts from that user
+        matched_posts = []
+        for talo in data.get("talos", []):
+            if talo["user_id"].lower() == search_term:
+                for user in data.get("users", []):
+                    if user["user_id"] == talo["user_id"]:
+                        talo["user_name"] = f"{user['first_name']} {user['last_name']}"
+                        talo["user_photo"] = user.get("profile_photo")
+                        break
+                talo["reply_count"] = len([r for r in data.get("replies", []) if r.get("parent_talo_id") == talo["id"]])
+                matched_posts.append(talo)
+        
+        matched_posts.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        
+        return {
+            "posts": matched_posts[:50],
+            "users": matched_users[:20],
+            "total_posts": len(matched_posts),
+            "total_users": len(matched_users)
+        }
+    else:
+        # Regular text search
+        return await search_posts_and_users(q, data)
 
-@app.get("/admin", response_class=HTMLResponse)
-async def admin_panel(request: Request):
-    """Admin panel with role-based permissions"""
+@app.get("/search", response_class=HTMLResponse)
+async def search_page(request: Request, q: str = ""):
+    """Search results page"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         return RedirectResponse(url="/", status_code=303)
     
     data = await get_jsonbin_data()
-    admin = None
+    user = None
     
-    for a in data.get("admins", []):
-        if a.get("session_token") == session_token:
-            admin = a
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
             break
     
-    if not admin:
+    if not user:
         response = RedirectResponse(url="/", status_code=303)
         response.delete_cookie("session_token")
         return response
     
-    # Get all users
-    users = data.get("users", [])
+    search_results = await search_posts_and_users(q, data) if q else {"posts": [], "users": [], "total_posts": 0, "total_users": 0}
     
-    # Sort users by creation date (newest first)
-    users.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-    
-    # Get adverts
-    adverts = data.get("adverts", [])
-    
-    # Get premium requests
-    premium_requests = data.get("premium_requests", [])
-    
-    # Get payments
-    payments = data.get("payments", [])
-    
-    # Calculate statistics
-    today = datetime.now().date()
-    today_str = datetime.now().isoformat()[:10]
-    
-    daily_active = len([u for u in users if u.get("last_active", "").startswith(today_str)])
-    
-    # Get all admins (for super admin)
-    admins_list = data.get("admins", [])
-    
-    # Total posts today
-    talos_today = len([t for t in data.get("talos", []) if t.get("created_at", "").startswith(today_str)])
-    
-    stats = {
-        "total_users": len(users),
-        "active_users": len([u for u in users if u.get("is_active", True)]),
-        "inactive_users": len([u for u in users if not u.get("is_active", True)]),
-        "premium_users": len([u for u in users if u.get("is_premium", False)]),
-        "daily_active": daily_active,
-        "total_talos": len(data.get("talos", [])),
-        "talos_today": talos_today,
-        "total_replies": len(data.get("replies", [])),
-        "total_payments": len(payments),
-        "total_payment_amount": sum(p.get("amount", 0) for p in payments)
-    }
-    
-    return templates.TemplateResponse("admin.html", {
+    return templates.TemplateResponse("search.html", {
         "request": request,
-        "admin": admin,
-        "users": users,
-        "adverts": adverts,
-        "premium_requests": premium_requests,
-        "payments": payments,
-        "admins": admins_list,
-        "stats": stats,
-        "is_super_admin": admin.get("role") == "super_admin"
+        "user": user,
+        "search_query": q,
+        "results": search_results
     })
 
 @app.get("/profile/{user_id}", response_class=HTMLResponse)
 async def view_profile(request: Request, user_id: str):
-    """View another user's profile"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         return RedirectResponse(url="/", status_code=303)
@@ -601,7 +672,6 @@ async def view_profile(request: Request, user_id: str):
         response.delete_cookie("session_token")
         return response
     
-    # Find the profile user
     profile_user = None
     for u in data.get("users", []):
         if u["user_id"] == user_id:
@@ -614,15 +684,11 @@ async def view_profile(request: Request, user_id: str):
             "error": "User not found"
         })
     
-    # Get user's talos
     user_talos = [t for t in data.get("talos", []) if t["user_id"] == user_id]
-    
-    # Count replies for each talo
     replies = data.get("replies", [])
     for talo in user_talos:
         talo["reply_count"] = len([r for r in replies if r.get("parent_talo_id") == talo["id"]])
     
-    # Sort by creation date (newest first)
     user_talos.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     
     return templates.TemplateResponse("profile.html", {
@@ -634,7 +700,6 @@ async def view_profile(request: Request, user_id: str):
 
 @app.get("/post/{talo_id}", response_class=HTMLResponse)
 async def view_post(request: Request, talo_id: str):
-    """View a single post with its replies"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         return RedirectResponse(url="/", status_code=303)
@@ -652,7 +717,6 @@ async def view_post(request: Request, talo_id: str):
         response.delete_cookie("session_token")
         return response
     
-    # Find the main talo
     talo = None
     for t in data.get("talos", []):
         if t["id"] == talo_id:
@@ -665,17 +729,14 @@ async def view_post(request: Request, talo_id: str):
             "error": "Post not found"
         })
     
-    # Add user info to main talo
     for u in data.get("users", []):
         if u["user_id"] == talo["user_id"]:
             talo["user_name"] = f"{u['first_name']} {u['last_name']}"
             talo["user_photo"] = u.get("profile_photo")
             break
     
-    # Get replies for this talo
     replies = [r for r in data.get("replies", []) if r.get("parent_talo_id") == talo_id]
     
-    # Add user info to replies
     for reply in replies:
         for u in data.get("users", []):
             if u["user_id"] == reply["user_id"]:
@@ -683,7 +744,6 @@ async def view_post(request: Request, talo_id: str):
                 reply["user_photo"] = u.get("profile_photo")
                 break
     
-    # Sort replies by date (oldest first)
     replies.sort(key=lambda x: x.get("created_at", ""))
     
     return templates.TemplateResponse("post.html", {
@@ -695,7 +755,6 @@ async def view_post(request: Request, talo_id: str):
 
 @app.post("/api/create_talo")
 async def create_talo(request: Request):
-    """Create a new talo/post with Firebase photo URLs and banned word filtering"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -715,7 +774,6 @@ async def create_talo(request: Request):
     content = body.get("content", "")
     photos = body.get("photos", [])
     
-    # Check for banned words
     if contains_banned_words(content):
         raise HTTPException(status_code=400, detail="Your post contains inappropriate language. Please review and try again.")
     
@@ -740,6 +798,10 @@ async def create_talo(request: Request):
         data["talos"] = []
     data["talos"].insert(0, talo)
     user["talos_count"] = user.get("talos_count", 0) + 1
+    
+    # Update word trends for trending system
+    update_word_trends(content, talo["created_at"], data)
+    
     await save_jsonbin_data(data)
     
     # Create notifications for followers
@@ -770,7 +832,6 @@ async def create_talo(request: Request):
 
 @app.post("/api/create_reply/{parent_talo_id}")
 async def create_reply(request: Request, parent_talo_id: str):
-    """Create a reply to a talo with Firebase photo URL and banned word filtering"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -786,7 +847,6 @@ async def create_reply(request: Request, parent_talo_id: str):
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     
-    # Check if parent talo exists
     parent_talo = None
     talo_owner_id = None
     for t in data.get("talos", []):
@@ -802,7 +862,6 @@ async def create_reply(request: Request, parent_talo_id: str):
     content = body.get("content", "")
     photo = body.get("photo")
     
-    # Check for banned words
     if contains_banned_words(content):
         raise HTTPException(status_code=400, detail="Your reply contains inappropriate language. Please review and try again.")
     
@@ -823,10 +882,8 @@ async def create_reply(request: Request, parent_talo_id: str):
         data["replies"] = []
     data["replies"].append(reply)
     
-    # Update reply count on parent talo
     parent_talo["reply_count"] = len([r for r in data["replies"] if r.get("parent_talo_id") == parent_talo_id])
     
-    # Create notification for talo owner
     if talo_owner_id != user["user_id"]:
         if "notifications" not in data:
             data["notifications"] = []
@@ -850,7 +907,6 @@ async def create_reply(request: Request, parent_talo_id: str):
 
 @app.post("/api/like/{talo_id}")
 async def like_talo(talo_id: str, request: Request):
-    """Like or unlike a talo"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -866,10 +922,15 @@ async def like_talo(talo_id: str, request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     
+    talo_owner_id = None
+    for talo in data["talos"]:
+        if talo["id"] == talo_id:
+            talo_owner_id = talo["user_id"]
+            break
+    
     if "likes" not in data:
         data["likes"] = []
     
-    # Check if already liked
     like_index = None
     for i, like in enumerate(data["likes"]):
         if like.get("talo_id") == talo_id and like.get("user_id") == user["user_id"]:
@@ -877,7 +938,6 @@ async def like_talo(talo_id: str, request: Request):
             break
     
     if like_index is not None:
-        # Unlike
         data["likes"].pop(like_index)
         for talo in data["talos"]:
             if talo["id"] == talo_id:
@@ -885,7 +945,6 @@ async def like_talo(talo_id: str, request: Request):
                 await save_jsonbin_data(data)
                 return {"liked": False, "count": talo["likes"]}
     else:
-        # Add like
         data["likes"].append({
             "talo_id": talo_id,
             "user_id": user["user_id"],
@@ -895,68 +954,31 @@ async def like_talo(talo_id: str, request: Request):
         for talo in data["talos"]:
             if talo["id"] == talo_id:
                 talo["likes"] += 1
+                
+                if talo_owner_id and talo_owner_id != user["user_id"]:
+                    if "notifications" not in data:
+                        data["notifications"] = []
+                    
+                    notification = {
+                        "id": str(uuid.uuid4()),
+                        "user_id": talo_owner_id,
+                        "type": "like",
+                        "message": f"@{user['user_id']} liked your talo",
+                        "related_talo_id": talo_id,
+                        "from_user_id": user["user_id"],
+                        "read": False,
+                        "created_at": datetime.now().isoformat()
+                    }
+                    data["notifications"].append(notification)
+                
                 await save_jsonbin_data(data)
                 return {"liked": True, "count": talo["likes"]}
     
     await save_jsonbin_data(data)
     return {"liked": False, "count": 0}
 
-@app.post("/api/like_reply/{reply_id}")
-async def like_reply(reply_id: str, request: Request):
-    """Like or unlike a reply"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    user = None
-    
-    for u in data.get("users", []):
-        if u.get("session_token") == session_token:
-            user = u
-            break
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    if "reply_likes" not in data:
-        data["reply_likes"] = []
-    
-    # Check if already liked
-    like_index = None
-    for i, like in enumerate(data["reply_likes"]):
-        if like.get("reply_id") == reply_id and like.get("user_id") == user["user_id"]:
-            like_index = i
-            break
-    
-    if like_index is not None:
-        # Unlike
-        data["reply_likes"].pop(like_index)
-        for reply in data.get("replies", []):
-            if reply["id"] == reply_id:
-                reply["likes"] = reply.get("likes", 0) - 1
-                await save_jsonbin_data(data)
-                return {"liked": False, "count": reply["likes"]}
-    else:
-        # Add like
-        data["reply_likes"].append({
-            "reply_id": reply_id,
-            "user_id": user["user_id"],
-            "created_at": datetime.now().isoformat()
-        })
-        
-        for reply in data.get("replies", []):
-            if reply["id"] == reply_id:
-                reply["likes"] = reply.get("likes", 0) + 1
-                await save_jsonbin_data(data)
-                return {"liked": True, "count": reply["likes"]}
-    
-    await save_jsonbin_data(data)
-    return {"liked": False, "count": 0}
-
 @app.post("/api/follow/{user_id_to_follow}")
 async def follow_user(user_id_to_follow: str, request: Request):
-    """Follow or unfollow a user"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -975,7 +997,6 @@ async def follow_user(user_id_to_follow: str, request: Request):
     if user["user_id"] == user_id_to_follow:
         raise HTTPException(status_code=400, detail="Cannot follow yourself")
     
-    # Find target user
     target_user = None
     for u in data.get("users", []):
         if u["user_id"] == user_id_to_follow:
@@ -988,7 +1009,6 @@ async def follow_user(user_id_to_follow: str, request: Request):
     if "follows" not in data:
         data["follows"] = []
     
-    # Check if already following
     follow_index = None
     for i, follow in enumerate(data["follows"]):
         if follow.get("follower_id") == user["user_id"] and follow.get("following_id") == user_id_to_follow:
@@ -996,14 +1016,12 @@ async def follow_user(user_id_to_follow: str, request: Request):
             break
     
     if follow_index is not None:
-        # Unfollow
         data["follows"].pop(follow_index)
         user["following_count"] = max(0, user.get("following_count", 0) - 1)
         target_user["followers_count"] = max(0, target_user.get("followers_count", 0) - 1)
         await save_jsonbin_data(data)
         return {"following": False, "followers_count": target_user["followers_count"]}
     else:
-        # Follow
         data["follows"].append({
             "follower_id": user["user_id"],
             "following_id": user_id_to_follow,
@@ -1011,12 +1029,26 @@ async def follow_user(user_id_to_follow: str, request: Request):
         })
         user["following_count"] = user.get("following_count", 0) + 1
         target_user["followers_count"] = target_user.get("followers_count", 0) + 1
+        
+        if "notifications" not in data:
+            data["notifications"] = []
+        
+        notification = {
+            "id": str(uuid.uuid4()),
+            "user_id": user_id_to_follow,
+            "type": "follow",
+            "message": f"@{user['user_id']} started following you",
+            "from_user_id": user["user_id"],
+            "read": False,
+            "created_at": datetime.now().isoformat()
+        }
+        data["notifications"].append(notification)
+        
         await save_jsonbin_data(data)
         return {"following": True, "followers_count": target_user["followers_count"]}
 
 @app.get("/api/get_follow_status/{profile_user_id}")
 async def get_follow_status(profile_user_id: str, request: Request):
-    """Check if current user follows the profile user"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         return {"following": False}
@@ -1043,14 +1075,12 @@ async def get_follow_status(profile_user_id: str, request: Request):
 
 @app.get("/api/get_followers/{user_id}")
 async def get_followers(user_id: str, request: Request):
-    """Get list of followers for a user"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
     data = await get_jsonbin_data()
     
-    # Get current user to verify auth
     current_user = None
     for u in data.get("users", []):
         if u.get("session_token") == session_token:
@@ -1060,11 +1090,9 @@ async def get_followers(user_id: str, request: Request):
     if not current_user:
         raise HTTPException(status_code=401, detail="User not found")
     
-    # Find followers
     followers = []
     for follow in data.get("follows", []):
         if follow.get("following_id") == user_id:
-            # Get follower info
             for u in data.get("users", []):
                 if u["user_id"] == follow["follower_id"]:
                     followers.append({
@@ -1078,14 +1106,12 @@ async def get_followers(user_id: str, request: Request):
 
 @app.get("/api/get_following/{user_id}")
 async def get_following(user_id: str, request: Request):
-    """Get list of users that a user follows"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
     data = await get_jsonbin_data()
     
-    # Get current user to verify auth
     current_user = None
     for u in data.get("users", []):
         if u.get("session_token") == session_token:
@@ -1095,11 +1121,9 @@ async def get_following(user_id: str, request: Request):
     if not current_user:
         raise HTTPException(status_code=401, detail="User not found")
     
-    # Find following
     following = []
     for follow in data.get("follows", []):
         if follow.get("follower_id") == user_id:
-            # Get following info
             for u in data.get("users", []):
                 if u["user_id"] == follow["following_id"]:
                     following.append({
@@ -1113,7 +1137,6 @@ async def get_following(user_id: str, request: Request):
 
 @app.post("/api/update_profile")
 async def update_profile(request: Request):
-    """Update user profile including photo, name, and bio"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -1133,7 +1156,6 @@ async def update_profile(request: Request):
     
     form = await request.form()
     
-    # Update name fields
     if "first_name" in form:
         user["first_name"] = form["first_name"]
     if "last_name" in form:
@@ -1141,1126 +1163,31 @@ async def update_profile(request: Request):
     if "bio" in form:
         user["bio"] = form["bio"]
     
-    # Handle profile photo URL from Firebase
     if "profile_photo_url" in form:
         user["profile_photo"] = form["profile_photo_url"]
         if "profile_photo_path" in form:
             user["profile_photo_path"] = form["profile_photo_path"]
     
-    # Save updated user
     if user_index is not None:
         data["users"][user_index] = user
         await save_jsonbin_data(data)
     
     return {"message": "Profile updated successfully"}
 
-@app.get("/api/search_hashtag/{hashtag}")
-async def search_by_hashtag(hashtag: str, request: Request):
-    """Search for posts with a specific hashtag"""
+@app.get("/api/trending")
+async def get_trending(request: Request):
+    """Get trending words/hashtags"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
     data = await get_jsonbin_data()
+    trending = get_trending_words(data)
     
-    # Filter talos containing the hashtag
-    filtered_talos = []
-    for talo in data.get("talos", []):
-        content = talo.get("content", "")
-        if hashtag.lower() in content.lower():
-            # Add user info
-            for u in data.get("users", []):
-                if u["user_id"] == talo["user_id"]:
-                    talo["user_name"] = f"{u['first_name']} {u['last_name']}"
-                    talo["user_photo"] = u.get("profile_photo")
-                    break
-            filtered_talos.append(talo)
-    
-    return {"talos": filtered_talos}
-
-@app.get("/logout")
-async def logout():
-    """Logout endpoint"""
-    response = RedirectResponse(url="/", status_code=303)
-    response.delete_cookie("session_token")
-    return response
-
-# ===== ADMIN API ENDPOINTS =====
-
-@app.post("/api/admin/create_admin")
-async def create_admin(request: Request, admin_data: CreateAdminRequest):
-    """Create a new normal administrator (Super Admin only)"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    admin = None
-    
-    for a in data.get("admins", []):
-        if a.get("session_token") == session_token:
-            admin = a
-            break
-    
-    # Only super admin can create new admins
-    if not admin or admin.get("role") != "super_admin":
-        raise HTTPException(status_code=403, detail="Only Super Administrator can create new admins")
-    
-    # Check if admin already exists
-    for a in data.get("admins", []):
-        if a.get("user_id") == admin_data.admin_id:
-            raise HTTPException(status_code=400, detail="Admin ID already exists")
-    
-    new_admin = {
-        "user_id": admin_data.admin_id,
-        "password_hash": hash_password(admin_data.password),
-        "name": admin_data.name,
-        "role": "admin",
-        "is_active": True,
-        "created_at": datetime.now().isoformat(),
-        "created_by": admin["user_id"],
-        "last_login": None
-    }
-    
-    if "admins" not in data:
-        data["admins"] = []
-    data["admins"].append(new_admin)
-    await save_jsonbin_data(data)
-    
-    return {"message": f"Administrator {admin_data.admin_id} created successfully"}
-
-@app.post("/api/admin/deactivate_admin/{admin_id}")
-async def deactivate_admin(admin_id: str, request: Request):
-    """Deactivate a normal administrator (Super Admin only)"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    admin = None
-    
-    for a in data.get("admins", []):
-        if a.get("session_token") == session_token:
-            admin = a
-            break
-    
-    # Only super admin can deactivate admins
-    if not admin or admin.get("role") != "super_admin":
-        raise HTTPException(status_code=403, detail="Only Super Administrator can manage other admins")
-    
-    # Cannot deactivate self
-    if admin_id == admin["user_id"]:
-        raise HTTPException(status_code=400, detail="Cannot deactivate your own account")
-    
-    # Cannot deactivate super admin
-    if admin_id == SUPER_ADMIN_ID:
-        raise HTTPException(status_code=400, detail="Cannot deactivate Super Administrator")
-    
-    for a in data.get("admins", []):
-        if a["user_id"] == admin_id:
-            a["is_active"] = not a.get("is_active", True)
-            await save_jsonbin_data(data)
-            return {"message": f"Admin {'activated' if a['is_active'] else 'deactivated'}"}
-    
-    raise HTTPException(status_code=404, detail="Admin not found")
-
-@app.post("/api/admin/delete_admin/{admin_id}")
-async def delete_admin(admin_id: str, request: Request):
-    """Delete a normal administrator (Super Admin only)"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    admin = None
-    
-    for a in data.get("admins", []):
-        if a.get("session_token") == session_token:
-            admin = a
-            break
-    
-    # Only super admin can delete admins
-    if not admin or admin.get("role") != "super_admin":
-        raise HTTPException(status_code=403, detail="Only Super Administrator can delete other admins")
-    
-    # Cannot delete self
-    if admin_id == admin["user_id"]:
-        raise HTTPException(status_code=400, detail="Cannot delete your own account")
-    
-    # Cannot delete super admin
-    if admin_id == SUPER_ADMIN_ID:
-        raise HTTPException(status_code=400, detail="Cannot delete Super Administrator")
-    
-    admin_index = None
-    for i, a in enumerate(data.get("admins", [])):
-        if a["user_id"] == admin_id:
-            admin_index = i
-            break
-    
-    if admin_index is None:
-        raise HTTPException(status_code=404, detail="Admin not found")
-    
-    data["admins"].pop(admin_index)
-    await save_jsonbin_data(data)
-    
-    return {"message": f"Admin {admin_id} deleted successfully"}
-
-@app.post("/api/admin/deactivate_user/{user_id}")
-async def deactivate_user(user_id: str, request: Request):
-    """Admin: Deactivate or activate a user (All admins can do this)"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    admin = None
-    
-    for a in data.get("admins", []):
-        if a.get("session_token") == session_token:
-            admin = a
-            break
-    
-    if not admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    for user in data.get("users", []):
-        if user["user_id"] == user_id:
-            user["is_active"] = not user.get("is_active", True)
-            await save_jsonbin_data(data)
-            return {"message": f"User {'activated' if user['is_active'] else 'deactivated'}"}
-    
-    raise HTTPException(status_code=404, detail="User not found")
-
-@app.post("/api/admin/delete_user/{user_id}")
-async def delete_user(user_id: str, request: Request):
-    """Delete a user (Super Admin only)"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    admin = None
-    
-    for a in data.get("admins", []):
-        if a.get("session_token") == session_token:
-            admin = a
-            break
-    
-    # Only super admin can delete users
-    if not admin or admin.get("role") != "super_admin":
-        raise HTTPException(status_code=403, detail="Only Super Administrator can delete users")
-    
-    # Delete user
-    user_index = None
-    for i, user in enumerate(data.get("users", [])):
-        if user["user_id"] == user_id:
-            user_index = i
-            break
-    
-    if user_index is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Delete user's talos
-    data["talos"] = [t for t in data.get("talos", []) if t["user_id"] != user_id]
-    # Delete user's replies
-    data["replies"] = [r for r in data.get("replies", []) if r["user_id"] != user_id]
-    # Delete user's likes
-    data["likes"] = [l for l in data.get("likes", []) if l["user_id"] != user_id]
-    # Delete user's follows
-    data["follows"] = [f for f in data.get("follows", []) if f["follower_id"] != user_id and f["following_id"] != user_id]
-    # Delete user's premium requests
-    data["premium_requests"] = [pr for pr in data.get("premium_requests", []) if pr["user_id"] != user_id]
-    
-    data["users"].pop(user_index)
-    await save_jsonbin_data(data)
-    
-    return {"message": "User deleted successfully"}
-
-@app.post("/api/admin/deactivate_advert/{advert_id}")
-async def deactivate_advert(advert_id: str, request: Request):
-    """Deactivate or activate an advert (All admins can do this)"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    admin = None
-    
-    for a in data.get("admins", []):
-        if a.get("session_token") == session_token:
-            admin = a
-            break
-    
-    if not admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    for advert in data.get("adverts", []):
-        if advert["id"] == advert_id:
-            advert["is_active"] = not advert.get("is_active", True)
-            await save_jsonbin_data(data)
-            return {"message": f"Advert {'activated' if advert['is_active'] else 'deactivated'}"}
-    
-    raise HTTPException(status_code=404, detail="Advert not found")
-
-@app.post("/api/admin/delete_advert/{advert_id}")
-async def delete_advert(advert_id: str, request: Request):
-    """Delete an advert (Super Admin only)"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    admin = None
-    
-    for a in data.get("admins", []):
-        if a.get("session_token") == session_token:
-            admin = a
-            break
-    
-    # Only super admin can delete adverts
-    if not admin or admin.get("role") != "super_admin":
-        raise HTTPException(status_code=403, detail="Only Super Administrator can delete adverts")
-    
-    advert_index = None
-    for i, advert in enumerate(data.get("adverts", [])):
-        if advert["id"] == advert_id:
-            advert_index = i
-            break
-    
-    if advert_index is None:
-        raise HTTPException(status_code=404, detail="Advert not found")
-    
-    data["adverts"].pop(advert_index)
-    await save_jsonbin_data(data)
-    
-    return {"message": "Advert deleted successfully"}
-
-@app.post("/api/admin/process_premium_request/{request_id}")
-async def process_premium_request(request_id: str, request: Request):
-    """Approve or reject premium user request (All admins can do this)"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    admin = None
-    
-    for a in data.get("admins", []):
-        if a.get("session_token") == session_token:
-            admin = a
-            break
-    
-    if not admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    body = await request.json()
-    action = body.get("action")  # "approve" or "reject"
-    
-    req_index = None
-    premium_request = None
-    for i, pr in enumerate(data.get("premium_requests", [])):
-        if pr["id"] == request_id:
-            req_index = i
-            premium_request = pr
-            break
-    
-    if req_index is None:
-        raise HTTPException(status_code=404, detail="Premium request not found")
-    
-    if action == "approve":
-        # Update user to premium
-        for user in data.get("users", []):
-            if user["user_id"] == premium_request["user_id"]:
-                user["is_premium"] = True
-                user["premium_activated_at"] = datetime.now().isoformat()
-                user["premium_activated_by"] = admin["user_id"]
-                break
-        
-        # Record payment
-        if "payments" not in data:
-            data["payments"] = []
-        data["payments"].append({
-            "id": str(uuid.uuid4()),
-            "user_id": premium_request["user_id"],
-            "amount": premium_request["amount"],
-            "payment_proof_url": premium_request["payment_proof_url"],
-            "status": "approved",
-            "processed_by": admin["user_id"],
-            "processed_at": datetime.now().isoformat(),
-            "created_at": premium_request["created_at"]
-        })
-        
-        # Remove request
-        data["premium_requests"].pop(req_index)
-        await save_jsonbin_data(data)
-        
-        return {"message": "Premium request approved successfully"}
-    
-    elif action == "reject":
-        # Just remove the request
-        data["premium_requests"].pop(req_index)
-        await save_jsonbin_data(data)
-        return {"message": "Premium request rejected"}
-    
-    raise HTTPException(status_code=400, detail="Invalid action")
-
-@app.post("/api/admin/request_premium")
-async def request_premium(request: Request):
-    """User requests premium upgrade with payment proof"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    user = None
-    
-    for u in data.get("users", []):
-        if u.get("session_token") == session_token:
-            user = u
-            break
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    body = await request.json()
-    payment_proof_url = body.get("payment_proof_url")
-    amount = body.get("amount")
-    
-    if not payment_proof_url or not amount:
-        raise HTTPException(status_code=400, detail="Payment proof URL and amount required")
-    
-    premium_request = {
-        "id": str(uuid.uuid4()),
-        "user_id": user["user_id"],
-        "user_name": f"{user['first_name']} {user['last_name']}",
-        "amount": amount,
-        "payment_proof_url": payment_proof_url,
-        "status": "pending",
-        "created_at": datetime.now().isoformat()
-    }
-    
-    if "premium_requests" not in data:
-        data["premium_requests"] = []
-    data["premium_requests"].append(premium_request)
-    await save_jsonbin_data(data)
-    
-    return {"message": "Premium request submitted successfully"}
-
-@app.get("/api/admin/get_premium_requests")
-async def get_premium_requests(request: Request):
-    """Get all pending premium requests"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    admin = None
-    
-    for a in data.get("admins", []):
-        if a.get("session_token") == session_token:
-            admin = a
-            break
-    
-    if not admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    pending_requests = [pr for pr in data.get("premium_requests", []) if pr.get("status") == "pending"]
-    
-    return {"requests": pending_requests}
-
-@app.get("/api/admin/get_payments")
-async def get_payments(request: Request):
-    """Get all successful payments"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    admin = None
-    
-    for a in data.get("admins", []):
-        if a.get("session_token") == session_token:
-            admin = a
-            break
-    
-    if not admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    payments = data.get("payments", [])
-    payments.sort(key=lambda x: x.get("processed_at", ""), reverse=True)
-    
-    return {"payments": payments}
-
-@app.get("/api/admin/get_admins")
-async def get_admins(request: Request):
-    """Get all administrators (Super Admin only)"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    admin = None
-    
-    for a in data.get("admins", []):
-        if a.get("session_token") == session_token:
-            admin = a
-            break
-    
-    # Only super admin can view all admins
-    if not admin or admin.get("role") != "super_admin":
-        raise HTTPException(status_code=403, detail="Only Super Administrator can view admin list")
-    
-    admins = data.get("admins", [])
-    # Remove sensitive data
-    for a in admins:
-        if "password_hash" in a:
-            del a["password_hash"]
-        if "session_token" in a:
-            del a["session_token"]
-    
-    return {"admins": admins}
-
-@app.get("/api/admin/get_reports")
-async def get_reports(request: Request):
-    """Get comprehensive platform reports (All admins)"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    admin = None
-    
-    for a in data.get("admins", []):
-        if a.get("session_token") == session_token:
-            admin = a
-            break
-    
-    if not admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    users = data.get("users", [])
-    today = datetime.now().date()
-    today_str = datetime.now().isoformat()[:10]
-    week_ago = (datetime.now() - timedelta(days=7)).isoformat()
-    month_ago = (datetime.now() - timedelta(days=30)).isoformat()
-    
-    # User reports
-    user_reports = {
-        "total_users": len(users),
-        "active_users": len([u for u in users if u.get("is_active", True)]),
-        "inactive_users": len([u for u in users if not u.get("is_active", True)]),
-        "premium_users": len([u for u in users if u.get("is_premium", False)]),
-        "male_users": len([u for u in users if u.get("gender") == "Male"]),
-        "female_users": len([u for u in users if u.get("gender") == "Female"]),
-        "users_last_7_days": len([u for u in users if u.get("created_at", "") > week_ago]),
-        "users_last_30_days": len([u for u in users if u.get("created_at", "") > month_ago]),
-        "daily_active": len([u for u in users if u.get("last_active", "").startswith(today_str)]),
-        "users_by_country": {}
-    }
-    
-    # Group users by country
-    for user in users:
-        country = user.get("country", "Unknown")
-        user_reports["users_by_country"][country] = user_reports["users_by_country"].get(country, 0) + 1
-    
-    # Post reports
-    talos = data.get("talos", [])
-    replies = data.get("replies", [])
-    
-    post_reports = {
-        "total_talos": len(talos),
-        "total_replies": len(replies),
-        "talos_today": len([t for t in talos if t.get("created_at", "").startswith(today_str)]),
-        "replies_today": len([r for r in replies if r.get("created_at", "").startswith(today_str)]),
-        "talos_last_7_days": len([t for t in talos if t.get("created_at", "") > week_ago]),
-        "replies_last_7_days": len([r for r in replies if r.get("created_at", "") > week_ago]),
-        "total_likes": len(data.get("likes", [])),
-        "total_follows": len(data.get("follows", []))
-    }
-    
-    # Financial reports
-    payments = data.get("payments", [])
-    financial_reports = {
-        "total_payments": len(payments),
-        "total_amount": sum(p.get("amount", 0) for p in payments),
-        "payments_last_7_days": len([p for p in payments if p.get("processed_at", "") > week_ago]),
-        "amount_last_7_days": sum(p.get("amount", 0) for p in payments if p.get("processed_at", "") > week_ago),
-        "payments_last_30_days": len([p for p in payments if p.get("processed_at", "") > month_ago]),
-        "amount_last_30_days": sum(p.get("amount", 0) for p in payments if p.get("processed_at", "") > month_ago)
-    }
-    
-    return {
-        "user_reports": user_reports,
-        "post_reports": post_reports,
-        "financial_reports": financial_reports,
-        "generated_at": datetime.now().isoformat(),
-        "admin": {
-            "user_id": admin["user_id"],
-            "role": admin["role"]
-        }
-    }
-
-
-# Add these endpoints to main.py after the existing endpoints
-
-@app.post("/api/clear_notifications")
-async def clear_all_notifications(request: Request):
-    """Clear all notifications for the current user (remove them entirely)"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    user = None
-    
-    for u in data.get("users", []):
-        if u.get("session_token") == session_token:
-            user = u
-            break
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    # Remove all notifications for this user
-    data["notifications"] = [n for n in data.get("notifications", []) if n.get("user_id") != user["user_id"]]
-    await save_jsonbin_data(data)
-    
-    return {"message": "All notifications cleared"}
-
-@app.post("/api/clear_single_notification/{notification_id}")
-async def clear_single_notification(notification_id: str, request: Request):
-    """Remove a single notification entirely"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    user = None
-    
-    for u in data.get("users", []):
-        if u.get("session_token") == session_token:
-            user = u
-            break
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    # Remove the specific notification
-    notification_index = None
-    for i, n in enumerate(data.get("notifications", [])):
-        if n.get("id") == notification_id and n.get("user_id") == user["user_id"]:
-            notification_index = i
-            break
-    
-    if notification_index is not None:
-        data["notifications"].pop(notification_index)
-        await save_jsonbin_data(data)
-    
-    return {"message": "Notification cleared"}
-
-
-@app.get("/api/check_new_notifications")
-async def check_new_notifications(request: Request):
-    """Check for new notifications since last check (for real-time updates)"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        return {"has_new": False, "count": 0}
-    
-    data = await get_jsonbin_data()
-    user = None
-    
-    for u in data.get("users", []):
-        if u.get("session_token") == session_token:
-            user = u
-            break
-    
-    if not user:
-        return {"has_new": False, "count": 0}
-    
-    # Get last checked timestamp from request header or use default
-    last_checked = request.headers.get("X-Last-Checked", "")
-    
-    notifications = [n for n in data.get("notifications", []) if n.get("user_id") == user["user_id"]]
-    
-    if last_checked:
-        new_notifications = [n for n in notifications if n.get("created_at", "") > last_checked and not n.get("read", False)]
-    else:
-        new_notifications = [n for n in notifications if not n.get("read", False)]
-    
-    return {
-        "has_new": len(new_notifications) > 0,
-        "count": len(new_notifications)
-    }
-
-
-
-# ===== RETALO AND NOTIFICATION ENDPOINTS =====
-
-@app.get("/api/get_latest_talo_timestamp")
-async def get_latest_talo_timestamp(request: Request):
-    """Get the timestamp of the latest talo for new post detection"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        return {"latest_timestamp": None}
-    
-    data = await get_jsonbin_data()
-    talos = data.get("talos", [])
-    
-    if talos:
-        # Sort by created_at and get the latest
-        latest = max(talos, key=lambda x: x.get("created_at", ""))
-        return {"latest_timestamp": latest.get("created_at")}
-    
-    return {"latest_timestamp": None}
-
-# Replace the existing retalo endpoint in main.py with this enhanced version:
-
-@app.post("/api/retalo")
-async def create_retalo(request: Request):
-    """Create a retalo/repost - shares original post to followers and notifies original poster"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    user = None
-    
-    for u in data.get("users", []):
-        if u.get("session_token") == session_token:
-            user = u
-            break
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    body = await request.json()
-    original_talo_id = body.get("original_talo_id")
-    original_user_id = body.get("original_user_id")
-    original_content = body.get("original_content")
-    original_photos = body.get("original_photos", [])  # Get original photos
-    
-    if not original_talo_id:
-        raise HTTPException(status_code=400, detail="Original talo ID required")
-    
-    # Get the original talo details
-    original_talo = None
-    for talo in data.get("talos", []):
-        if talo["id"] == original_talo_id:
-            original_talo = talo
-            break
-    
-    if not original_talo:
-        raise HTTPException(status_code=404, detail="Original post not found")
-    
-    # Check if user already retaled this post
-    for retalo in data.get("retalos", []):
-        if retalo.get("user_id") == user["user_id"] and retalo.get("original_talo_id") == original_talo_id:
-            raise HTTPException(status_code=400, detail="You have already reposted this post")
-    
-    # Create retalo record
-    retalo = {
-        "id": str(uuid.uuid4()),
-        "user_id": user["user_id"],
-        "original_talo_id": original_talo_id,
-        "original_user_id": original_user_id,
-        "original_content": original_content,
-        "original_photos": original_talo.get("photos", []),  # Store original photos
-        "created_at": datetime.now().isoformat()
-    }
-    
-    if "retalos" not in data:
-        data["retalos"] = []
-    data["retalos"].append(retalo)
-    
-    # Update retalo count on original talo
-    for talo in data.get("talos", []):
-        if talo["id"] == original_talo_id:
-            talo["retalos"] = talo.get("retalos", 0) + 1
-            break
-    
-    # Create a visible retalo post in the feed with original content
-    retalo_post = {
-        "id": str(uuid.uuid4()),
-        "user_id": user["user_id"],
-        "content": original_content,  # Use original content instead of just a message
-        "photos": original_talo.get("photos", []),  # Include original photos
-        "likes": 0,
-        "dislikes": 0,
-        "retalos": 0,
-        "reply_count": 0,
-        "created_at": datetime.now().isoformat(),
-        "is_retalo": True,
-        "original_talo_id": original_talo_id,
-        "original_user_id": original_user_id,
-        "retalo_user_name": f"{user['first_name']} {user['last_name']}",
-        "retalo_user_id": user["user_id"]
-    }
-    
-    data["talos"].insert(0, retalo_post)
-    user["talos_count"] = user.get("talos_count", 0) + 1
-    
-    # Create notification for original poster
-    if original_user_id != user["user_id"]:
-        if "notifications" not in data:
-            data["notifications"] = []
-        
-        notification = {
-            "id": str(uuid.uuid4()),
-            "user_id": original_user_id,
-            "type": "retalo",
-            "message": f"@{user['user_id']} reposted your post: {original_content[:50]}...",
-            "related_talo_id": original_talo_id,
-            "from_user_id": user["user_id"],
-            "read": False,
-            "created_at": datetime.now().isoformat()
-        }
-        data["notifications"].append(notification)
-    
-    # Create notifications for all followers of the user
-    followers = []
-    for follow in data.get("follows", []):
-        if follow.get("following_id") == user["user_id"]:
-            followers.append(follow.get("follower_id"))
-    
-    for follower_id in followers:
-        if "notifications" not in data:
-            data["notifications"] = []
-        
-        notification = {
-            "id": str(uuid.uuid4()),
-            "user_id": follower_id,
-            "type": "retalo",
-            "message": f"@{user['user_id']} reposted: {original_content[:50]}...",
-            "related_talo_id": original_talo_id,
-            "from_user_id": user["user_id"],
-            "read": False,
-            "created_at": datetime.now().isoformat()
-        }
-        data["notifications"].append(notification)
-    
-    await save_jsonbin_data(data)
-    
-    return {
-        "message": "Post reposted successfully!", 
-        "retalo_id": retalo["id"],
-        "retalo_post": retalo_post
-    }
-
-@app.get("/api/get_notifications")
-async def get_notifications(request: Request):
-    """Get notifications for the current user with unread count"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    user = None
-    
-    for u in data.get("users", []):
-        if u.get("session_token") == session_token:
-            user = u
-            break
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    notifications = [n for n in data.get("notifications", []) if n.get("user_id") == user["user_id"]]
-    # Sort by created_at descending
-    notifications.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-    
-    unread_count = len([n for n in notifications if not n.get("read", False)])
-    
-    return {"notifications": notifications, "unread_count": unread_count}
-@app.post("/api/mark_all_notifications_read")
-async def mark_all_notifications_read(request: Request):
-    """Mark all notifications as read for the current user"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    user = None
-    
-    for u in data.get("users", []):
-        if u.get("session_token") == session_token:
-            user = u
-            break
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    for notification in data.get("notifications", []):
-        if notification.get("user_id") == user["user_id"]:
-            notification["read"] = True
-    
-    await save_jsonbin_data(data)
-    return {"message": "All notifications marked as read"}
-
-@app.post("/api/mark_notification_read/{notification_id}")
-async def mark_notification_read(notification_id: str, request: Request):
-    """Mark a notification as read"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    user = None
-    
-    for u in data.get("users", []):
-        if u.get("session_token") == session_token:
-            user = u
-            break
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    for notification in data.get("notifications", []):
-        if notification.get("id") == notification_id and notification.get("user_id") == user["user_id"]:
-            notification["read"] = True
-            await save_jsonbin_data(data)
-            return {"message": "Notification marked as read"}
-    
-    raise HTTPException(status_code=404, detail="Notification not found")
-
-@app.post("/api/mark_all_notifications_read")
-async def mark_all_notifications_read(request: Request):
-    """Mark all notifications as read for the current user"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    user = None
-    
-    for u in data.get("users", []):
-        if u.get("session_token") == session_token:
-            user = u
-            break
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    for notification in data.get("notifications", []):
-        if notification.get("user_id") == user["user_id"]:
-            notification["read"] = True
-    
-    await save_jsonbin_data(data)
-    return {"message": "All notifications marked as read"}
-
-# Update the like endpoint to send notifications
-@app.post("/api/like/{talo_id}")
-async def like_talo_with_notification(talo_id: str, request: Request):
-    """Like or unlike a talo with notification"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    user = None
-    
-    for u in data.get("users", []):
-        if u.get("session_token") == session_token:
-            user = u
-            break
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    if "likes" not in data:
-        data["likes"] = []
-    
-    # Find the talo owner
-    talo_owner_id = None
-    for talo in data["talos"]:
-        if talo["id"] == talo_id:
-            talo_owner_id = talo["user_id"]
-            break
-    
-    # Check if already liked
-    like_index = None
-    for i, like in enumerate(data["likes"]):
-        if like.get("talo_id") == talo_id and like.get("user_id") == user["user_id"]:
-            like_index = i
-            break
-    
-    if like_index is not None:
-        # Unlike
-        data["likes"].pop(like_index)
-        for talo in data["talos"]:
-            if talo["id"] == talo_id:
-                talo["likes"] -= 1
-                await save_jsonbin_data(data)
-                return {"liked": False, "count": talo["likes"]}
-    else:
-        # Add like
-        data["likes"].append({
-            "talo_id": talo_id,
-            "user_id": user["user_id"],
-            "created_at": datetime.now().isoformat()
-        })
-        
-        for talo in data["talos"]:
-            if talo["id"] == talo_id:
-                talo["likes"] += 1
-                
-                # Create notification for talo owner (if not self-like)
-                if talo_owner_id and talo_owner_id != user["user_id"]:
-                    if "notifications" not in data:
-                        data["notifications"] = []
-                    
-                    notification = {
-                        "id": str(uuid.uuid4()),
-                        "user_id": talo_owner_id,
-                        "type": "like",
-                        "message": f"@{user['user_id']} liked your talo",
-                        "related_talo_id": talo_id,
-                        "from_user_id": user["user_id"],
-                        "read": False,
-                        "created_at": datetime.now().isoformat()
-                    }
-                    data["notifications"].append(notification)
-                
-                await save_jsonbin_data(data)
-                return {"liked": True, "count": talo["likes"]}
-    
-    await save_jsonbin_data(data)
-    return {"liked": False, "count": 0}
-
-# Update follow endpoint to send notifications
-@app.post("/api/follow/{user_id_to_follow}")
-async def follow_user_with_notification(user_id_to_follow: str, request: Request):
-    """Follow or unfollow a user with notification"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    user = None
-    
-    for u in data.get("users", []):
-        if u.get("session_token") == session_token:
-            user = u
-            break
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    if user["user_id"] == user_id_to_follow:
-        raise HTTPException(status_code=400, detail="Cannot follow yourself")
-    
-    # Find target user
-    target_user = None
-    for u in data.get("users", []):
-        if u["user_id"] == user_id_to_follow:
-            target_user = u
-            break
-    
-    if not target_user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    if "follows" not in data:
-        data["follows"] = []
-    
-    # Check if already following
-    follow_index = None
-    for i, follow in enumerate(data["follows"]):
-        if follow.get("follower_id") == user["user_id"] and follow.get("following_id") == user_id_to_follow:
-            follow_index = i
-            break
-    
-    if follow_index is not None:
-        # Unfollow
-        data["follows"].pop(follow_index)
-        user["following_count"] = max(0, user.get("following_count", 0) - 1)
-        target_user["followers_count"] = max(0, target_user.get("followers_count", 0) - 1)
-        await save_jsonbin_data(data)
-        return {"following": False, "followers_count": target_user["followers_count"]}
-    else:
-        # Follow
-        data["follows"].append({
-            "follower_id": user["user_id"],
-            "following_id": user_id_to_follow,
-            "created_at": datetime.now().isoformat()
-        })
-        user["following_count"] = user.get("following_count", 0) + 1
-        target_user["followers_count"] = target_user.get("followers_count", 0) + 1
-        
-        # Create notification for the user being followed
-        if "notifications" not in data:
-            data["notifications"] = []
-        
-        notification = {
-            "id": str(uuid.uuid4()),
-            "user_id": user_id_to_follow,
-            "type": "follow",
-            "message": f"@{user['user_id']} started following you",
-            "from_user_id": user["user_id"],
-            "read": False,
-            "created_at": datetime.now().isoformat()
-        }
-        data["notifications"].append(notification)
-        
-        await save_jsonbin_data(data)
-        return {"following": True, "followers_count": target_user["followers_count"]}
-
-@app.get("/api/feed")
-async def get_personalized_feed(request: Request):
-    """Get personalized feed based on follows (only show posts from followed users)"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    user = None
-    
-    for u in data.get("users", []):
-        if u.get("session_token") == session_token:
-            user = u
-            break
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    # Get IDs of users this user follows
-    followed_user_ids = set()
-    for follow in data.get("follows", []):
-        if follow.get("follower_id") == user["user_id"]:
-            followed_user_ids.add(follow.get("following_id"))
-    
-    # Also include the user's own posts
-    followed_user_ids.add(user["user_id"])
-    
-    # Get talos from followed users
-    talos = data.get("talos", [])
-    filtered_talos = []
-    
-    for talo in talos:
-        if talo["user_id"] in followed_user_ids:
-            # Add user info
-            for u in data.get("users", []):
-                if u["user_id"] == talo["user_id"]:
-                    talo["user_name"] = f"{u['first_name']} {u['last_name']}"
-                    talo["user_photo"] = u.get("profile_photo")
-                    break
-            
-            # Get reply count
-            talo["reply_count"] = len([r for r in data.get("replies", []) if r.get("parent_talo_id") == talo["id"]])
-            filtered_talos.append(talo)
-    
-    # Sort by creation date (newest first)
-    filtered_talos.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-    
-    # Get replies for these talos
-    replies = data.get("replies", [])
-    
-    return {
-        "talos": filtered_talos[:100],
-        "replies": replies
-    }
+    return {"trending": [{"word": word, "count": count} for word, count in trending]}
 
 @app.post("/api/promote_post")
 async def promote_post(request: Request, promotion: PromotionRequest):
-    """Initiate post promotion payment"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -2276,7 +1203,6 @@ async def promote_post(request: Request, promotion: PromotionRequest):
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     
-    # Find the talo
     talo = None
     for t in data.get("talos", []):
         if t["id"] == promotion.talo_id:
@@ -2289,7 +1215,6 @@ async def promote_post(request: Request, promotion: PromotionRequest):
     if talo["user_id"] != user["user_id"]:
         raise HTTPException(status_code=403, detail="You can only promote your own posts")
     
-    # Create promotion request record
     promotion_id = str(uuid.uuid4())
     promotion_record = {
         "id": promotion_id,
@@ -2313,7 +1238,6 @@ async def promote_post(request: Request, promotion: PromotionRequest):
 
 @app.post("/api/confirm_promotion_payment/{promotion_id}")
 async def confirm_promotion_payment(promotion_id: str, request: Request):
-    """Confirm promotion payment (for PayPal - requires admin approval)"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -2329,7 +1253,6 @@ async def confirm_promotion_payment(promotion_id: str, request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     
-    # Find promotion
     promotion = None
     for p in data.get("promotions", []):
         if p["id"] == promotion_id:
@@ -2342,99 +1265,70 @@ async def confirm_promotion_payment(promotion_id: str, request: Request):
     if promotion["user_id"] != user["user_id"]:
         raise HTTPException(status_code=403, detail="Unauthorized")
     
-    # Update promotion status to pending_admin (for PayPal)
-    promotion["status"] = "pending_admin"
+    promotion["status"] = "activated"
     promotion["payment_confirmed_at"] = datetime.now().isoformat()
     
-    # Create admin notification for PayPal payment
-    if promotion["payment_method"] == "paypal":
-        if "admin_notifications" not in data:
-            data["admin_notifications"] = []
-        
-        admin_notification = {
-            "id": str(uuid.uuid4()),
-            "type": "promotion_payment",
-            "promotion_id": promotion_id,
-            "user_id": user["user_id"],
-            "amount": promotion["amount"],
-            "message": f"User @{user['user_id']} has paid for post promotion (${promotion['amount']}) via PayPal. Please verify and activate.",
-            "read": False,
-            "created_at": datetime.now().isoformat()
-        }
-        data["admin_notifications"].append(admin_notification)
-    
-    await save_jsonbin_data(data)
-    
-    return {"message": "Payment recorded. Awaiting admin verification for PayPal payments, or promotion activated for Paystack."}
-
-@app.post("/api/admin/activate_promotion/{promotion_id}")
-async def activate_promotion(promotion_id: str, request: Request):
-    """Admin: Activate a promoted post (for PayPal payments)"""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    admin = None
-    
-    for a in data.get("admins", []):
-        if a.get("session_token") == session_token:
-            admin = a
-            break
-    
-    if not admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    # Find promotion
-    promotion = None
-    promotion_index = None
-    for i, p in enumerate(data.get("promotions", [])):
-        if p["id"] == promotion_id:
-            promotion = p
-            promotion_index = i
-            break
-    
-    if not promotion:
-        raise HTTPException(status_code=404, detail="Promotion not found")
-    
-    # Find the talo and mark as promoted
+    # Mark talo as promoted
     for talo in data.get("talos", []):
         if talo["id"] == promotion["talo_id"]:
             talo["promoted"] = True
-            talo["promotion_level"] = promotion.get("amount", 0) // 100  # $100 = level 1
+            talo["promotion_level"] = promotion.get("amount", 0) // 100
             talo["promoted_at"] = datetime.now().isoformat()
-            talo["promoted_by"] = admin["user_id"]
             break
     
-    # Update promotion status
-    promotion["status"] = "activated"
-    promotion["activated_at"] = datetime.now().isoformat()
-    promotion["activated_by"] = admin["user_id"]
-    
-    data["promotions"][promotion_index] = promotion
     await save_jsonbin_data(data)
     
-    # Create notification for user
-    if "notifications" not in data:
-        data["notifications"] = []
-    
-    notification = {
-        "id": str(uuid.uuid4()),
-        "user_id": promotion["user_id"],
-        "type": "promotion",
-        "message": "Your post promotion has been activated! Your post will get higher visibility.",
-        "related_talo_id": promotion["talo_id"],
-        "read": False,
-        "created_at": datetime.now().isoformat()
-    }
-    data["notifications"].append(notification)
-    await save_jsonbin_data(data)
-    
-    return {"message": "Promotion activated successfully"}
+    return {"message": "Promotion activated successfully!"}
 
-@app.get("/api/get_admin_promotion_requests")
-async def get_admin_promotion_requests(request: Request):
-    """Get pending promotion requests for admin"""
+@app.get("/logout")
+async def logout():
+    response = RedirectResponse(url="/", status_code=303)
+    response.delete_cookie("session_token")
+    return response
+
+# ===== ADMIN API ENDPOINTS =====
+
+@app.post("/api/admin/create_admin")
+async def create_admin(request: Request, admin_data: CreateAdminRequest):
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+    
+    if not admin or admin.get("role") != "super_admin":
+        raise HTTPException(status_code=403, detail="Only Super Administrator can create new admins")
+    
+    for a in data.get("admins", []):
+        if a.get("user_id") == admin_data.admin_id:
+            raise HTTPException(status_code=400, detail="Admin ID already exists")
+    
+    new_admin = {
+        "user_id": admin_data.admin_id,
+        "password_hash": hash_password(admin_data.password),
+        "name": admin_data.name,
+        "role": "admin",
+        "is_active": True,
+        "created_at": datetime.now().isoformat(),
+        "created_by": admin["user_id"],
+        "last_login": None
+    }
+    
+    if "admins" not in data:
+        data["admins"] = []
+    data["admins"].append(new_admin)
+    await save_jsonbin_data(data)
+    
+    return {"message": f"Administrator {admin_data.admin_id} created successfully"}
+
+@app.post("/api/admin/deactivate_user/{user_id}")
+async def deactivate_user(user_id: str, request: Request):
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -2450,21 +1344,16 @@ async def get_admin_promotion_requests(request: Request):
     if not admin:
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    pending_promotions = [p for p in data.get("promotions", []) if p.get("status") == "pending_admin"]
+    for user in data.get("users", []):
+        if user["user_id"] == user_id:
+            user["is_active"] = not user.get("is_active", True)
+            await save_jsonbin_data(data)
+            return {"message": f"User {'activated' if user['is_active'] else 'deactivated'}"}
     
-    # Add user info
-    for p in pending_promotions:
-        for u in data.get("users", []):
-            if u["user_id"] == p["user_id"]:
-                p["user_name"] = f"{u['first_name']} {u['last_name']}"
-                break
-    
-    return {"promotions": pending_promotions}
-
+    raise HTTPException(status_code=404, detail="User not found")
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint"""
     try:
         data = await get_jsonbin_data()
         return {
@@ -2479,6 +1368,11 @@ async def health_check():
         }
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize wa_guan account on startup"""
+    await ensure_wa_guan_account()
 
 if __name__ == "__main__":
     import uvicorn
