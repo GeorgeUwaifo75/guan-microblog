@@ -320,6 +320,145 @@
                 display: none !important;
             }
         }
+
+        /* Edit Profile Button */
+        .edit-profile-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #f0f0f0;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            color: #333;
+            transition: background 0.2s;
+        }
+        .edit-profile-btn:hover {
+            background: #e0e0e0;
+        }
+
+        /* Profile Edit Modal */
+        .profile-edit-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+            display: none;
+        }
+        .profile-edit-modal.active {
+            display: flex;
+        }
+        .profile-edit-content {
+            background: white;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 85vh;
+            overflow-y: auto;
+            position: relative;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+        .profile-edit-modal.active .profile-edit-content {
+            transform: scale(1);
+        }
+        .profile-edit-header {
+            background: #cc0000;
+            color: white;
+            padding: 18px 20px;
+            border-radius: 20px 20px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .profile-edit-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+        .profile-edit-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+        .profile-edit-close:hover { opacity: 1; }
+        .profile-edit-content .form-group {
+            margin-bottom: 20px;
+            padding: 0 20px;
+        }
+        .profile-edit-content .form-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #333;
+        }
+        .profile-edit-content .form-group input,
+        .profile-edit-content .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        .profile-edit-content .form-group input:focus,
+        .profile-edit-content .form-group textarea:focus {
+            outline: none;
+            border-color: #cc0000;
+        }
+        .profile-photo-preview {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 12px;
+            border: 3px solid #cc0000;
+            display: block;
+        }
+        .photo-upload-label {
+            display: inline-block;
+            background: #f0f0f0;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+            margin-top: 8px;
+        }
+        .photo-upload-label:hover { background: #e0e0e0; }
+        .save-profile-btn {
+            background: #cc0000;
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: calc(100% - 40px);
+            margin: 0 20px 20px 20px;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .save-profile-btn:hover {
+            background: #990000;
+            transform: translateY(-1px);
+        }
     </style>
 </head>
 <body>
@@ -354,7 +493,10 @@
     <div class="container">
         <a href="/dashboard" class="back-btn">← Back to Dashboard</a>
         
-        <div class="profile-card">
+        <div class="profile-card" style="position: relative;">
+            {% if current_user and current_user.user_id == profile_user.user_id %}
+            <button class="edit-profile-btn" onclick="openProfileEditModal()">✏️ Edit</button>
+            {% endif %}
             {% if profile_user.profile_photo %}
             <img class="profile-photo" src="{{ profile_user.profile_photo }}" alt="Profile">
             {% else %}
@@ -441,6 +583,41 @@
                 <span class="close-modal" onclick="closeFollowingModal()">&times;</span>
             </div>
             <div id="followingList" class="user-list">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Profile Edit Modal -->
+    <div id="profileEditModal" class="profile-edit-modal">
+        <div class="profile-edit-content">
+            <div class="profile-edit-header">
+                <h3>Edit Profile</h3>
+                <button class="profile-edit-close" onclick="closeProfileEditModal()">&times;</button>
+            </div>
+            <form id="profileEditForm" style="margin-top: 20px;">
+                <div class="form-group">
+                    <label>Profile Photo</label>
+                    <img id="editProfilePhotoPreview" class="profile-photo-preview"
+                         src="{{ profile_user.profile_photo or '/static/default-avatar.png' }}" alt="Profile Photo">
+                    <label class="photo-upload-label">
+                        📷 Change Photo
+                        <input type="file" id="editProfilePhoto" accept="image/*" style="display: none;"
+                               onchange="previewProfilePhoto(this)">
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>First Name</label>
+                    <input type="text" id="editFirstName" value="{{ profile_user.first_name }}">
+                </div>
+                <div class="form-group">
+                    <label>Last Name</label>
+                    <input type="text" id="editLastName" value="{{ profile_user.last_name }}">
+                </div>
+                <div class="form-group">
+                    <label>Bio</label>
+                    <textarea id="editBio" rows="3" placeholder="Tell us about yourself...">{{ profile_user.bio or '' }}</textarea>
+                </div>
+                <button type="button" class="save-profile-btn" onclick="saveProfileChanges()">Save Changes</button>
+            </form>
         </div>
     </div>
 
@@ -781,6 +958,122 @@ function searchByHashtag(hashtag) {
 }
 </script>
 
+    <!-- Firebase SDK for profile photo upload -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
+        const firebaseConfig = {
+            apiKey: "AIzaSyBj9wQ04hnfPjowVvEa_yf8_Fq3VXVaH5I",
+            authDomain: "giteksolhub-project.firebaseapp.com",
+            projectId: "giteksolhub-project",
+            storageBucket: "giteksolhub-project.firebasestorage.app",
+            messagingSenderId: "917911843059",
+            appId: "1:917911843059:web:0aa2438be6605d1f400786"
+        };
+
+        const firebaseApp = initializeApp(firebaseConfig);
+        const storage = getStorage(firebaseApp);
+
+        window.uploadProfilePhotoToFirebase = async function(file, userId) {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `profile_${Date.now()}.${fileExt}`;
+            const storageRef = ref(storage, `profiles/${userId}/${fileName}`);
+            const snapshot = await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(snapshot.ref);
+            return { url: downloadURL, path: `profiles/${userId}/${fileName}` };
+        };
+    </script>
+
+    <script>
+        const currentProfileData = {
+            first_name: '{{ profile_user.first_name }}',
+            last_name: '{{ profile_user.last_name }}',
+            bio: '{{ profile_user.bio or "" }}',
+            profile_photo: '{{ profile_user.profile_photo or "" }}'
+        };
+
+        function openProfileEditModal() {
+            const modal = document.getElementById('profileEditModal');
+            if (modal) {
+                document.getElementById('editFirstName').value = currentProfileData.first_name || '';
+                document.getElementById('editLastName').value = currentProfileData.last_name || '';
+                document.getElementById('editBio').value = currentProfileData.bio || '';
+                const previewImg = document.getElementById('editProfilePhotoPreview');
+                if (previewImg && currentProfileData.profile_photo) {
+                    previewImg.src = currentProfileData.profile_photo;
+                }
+                modal.classList.add('active');
+            }
+        }
+
+        function closeProfileEditModal() {
+            const modal = document.getElementById('profileEditModal');
+            if (modal) {
+                modal.classList.remove('active');
+                const fileInput = document.getElementById('editProfilePhoto');
+                if (fileInput) fileInput.value = '';
+            }
+        }
+
+        function previewProfilePhoto(input) {
+            const preview = document.getElementById('editProfilePhotoPreview');
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) { preview.src = e.target.result; };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        async function saveProfileChanges() {
+            const formData = new FormData();
+            const photoFile = document.getElementById('editProfilePhoto').files[0];
+            const userId = loggedInUserId;
+
+            if (photoFile) {
+                try {
+                    const uploadResult = await window.uploadProfilePhotoToFirebase(photoFile, userId);
+                    formData.append('profile_photo_url', uploadResult.url);
+                    formData.append('profile_photo_path', uploadResult.path);
+                } catch (err) {
+                    alert('Failed to upload photo. Please try again.');
+                    return;
+                }
+            }
+
+            formData.append('first_name', document.getElementById('editFirstName').value);
+            formData.append('last_name', document.getElementById('editLastName').value);
+            formData.append('bio', document.getElementById('editBio').value);
+
+            try {
+                const response = await fetch('/api/update_profile', { method: 'POST', body: formData });
+                if (response.ok) {
+                    alert('Profile updated successfully!');
+                    location.reload();
+                } else {
+                    alert('Failed to update profile');
+                }
+            } catch (error) {
+                console.error('Error updating profile:', error);
+                alert('Error updating profile');
+            }
+        }
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') closeProfileEditModal();
+        });
+
+        // Close modal on backdrop click
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('profileEditModal');
+            if (modal && modal.classList.contains('active')) {
+                const content = modal.querySelector('.profile-edit-content');
+                if (content && !content.contains(event.target)) {
+                    closeProfileEditModal();
+                }
+            }
+        });
+    </script>
 </body>
 </html>
