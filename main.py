@@ -1703,6 +1703,97 @@ async def get_reports(request: Request):
 
 # Add these endpoints to main.py after the existing endpoints
 
+@app.post("/api/clear_notifications")
+async def clear_all_notifications(request: Request):
+    """Clear all notifications for the current user (remove them entirely)"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    # Remove all notifications for this user
+    data["notifications"] = [n for n in data.get("notifications", []) if n.get("user_id") != user["user_id"]]
+    await save_jsonbin_data(data)
+    
+    return {"message": "All notifications cleared"}
+
+@app.post("/api/clear_single_notification/{notification_id}")
+async def clear_single_notification(notification_id: str, request: Request):
+    """Remove a single notification entirely"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    # Remove the specific notification
+    notification_index = None
+    for i, n in enumerate(data.get("notifications", [])):
+        if n.get("id") == notification_id and n.get("user_id") == user["user_id"]:
+            notification_index = i
+            break
+    
+    if notification_index is not None:
+        data["notifications"].pop(notification_index)
+        await save_jsonbin_data(data)
+    
+    return {"message": "Notification cleared"}
+
+
+@app.get("/api/check_new_notifications")
+async def check_new_notifications(request: Request):
+    """Check for new notifications since last check (for real-time updates)"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        return {"has_new": False, "count": 0}
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        return {"has_new": False, "count": 0}
+    
+    # Get last checked timestamp from request header or use default
+    last_checked = request.headers.get("X-Last-Checked", "")
+    
+    notifications = [n for n in data.get("notifications", []) if n.get("user_id") == user["user_id"]]
+    
+    if last_checked:
+        new_notifications = [n for n in notifications if n.get("created_at", "") > last_checked and not n.get("read", False)]
+    else:
+        new_notifications = [n for n in notifications if not n.get("read", False)]
+    
+    return {
+        "has_new": len(new_notifications) > 0,
+        "count": len(new_notifications)
+    }
+
+
+
 # ===== RETALO AND NOTIFICATION ENDPOINTS =====
 
 @app.get("/api/get_latest_talo_timestamp")

@@ -523,6 +523,31 @@
             font-weight: bold;
             color: #cc0000;
         }
+
+.mention-link {
+    color: #cc0000;
+    font-weight: bold;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.mention-link:hover {
+    text-decoration: underline;
+}
+
+.hashtag-link {
+    background: #ffcc00;
+    color: #990000;
+    font-weight: bold;
+    padding: 0 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-block;
+}
+
+.hashtag-link:hover {
+    background: #ffaa00;
+}
     </style>
 
     <script>
@@ -720,5 +745,42 @@
             document.getElementById('followBtn').style.display = 'none';
         }
     </script>
+<script>
+// Format content with clickable @mentions and hashtags
+function formatContentWithLinks(content) {
+    // Make @username clickable
+    content = content.replace(/@(\w+)/g, (match, username) => {
+        return `<span class="mention-link" onclick="event.stopPropagation(); viewProfile('${username}')">${match}</span>`;
+    });
+    
+    // Make #hashtag clickable
+    content = content.replace(/#(\w+)/g, (match, hashtag) => {
+        return `<span class="hashtag-link" onclick="event.stopPropagation(); searchByHashtag('${match}')">${match}</span>`;
+    });
+    
+    return content;
+}
+
+// Apply formatting to all talo contents
+document.querySelectorAll('.talo-content').forEach(el => {
+    const originalContent = el.textContent;
+    const formattedContent = formatContentWithLinks(originalContent);
+    if (originalContent !== formattedContent) {
+        el.innerHTML = formattedContent;
+    }
+});
+
+// Function to view profile from @mention
+function viewProfile(userId) {
+    window.location.href = `/profile/${userId}`;
+}
+
+// Function to search by hashtag
+function searchByHashtag(hashtag) {
+    window.location.href = `/dashboard?hashtag=${encodeURIComponent(hashtag)}`;
+}
+</script>
+
+
 </body>
 </html>

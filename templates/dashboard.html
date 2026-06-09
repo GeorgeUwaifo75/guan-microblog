@@ -1086,6 +1086,147 @@
     align-items: center;
     gap: 10px;
 }
+
+
+.notifications-panel {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    width: 360px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    z-index: 150;
+    display: none;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.notifications-panel.show {
+    display: block;
+}
+
+.notification-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background 0.2s;
+    position: relative;
+}
+
+.notification-item:hover {
+    background: #f9f9f9;
+}
+
+.notification-item.unread {
+    background: #fff8e8;
+    border-left: 3px solid #ffcc00;
+}
+
+.notification-item.read {
+    background: white;
+}
+
+.notification-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.notification-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.notification-message {
+    font-size: 13px;
+    color: #333;
+    margin: 4px 0;
+    word-wrap: break-word;
+}
+
+.notification-mention {
+    color: #cc0000;
+    font-weight: bold;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.notification-mention:hover {
+    text-decoration: underline;
+}
+
+.notification-time {
+    font-size: 11px;
+    color: #999;
+}
+
+.notification-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    font-size: 14px;
+    color: #999;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+    padding: 4px 8px;
+    border-radius: 50%;
+}
+
+.notification-item:hover .notification-close {
+    opacity: 1;
+}
+
+.notification-close:hover {
+    background: #eee;
+    color: #cc0000;
+}
+
+.clear-all-btn {
+    padding: 10px 15px;
+    text-align: center;
+    border-top: 1px solid #eee;
+    background: #f9f9f9;
+}
+
+.clear-all-btn button {
+    background: #cc0000;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: transform 0.2s;
+}
+
+.clear-all-btn button:hover {
+    transform: scale(1.02);
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .notifications-panel {
+        width: calc(100% - 20px);
+        right: 10px;
+        left: 10px;
+        top: 65px;
+        max-height: 70vh;
+    }
+}
+
+
     </style>
 </head>
 <body>
@@ -2433,10 +2574,322 @@ function formatTimeAgo(dateStr) {
 
 // Add this HTML for promotion modal at the end of body
 
-
-
-
     </script>
+
+<!-- Add this JavaScript for real-time notifications -->
+<script>
+// Real-time notification system
+let notificationPollInterval = null;
+let lastNotificationCheck = localStorage.getItem('lastNotificationCheck') || new Date().toISOString();
+let notificationSound = null;
+
+// Initialize real-time notifications
+function initRealTimeNotifications() {
+    // Start polling every 10 seconds
+    if (notificationPollInterval) {
+        clearInterval(notificationPollInterval);
+    }
+    notificationPollInterval = setInterval(checkForNewNotifications, 10000);
+    
+    // Also check on page visibility change
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            checkForNewNotifications();
+        }
+    });
+}
+
+async function checkForNewNotifications() {
+    try {
+        const response = await fetch('/api/check_new_notifications', {
+            headers: {
+                'X-Last-Checked': lastNotificationCheck
+            }
+        });
+        const data = await response.json();
+        
+        if (data.has_new) {
+            // Update notification badge
+            const badge = document.getElementById('notificationCount');
+            const currentCount = parseInt(badge.textContent) || 0;
+            const newCount = currentCount + data.count;
+            
+            if (newCount > 0) {
+                badge.style.display = 'inline-block';
+                badge.textContent = newCount;
+            }
+            
+            // Play sound if enabled (optional)
+            //playNotificationSound();
+            
+            // Flash the notification icon
+            const notifBtn = document.querySelector('.icon-btn');
+            if (notifBtn) {
+                notifBtn.style.animation = 'pulse 0.5s ease-in-out 3';
+                setTimeout(() => {
+                    notifBtn.style.animation = '';
+                }, 1500);
+            }
+        }
+    } catch (error) {
+        console.error('Error checking notifications:', error);
+    }
+}
+
+// Mark a notification as read (and remove from list when viewed)
+async function markAndClearNotification(notificationId) {
+    try {
+        // First mark as read
+        await fetch(`/api/mark_notification_read/${notificationId}`, { method: 'POST' });
+        
+        // Then remove it from the view
+        const notificationElement = document.querySelector(`.notification-item[data-id="${notificationId}"]`);
+        if (notificationElement) {
+            notificationElement.remove();
+        }
+        
+        // Update count
+        updateNotificationCount();
+        
+        // Also clear from server (optional - remove permanently)
+        // await fetch(`/api/clear_single_notification/${notificationId}`, { method: 'POST' });
+        
+    } catch (error) {
+        console.error('Error clearing notification:', error);
+    }
+}
+
+// Clear all notifications
+async function clearAllNotifications() {
+    if (confirm('Clear all notifications? This action cannot be undone.')) {
+        try {
+            await fetch('/api/clear_notifications', { method: 'POST' });
+            
+            // Clear the notifications panel
+            document.getElementById('notificationsList').innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No notifications</div>';
+            
+            // Hide badge
+            document.getElementById('notificationCount').style.display = 'none';
+            
+            // Update last check time
+            lastNotificationCheck = new Date().toISOString();
+            localStorage.setItem('lastNotificationCheck', lastNotificationCheck);
+            
+        } catch (error) {
+            console.error('Error clearing notifications:', error);
+        }
+    }
+}
+
+function updateNotificationCount() {
+    const visibleNotifications = document.querySelectorAll('.notification-item').length;
+    if (visibleNotifications === 0) {
+        document.getElementById('notificationCount').style.display = 'none';
+    } else {
+        document.getElementById('notificationCount').textContent = visibleNotifications;
+        document.getElementById('notificationCount').style.display = 'inline-block';
+    }
+}
+
+// Enhanced load notifications with better UI
+async function loadNotifications() {
+    try {
+        const response = await fetch('/api/get_notifications');
+        const data = await response.json();
+        
+        const notificationsList = document.getElementById('notificationsList');
+        const notificationCountSpan = document.getElementById('notificationCount');
+        
+        // Update last check time
+        lastNotificationCheck = new Date().toISOString();
+        localStorage.setItem('lastNotificationCheck', lastNotificationCheck);
+        
+        if (data.notifications && data.notifications.length > 0) {
+            // Sort by newest first
+            data.notifications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            
+            notificationsList.innerHTML = data.notifications.map(notif => `
+                <div class="notification-item ${notif.read ? 'read' : 'unread'}" data-id="${notif.id}" onclick="handleNotificationClick('${notif.id}', '${notif.related_talo_id || ''}', '${notif.from_user_id || ''}')">
+                    <div class="notification-icon">${getNotificationIcon(notif.type)}</div>
+                    <div class="notification-content">
+                        <strong>${getNotificationTitle(notif.type)}</strong>
+                        <div class="notification-message">
+                            ${formatNotificationMessage(notif.message, notif.from_user_id)}
+                        </div>
+                        <div class="notification-time">${formatTimeAgo(notif.created_at)}</div>
+                    </div>
+                    <button class="notification-close" onclick="event.stopPropagation(); clearSingleNotification('${notif.id}')">✖</button>
+                </div>
+            `).join('');
+            
+            const unreadCount = data.notifications.filter(n => !n.read).length;
+            notificationCountSpan.style.display = unreadCount > 0 ? 'inline-block' : 'none';
+            notificationCountSpan.textContent = unreadCount;
+            
+            // Add clear all button
+            if (data.notifications.length > 0) {
+                const clearButton = document.createElement('div');
+                clearButton.className = 'clear-all-btn';
+                clearButton.innerHTML = '<button onclick="clearAllNotifications()">Clear All</button>';
+                if (!document.querySelector('.clear-all-btn')) {
+                    notificationsList.parentElement.insertBefore(clearButton, notificationsList.nextSibling);
+                }
+            }
+        } else {
+            notificationsList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">✨ No notifications yet</div>';
+            notificationCountSpan.style.display = 'none';
+            
+            // Remove clear all button if exists
+            const clearBtn = document.querySelector('.clear-all-btn');
+            if (clearBtn) clearBtn.remove();
+        }
+    } catch (error) {
+        console.error('Error loading notifications:', error);
+        document.getElementById('notificationsList').innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">Error loading notifications</div>';
+    }
+}
+
+function formatNotificationMessage(message, fromUserId) {
+    // Make @username clickable
+    const regex = /@(\w+)/g;
+    return message.replace(regex, (match, username) => {
+        return `<span class="notification-mention" onclick="event.stopPropagation(); viewProfile('${username}')">${match}</span>`;
+    });
+}
+
+function handleNotificationClick(notificationId, taloId, fromUserId) {
+    // Mark as read/clear from list
+    markAndClearNotification(notificationId);
+    
+    // Navigate based on notification type
+    if (taloId) {
+        window.location.href = `/post/${taloId}`;
+    } else if (fromUserId) {
+        window.location.href = `/profile/${fromUserId}`;
+    }
+}
+
+async function clearSingleNotification(notificationId) {
+    try {
+        await fetch(`/api/clear_single_notification/${notificationId}`, { method: 'POST' });
+        
+        // Remove from DOM
+        const notificationElement = document.querySelector(`.notification-item[data-id="${notificationId}"]`);
+        if (notificationElement) {
+            notificationElement.remove();
+        }
+        
+        updateNotificationCount();
+        
+        // Reload if no notifications left
+        const remaining = document.querySelectorAll('.notification-item').length;
+        if (remaining === 0) {
+            loadNotifications();
+        }
+    } catch (error) {
+        console.error('Error clearing notification:', error);
+    }
+}
+
+function toggleNotifications() {
+    const panel = document.getElementById('notificationsPanel');
+    const isOpening = !panel.classList.contains('show');
+    
+    panel.classList.toggle('show');
+    
+    if (isOpening) {
+        loadNotifications();
+        // Mark all as read when opened
+        fetch('/api/mark_all_notifications_read', { method: 'POST' }).catch(console.error);
+        document.getElementById('notificationCount').style.display = 'none';
+        
+        // Update last check time
+        lastNotificationCheck = new Date().toISOString();
+        localStorage.setItem('lastNotificationCheck', lastNotificationCheck);
+    }
+}
+
+// Update the createTalo function to only notify followers
+async function createTaloWithFirebase() {
+    const content = document.getElementById('taloContent').value;
+    
+    if (!content.trim()) {
+        alert('Please enter some content');
+        return;
+    }
+    
+    if (content.length > MAX_CHARS) {
+        alert(`Content cannot exceed ${MAX_CHARS} characters`);
+        return;
+    }
+    
+    const submitBtn = document.getElementById('submitTaloBtn');
+    const progressDiv = document.getElementById('uploadProgress');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Uploading...';
+    progressDiv.style.display = 'block';
+    
+    try {
+        // Upload photos to Firebase first
+        const photoUrls = [];
+        for (let i = 0; i < photoFiles.length; i++) {
+            progressBar.style.width = `${((i + 1) / (photoFiles.length + 1)) * 100}%`;
+            progressText.textContent = `Uploading photo ${i + 1}/${photoFiles.length}...`;
+            
+            const file = photoFiles[i];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${loggedInUserId}/${Date.now()}/${i}_${Date.now()}.${fileExt}`;
+            const storageRef = window.firebaseRef(window.firebaseStorage, `talos/${fileName}`);
+            const snapshot = await window.uploadBytes(storageRef, file);
+            const downloadURL = await window.getDownloadURL(snapshot.ref);
+            photoUrls.push({
+                url: downloadURL,
+                path: `talos/${fileName}`,
+                type: file.type
+            });
+        }
+        
+        progressBar.style.width = '100%';
+        progressText.textContent = 'Creating post...';
+        
+        // Send to backend
+        const response = await fetch('/api/create_talo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                content: content,
+                photos: photoUrls
+            })
+        });
+        
+        if (response.ok) {
+            // Update last seen timestamp
+            latestTaloTimestamp = new Date().toISOString();
+            localStorage.setItem('lastSeenTimestamp', latestTaloTimestamp);
+            location.reload();
+        } else {
+            const error = await response.json();
+            alert('Failed to create post: ' + (error.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error creating post:', error);
+        alert('Failed to create post. Please try again.');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Talo →';
+        progressDiv.style.display = 'none';
+        progressBar.style.width = '0%';
+    }
+}
+
+// Initialize real-time notifications on page load
+document.addEventListener('DOMContentLoaded', () => {
+    initRealTimeNotifications();
+});
+</script>
 
 <!-- Promotion Modal -->
 <div id="promotionModal" class="promotion-modal">
