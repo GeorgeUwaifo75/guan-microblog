@@ -1304,6 +1304,361 @@ async def confirm_promotion_payment(promotion_id: str, request: Request):
     
     return {"message": "Promotion activated successfully!"}
 
+
+@app.get("/api/get_followed_users")
+async def get_followed_users(request: Request):
+    """Get list of users that the current user follows"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    followed_users = []
+    for follow in data.get("follows", []):
+        if follow.get("follower_id") == user["user_id"]:
+            followed_users.append(follow.get("following_id"))
+    
+    return {"followed_users": followed_users}
+
+@app.get("/api/check_new_posts_from_followed")
+async def check_new_posts_from_followed(request: Request):
+    """Check if there are new posts from followed users"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        return {"has_new_posts": False, "count": 0}
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        return {"has_new_posts": False, "count": 0}
+    
+    last_seen = request.headers.get("X-Last-Seen", "")
+    
+    # Get followed users
+    followed_users = set()
+    for follow in data.get("follows", []):
+        if follow.get("follower_id") == user["user_id"]:
+            followed_users.add(follow.get("following_id"))
+    
+    # Count new posts from followed users
+    new_posts_count = 0
+    for talo in data.get("talos", []):
+        if talo["user_id"] in followed_users:
+            if not last_seen or talo.get("created_at", "") > last_seen:
+                new_posts_count += 1
+    
+    return {"has_new_posts": new_posts_count > 0, "count": new_posts_count}
+
+@app.post("/api/mark_posts_viewed")
+async def mark_posts_viewed(request: Request):
+    """Mark that user has viewed new posts"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    body = await request.json()
+    timestamp = body.get("timestamp", datetime.now().isoformat())
+    
+    # Store in user record
+    data = await get_jsonbin_data()
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            u["last_posts_viewed"] = timestamp
+            await save_jsonbin_data(data)
+            break
+    
+    return {"success": True}
+
+@app.delete("/api/delete_notification/{notification_id}")
+async def delete_notification(notification_id: str, request: Request):
+    """Delete a notification permanently"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    # Find and delete notification
+    notifications = data.get("notifications", [])
+    for i, notif in enumerate(notifications):
+        if notif.get("id") == notification_id and notif.get("user_id") == user["user_id"]:
+            notifications.pop(i)
+            await save_jsonbin_data(data)
+            return {"success": True, "message": "Notification deleted"}
+    
+    raise HTTPException(status_code=404, detail="Notification not found")
+
+@app.get("/api/check_new_notifications")
+async def check_new_notifications(request: Request):
+    """Check for new notifications since last check"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        return {"has_new": False, "count": 0}
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        return {"has_new": False, "count": 0}
+    
+    last_checked = request.headers.get("X-Last-Checked", "")
+    
+    # Get followed users for filtering
+    followed_users = set()
+    for follow in data.get("follows", []):
+        if follow.get("follower_id") == user["user_id"]:
+            followed_users.add(follow.get("following_id"))
+    
+    # Count new notifications ONLY from followed users
+    new_count = 0
+    for notif in data.get("notifications", []):
+        if notif.get("user_id") == user["user_id"] and not notif.get("read", False):
+            from_user_id = notif.get("from_user_id")
+            # Only count if from followed user (or if it's a follow notification about the user themselves)
+            if notif.get("type") == "follow" and from_user_id:
+                # Follow notifications are always shown (someone followed you)
+                if not last_checked or notif.get("created_at", "") > last_checked:
+                    new_count += 1
+            elif from_user_id in followed_users:
+                if not last_checked or notif.get("created_at", "") > last_checked:
+                    new_count += 1
+    
+    return {"has_new": new_count > 0, "count": new_count}
+
+# Update the notification creation in like, follow, and reply endpoints to only notify followed users
+# Modify the create_reply endpoint:
+
+@app.post("/api/create_reply/{parent_talo_id}")
+async def create_reply(request: Request, parent_talo_id: str):
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    parent_talo = None
+    talo_owner_id = None
+    for t in data.get("talos", []):
+        if t["id"] == parent_talo_id:
+            parent_talo = t
+            talo_owner_id = t["user_id"]
+            break
+    
+    if not parent_talo:
+        raise HTTPException(status_code=404, detail="Parent post not found")
+    
+    body = await request.json()
+    content = body.get("content", "")
+    photo = body.get("photo")
+    
+    if contains_banned_words(content):
+        raise HTTPException(status_code=400, detail="Your reply contains inappropriate language. Please review and try again.")
+    
+    if not content or len(content) > 250:
+        raise HTTPException(status_code=400, detail="Reply must be between 1 and 250 characters")
+    
+    reply = {
+        "id": str(uuid.uuid4()),
+        "parent_talo_id": parent_talo_id,
+        "user_id": user["user_id"],
+        "content": content,
+        "photos": [photo] if photo else [],
+        "likes": 0,
+        "created_at": datetime.now().isoformat()
+    }
+    
+    if "replies" not in data:
+        data["replies"] = []
+    data["replies"].append(reply)
+    
+    parent_talo["reply_count"] = len([r for r in data["replies"] if r.get("parent_talo_id") == parent_talo_id])
+    
+    # Only send notification if talo owner follows the replier
+    if talo_owner_id != user["user_id"]:
+        # Check if talo owner follows the replier
+        follows_replier = False
+        for follow in data.get("follows", []):
+            if follow.get("follower_id") == talo_owner_id and follow.get("following_id") == user["user_id"]:
+                follows_replier = True
+                break
+        
+        if follows_replier:
+            if "notifications" not in data:
+                data["notifications"] = []
+            
+            notification = {
+                "id": str(uuid.uuid4()),
+                "user_id": talo_owner_id,
+                "type": "reply",
+                "message": f"@{user['user_id']} replied to your post: {content[:50]}...",
+                "related_talo_id": parent_talo_id,
+                "reply_id": reply["id"],
+                "from_user_id": user["user_id"],
+                "read": False,
+                "created_at": datetime.now().isoformat()
+            }
+            data["notifications"].append(notification)
+    
+    await save_jsonbin_data(data)
+    
+    return {"message": "Reply created successfully", "reply_id": reply["id"]}
+
+# Similarly update like_talo endpoint:
+
+@app.post("/api/like/{talo_id}")
+async def like_talo(talo_id: str, request: Request):
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    talo_owner_id = None
+    for talo in data["talos"]:
+        if talo["id"] == talo_id:
+            talo_owner_id = talo["user_id"]
+            break
+    
+    if "likes" not in data:
+        data["likes"] = []
+    
+    like_index = None
+    for i, like in enumerate(data["likes"]):
+        if like.get("talo_id") == talo_id and like.get("user_id") == user["user_id"]:
+            like_index = i
+            break
+    
+    if like_index is not None:
+        data["likes"].pop(like_index)
+        for talo in data["talos"]:
+            if talo["id"] == talo_id:
+                talo["likes"] -= 1
+                await save_jsonbin_data(data)
+                return {"liked": False, "count": talo["likes"]}
+    else:
+        data["likes"].append({
+            "talo_id": talo_id,
+            "user_id": user["user_id"],
+            "created_at": datetime.now().isoformat()
+        })
+        
+        for talo in data["talos"]:
+            if talo["id"] == talo_id:
+                talo["likes"] += 1
+                
+                # Only send notification if talo owner follows the liker
+                if talo_owner_id and talo_owner_id != user["user_id"]:
+                    follows_liker = False
+                    for follow in data.get("follows", []):
+                        if follow.get("follower_id") == talo_owner_id and follow.get("following_id") == user["user_id"]:
+                            follows_liker = True
+                            break
+                    
+                    if follows_liker:
+                        if "notifications" not in data:
+                            data["notifications"] = []
+                        
+                        notification = {
+                            "id": str(uuid.uuid4()),
+                            "user_id": talo_owner_id,
+                            "type": "like",
+                            "message": f"@{user['user_id']} liked your talo",
+                            "related_talo_id": talo_id,
+                            "from_user_id": user["user_id"],
+                            "read": False,
+                            "created_at": datetime.now().isoformat()
+                        }
+                        data["notifications"].append(notification)
+                
+                await save_jsonbin_data(data)
+                return {"liked": True, "count": talo["likes"]}
+    
+    await save_jsonbin_data(data)
+    return {"liked": False, "count": 0}
+
+# Add endpoint to get latest talo timestamp
+@app.get("/api/get_latest_talo_timestamp")
+async def get_latest_talo_timestamp(request: Request):
+    """Get the timestamp of the latest talo from followed users"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        return {"latest_timestamp": None}
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        return {"latest_timestamp": None}
+    
+    # Get followed users
+    followed_users = set()
+    for follow in data.get("follows", []):
+        if follow.get("follower_id") == user["user_id"]:
+            followed_users.add(follow.get("following_id"))
+    
+    # Find latest post from followed users
+    latest_timestamp = None
+    for talo in data.get("talos", []):
+        if talo["user_id"] in followed_users:
+            if not latest_timestamp or talo.get("created_at", "") > latest_timestamp:
+                latest_timestamp = talo.get("created_at")
+    
+    return {"latest_timestamp": latest_timestamp}
+
+
 @app.get("/api/health")
 async def health_check():
     try:
