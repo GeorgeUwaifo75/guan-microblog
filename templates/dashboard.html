@@ -68,7 +68,7 @@
             font-style: italic;
         }
         
-        /* Right side icons container - always on extreme right */
+        /* Right side icons container */
         .right-icons {
             display: flex;
             gap: 15px;
@@ -109,12 +109,212 @@
             text-align: center;
         }
         
+        /* Fixed Search Bar - Below Header */
+        .search-bar-container {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 8px 16px;
+            z-index: 99;
+            border-bottom: 1px solid #eee;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .search-wrapper {
+            max-width: 500px;
+            margin: 0;
+            position: relative;
+        }
+        
+        /* For desktop - right aligned */
+        @media (min-width: 769px) {
+            .search-wrapper {
+                margin-left: auto;
+                margin-right: 0;
+                max-width: 400px;
+            }
+        }
+        
+        /* For mobile - centered */
+        @media (max-width: 768px) {
+            .search-bar-container {
+                top: 56px;
+                padding: 8px 12px;
+            }
+            .search-wrapper {
+                margin: 0 auto;
+                max-width: 100%;
+            }
+        }
+        
+        .search-input-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            background: #f5f5f5;
+            border-radius: 30px;
+            padding: 8px 16px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+        
+        .search-input-group:focus-within {
+            border-color: #cc0000;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(204, 0, 0, 0.1);
+        }
+        
+        .search-icon {
+            font-size: 18px;
+            color: #999;
+        }
+        
+        .search-input {
+            flex: 1;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 14px;
+            padding: 6px 0;
+        }
+        
+        .search-input::placeholder {
+            color: #aaa;
+            font-size: 13px;
+        }
+        
+        .clear-search {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            color: #999;
+            padding: 0 5px;
+            display: none;
+        }
+        
+        .clear-search:hover {
+            color: #cc0000;
+        }
+        
+        /* Search Results Dropdown */
+        .search-results-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            margin-top: 8px;
+        }
+        
+        .search-results-dropdown.show {
+            display: block;
+        }
+        
+        .search-result-section {
+            padding: 5px 0;
+        }
+        
+        .search-result-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #cc0000;
+            padding: 8px 12px;
+            background: #f9f9f9;
+            margin: 5px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .search-result-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .search-result-item:hover {
+            background: #f5f5f5;
+        }
+        
+        .search-result-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .search-result-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            object-fit: cover;
+        }
+        
+        .search-result-info {
+            flex: 1;
+        }
+        
+        .search-result-name {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .search-result-username {
+            font-size: 11px;
+            color: #666;
+        }
+        
+        .search-result-post {
+            font-size: 13px;
+            color: #333;
+            line-height: 1.3;
+        }
+        
+        .search-result-post small {
+            font-size: 11px;
+            color: #999;
+        }
+        
+        .highlight-text {
+            background: #ffcc00;
+            color: #990000;
+            padding: 0 2px;
+            border-radius: 3px;
+        }
+        
+        .view-all-results {
+            text-align: center;
+            padding: 10px;
+            background: #f9f9f9;
+            border-top: 1px solid #eee;
+            color: #cc0000;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .view-all-results:hover {
+            background: #f0f0f0;
+        }
+        
         /* Fixed Footer */
         .footer {
             background: #cc0000;
             color: white;
             text-align: center;
-            padding: 12px 15px;
+            padding: 10px 15px;
             font-size: 11px;
             position: fixed;
             bottom: 0;
@@ -132,8 +332,8 @@
         .scrollable-content {
             flex: 1;
             overflow-y: auto;
-            margin-top: 70px;
-            margin-bottom: 55px;
+            margin-top: 110px;
+            margin-bottom: 50px;
             padding: 20px;
         }
         
@@ -150,6 +350,7 @@
             flex-shrink: 0;
         }
         
+        /* Mobile Menu */
         .mobile-menu-overlay {
             position: fixed;
             top: 0;
@@ -203,6 +404,7 @@
             padding: 15px;
         }
         
+        /* Trending Modal for Mobile */
         .trending-modal {
             position: fixed;
             bottom: 0;
@@ -258,6 +460,7 @@
             padding-left: 10px;
         }
         
+        /* Profile Card */
         .profile-card {
             background: white;
             border-radius: 15px;
@@ -518,10 +721,10 @@
             color: #28a745;
         }
         
-        /* Floating Action Buttons Container */
+        /* Floating Action Buttons */
         .fab-container {
             position: fixed;
-            bottom: 70px;
+            bottom: 65px;
             right: 20px;
             display: flex;
             flex-direction: column;
@@ -585,9 +788,10 @@
             background: #888;
         }
         
+        /* Notifications Panel */
         .notifications-panel {
             position: fixed;
-            top: 70px;
+            top: 115px;
             right: 20px;
             width: 360px;
             background: white;
@@ -621,89 +825,6 @@
         .notification-item.unread {
             background: #fff8e8;
             border-left: 3px solid #ffcc00;
-        }
-        
-        .notification-item.read {
-            background: white;
-        }
-        
-        .notification-icon {
-            font-size: 24px;
-            flex-shrink: 0;
-        }
-        
-        .notification-content {
-            flex: 1;
-            min-width: 0;
-        }
-        
-        .notification-message {
-            font-size: 13px;
-            color: #333;
-            margin: 4px 0;
-            word-wrap: break-word;
-        }
-        
-        .notification-mention {
-            color: #cc0000;
-            font-weight: bold;
-            cursor: pointer;
-            text-decoration: none;
-        }
-        
-        .notification-mention:hover {
-            text-decoration: underline;
-        }
-        
-        .notification-time {
-            font-size: 11px;
-            color: #999;
-        }
-        
-        .notification-close {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: none;
-            border: none;
-            font-size: 14px;
-            color: #999;
-            cursor: pointer;
-            opacity: 0;
-            transition: opacity 0.2s;
-            padding: 4px 8px;
-            border-radius: 50%;
-        }
-        
-        .notification-item:hover .notification-close {
-            opacity: 1;
-        }
-        
-        .notification-close:hover {
-            background: #eee;
-            color: #cc0000;
-        }
-        
-        .clear-all-btn {
-            padding: 10px 15px;
-            text-align: center;
-            border-top: 1px solid #eee;
-            background: #f9f9f9;
-        }
-        
-        .clear-all-btn button {
-            background: #cc0000;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 12px;
-            transition: transform 0.2s;
-        }
-        
-        .clear-all-btn button:hover {
-            transform: scale(1.02);
         }
         
         .reply-btn {
@@ -801,14 +922,6 @@
             margin-bottom: 5px;
             font-weight: bold;
             color: #333;
-        }
-        
-        .form-group input, .form-group select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
         }
         
         .profile-photo-preview {
@@ -1019,7 +1132,7 @@
         
         .flash-notification {
             position: fixed;
-            top: 80px;
+            top: 115px;
             left: 50%;
             transform: translateX(-50%) translateY(-100px);
             background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
@@ -1041,15 +1154,6 @@
         .flash-notification.show {
             transform: translateX(-50%) translateY(0);
             opacity: 1;
-        }
-        
-        .flash-notification.error {
-            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-        }
-        
-        .flash-notification.warning {
-            background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
-            color: #333;
         }
         
         .repost-info {
@@ -1162,8 +1266,8 @@
         /* Mobile Responsive */
         @media (max-width: 768px) {
             .scrollable-content {
-                margin-top: 60px;
-                margin-bottom: 50px;
+                margin-top: 100px;
+                margin-bottom: 45px;
                 padding: 12px;
             }
             
@@ -1177,7 +1281,7 @@
             }
             
             .fab-container {
-                bottom: 60px;
+                bottom: 55px;
                 right: 15px;
                 gap: 10px;
             }
@@ -1211,7 +1315,7 @@
                 width: calc(100% - 20px);
                 right: 10px;
                 left: 10px;
-                top: 65px;
+                top: 105px;
                 max-height: 70vh;
             }
             
@@ -1221,6 +1325,10 @@
             
             .stat-btn {
                 font-size: 12px !important;
+            }
+            
+            .flash-notification {
+                top: 105px;
             }
         }
         
@@ -1253,6 +1361,18 @@
             <button class="menu-icon-btn" onclick="toggleMobileMenu()" id="menuIconBtn">☰</button>
             <button class="icon-btn" onclick="toggleNotifications()">🔔 <span id="notificationCount" class="notification-badge" style="display: none;">0</span></button>
             <a href="/logout"><button class="icon-btn">🚪</button></a>
+        </div>
+    </div>
+
+    <!-- Fixed Search Bar -->
+    <div class="search-bar-container">
+        <div class="search-wrapper">
+            <div class="search-input-group">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="search-input" id="globalSearchInput" placeholder="Search posts, hashtags, or @username..." autocomplete="off">
+                <button class="clear-search" id="clearSearchBtn" onclick="clearSearch()">✖</button>
+            </div>
+            <div class="search-results-dropdown" id="searchResultsDropdown"></div>
         </div>
     </div>
 
@@ -1298,7 +1418,7 @@
                 <div class="trending-card">
                     <h4>🔥 Trending Today</h4>
                     {% for word, count in trending %}
-                    <div class="trending-item" onclick="filterByHashtag('{{ word }}')">{{ word }} ({{ count }})</div>
+                    <div class="trending-item" onclick="searchHashtag('{{ word }}')">{{ word }} ({{ count }})</div>
                     {% else %}
                     <div class="trending-item">No trending topics yet</div>
                     {% endfor %}
@@ -1578,6 +1698,7 @@
         let latestTaloTimestamp = null;
         let isRefreshing = false;
         let unreadNotifications = 0;
+        let searchTimeout = null;
         
         const loggedInUserId = '{{ user.user_id }}';
         const MAX_CHARS = 250;
@@ -1600,7 +1721,146 @@
             talos_count: {{ user.talos_count }}
         };
         
-        // Utility Functions
+        // ========== SEARCH FUNCTIONALITY ==========
+        const searchInput = document.getElementById('globalSearchInput');
+        const searchDropdown = document.getElementById('searchResultsDropdown');
+        const clearBtn = document.getElementById('clearSearchBtn');
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function highlightText(text, query) {
+            const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            return text.replace(regex, '<span class="highlight-text">$1</span>');
+        }
+        
+        async function performSearch(query) {
+            if (!query || query.length < 1) {
+                searchDropdown.classList.remove('show');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                
+                if (data.posts.length === 0 && data.users.length === 0) {
+                    searchDropdown.innerHTML = `
+                        <div class="search-result-section">
+                            <div style="padding: 20px; text-align: center; color: #999;">
+                                No results found for "${escapeHtml(query)}"
+                            </div>
+                        </div>
+                    `;
+                    searchDropdown.classList.add('show');
+                    return;
+                }
+                
+                let html = '';
+                
+                // Users section
+                if (data.users.length > 0) {
+                    html += `<div class="search-result-section">
+                        <div class="search-result-title">👥 USERS (${data.users.length})</div>`;
+                    for (const user of data.users.slice(0, 5)) {
+                        html += `
+                            <div class="search-result-item" onclick="viewProfile('${user.user_id}')">
+                                <div class="search-result-user">
+                                    ${user.profile_photo ? 
+                                        `<img class="search-result-avatar" src="${user.profile_photo}" alt="">` : 
+                                        `<div class="search-result-avatar">👤</div>`}
+                                    <div class="search-result-info">
+                                        <div class="search-result-name">${escapeHtml(user.first_name)} ${escapeHtml(user.last_name)}</div>
+                                        <div class="search-result-username">@${escapeHtml(user.user_id)}</div>
+                                    </div>
+                                </div>
+                            </div>`;
+                    }
+                    html += `</div>`;
+                }
+                
+                // Posts section
+                if (data.posts.length > 0) {
+                    html += `<div class="search-result-section">
+                        <div class="search-result-title">📝 POSTS (${data.posts.length})</div>`;
+                    for (const post of data.posts.slice(0, 5)) {
+                        let contentPreview = post.content.substring(0, 80);
+                        if (post.content.length > 80) contentPreview += '...';
+                        html += `
+                            <div class="search-result-item" onclick="viewPost('${post.id}')">
+                                <div class="search-result-post">
+                                    <strong>@${escapeHtml(post.user_id)}</strong><br>
+                                    ${highlightText(contentPreview, query)}
+                                    <br><small>💎 ${post.likes} 💬 ${post.reply_count} 🔄 ${post.retalos}</small>
+                                </div>
+                            </div>`;
+                    }
+                    html += `</div>`;
+                }
+                
+                // View all link
+                if (data.posts.length > 5 || data.users.length > 5) {
+                    html += `<div class="view-all-results" onclick="viewAllResults('${escapeHtml(query)}')">
+                        View all ${data.posts.length + data.users.length} results →
+                    </div>`;
+                }
+                
+                searchDropdown.innerHTML = html;
+                searchDropdown.classList.add('show');
+            } catch (error) {
+                console.error('Search error:', error);
+            }
+        }
+        
+        function clearSearch() {
+            searchInput.value = '';
+            searchDropdown.classList.remove('show');
+            clearBtn.style.display = 'none';
+        }
+        
+        function viewAllResults(query) {
+            window.location.href = `/search?q=${encodeURIComponent(query)}`;
+        }
+        
+        function searchHashtag(hashtag) {
+            window.location.href = `/search?q=${encodeURIComponent(hashtag)}`;
+        }
+        
+        // Search input event listeners
+        if (searchInput) {
+            searchInput.addEventListener('input', function(e) {
+                const query = e.target.value.trim();
+                clearBtn.style.display = query ? 'block' : 'none';
+                
+                if (searchTimeout) clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    if (query) {
+                        performSearch(query);
+                    } else {
+                        searchDropdown.classList.remove('show');
+                    }
+                }, 300);
+            });
+            
+            searchInput.addEventListener('focus', function() {
+                if (searchInput.value.trim()) {
+                    performSearch(searchInput.value.trim());
+                }
+            });
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            const searchWrapper = document.querySelector('.search-wrapper');
+            if (searchWrapper && !searchWrapper.contains(e.target)) {
+                if (searchDropdown) searchDropdown.classList.remove('show');
+            }
+        });
+        
+        // ========== UTILITY FUNCTIONS ==========
         function formatTimeAgo(dateStr) {
             const date = new Date(dateStr);
             const now = new Date();
@@ -1615,7 +1875,11 @@
             window.location.href = `/profile/${userId}`;
         }
         
-        // Timeline Functions
+        function viewPost(postId) {
+            window.location.href = `/post/${postId}`;
+        }
+        
+        // ========== TIMELINE FUNCTIONS ==========
         function loadLastSeenTimestamp() {
             const saved = localStorage.getItem('lastSeenTimestamp');
             if (saved) latestTaloTimestamp = saved;
@@ -1667,11 +1931,11 @@
             }, 300);
         }
         
-        // Hashtag Functions
+        // ========== HASHTAG FUNCTIONS ==========
         function highlightHashtagsInContent(content) {
             const hashtagRegex = /(#\w+)/g;
             return content.replace(hashtagRegex, match => {
-                return `<span class="hashtag-highlight" onclick="event.stopPropagation(); filterByHashtag('${match}')" style="cursor: pointer;">${match}</span>`;
+                return `<span class="hashtag-highlight" onclick="event.stopPropagation(); searchHashtag('${match}')" style="cursor: pointer;">${match}</span>`;
             });
         }
         
@@ -1743,7 +2007,7 @@
             applyHashtagFilter();
         }
         
-        // Like Function
+        // ========== LIKE FUNCTION ==========
         async function likeTalo(taloId, btn) {
             try {
                 const response = await fetch(`/api/like/${taloId}`, { method: 'POST' });
@@ -1757,7 +2021,7 @@
             }
         }
         
-        // Retalo Function
+        // ========== RETALO FUNCTION ==========
         function showFlashNotification(message, type = 'success') {
             const existing = document.querySelector('.flash-notification');
             if (existing) existing.remove();
@@ -1817,7 +2081,7 @@
             }
         }
         
-        // Create Talo Functions
+        // ========== CREATE TALO FUNCTIONS ==========
         function addPhotoInput() {
             if (photoFiles.length >= 4) {
                 alert('Maximum 4 photos per post');
@@ -1938,7 +2202,7 @@
             }
         }
         
-        // Profile Edit Functions
+        // ========== PROFILE EDIT FUNCTIONS ==========
         function openProfileEditModal() {
             document.getElementById('profileEditModal').classList.add('active');
         }
@@ -1981,7 +2245,7 @@
             }
         }
         
-        // Follow Functions
+        // ========== FOLLOW FUNCTIONS ==========
         async function checkFollowStatus(profileUserId) {
             try {
                 const response = await fetch(`/api/get_follow_status/${profileUserId}`);
@@ -2018,7 +2282,7 @@
             }
         }
         
-        // Followers/Following Modals
+        // ========== FOLLOWERS/FOLLOWING MODALS ==========
         async function showFollowersModal(userId) {
             const modal = document.getElementById('followersModal');
             const listContainer = document.getElementById('followersList');
@@ -2068,7 +2332,7 @@
         function closeFollowersModal() { document.getElementById('followersModal').style.display = 'none'; }
         function closeFollowingModal() { document.getElementById('followingModal').style.display = 'none'; }
         
-        // Notifications
+        // ========== NOTIFICATIONS ==========
         async function loadNotifications() {
             try {
                 const response = await fetch('/api/get_notifications');
@@ -2126,7 +2390,7 @@
             }
         }
         
-        // Mobile Menu
+        // ========== MOBILE MENU ==========
         function toggleMobileMenu() {
             const overlay = document.getElementById('mobileMenuOverlay');
             const menu = document.getElementById('mobileMenu');
@@ -2177,7 +2441,7 @@
             let trendingHtml = '<div class="trending-card"><h4>🔥 Trending Today</h4>';
             if (trendingData.length > 0) {
                 trendingData.forEach(item => {
-                    trendingHtml += `<div class="trending-item" onclick="filterByHashtag('${item.word}'); closeMobileMenu();">${item.word} (${item.count})</div>`;
+                    trendingHtml += `<div class="trending-item" onclick="searchHashtag('${item.word}'); closeMobileMenu();">${item.word} (${item.count})</div>`;
                 });
             } else {
                 trendingHtml += '<div class="trending-item">No trending topics yet</div>';
@@ -2186,7 +2450,7 @@
             mobileTrendingDiv.innerHTML = trendingHtml;
         }
         
-        // Promotion Functions
+        // ========== PROMOTION FUNCTIONS ==========
         let currentPromotionTalo = null;
         
         function openPromotionModal(taloId) {
@@ -2247,7 +2511,7 @@
             }
         }
         
-        // Real-time Notifications
+        // ========== REAL-TIME NOTIFICATIONS ==========
         let notificationPollInterval = null;
         let lastNotificationCheck = localStorage.getItem('lastNotificationCheck') || new Date().toISOString();
         
@@ -2284,7 +2548,7 @@
             }
         }
         
-        // Initialize
+        // ========== INITIALIZATION ==========
         document.querySelectorAll('.talo-time').forEach(el => {
             if (el.dataset.time) el.textContent = formatTimeAgo(el.dataset.time);
         });
