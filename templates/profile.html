@@ -219,8 +219,28 @@
             font-size: 12px;
         }
         
-        /* Modal Styles - Completely self-contained */
-        .profile-modal-overlay {
+        /* Edit Profile Button */
+        .edit-profile-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #f0f0f0;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            color: #333;
+            transition: background 0.2s;
+            z-index: 10;
+        }
+        .edit-profile-btn:hover {
+            background: #e0e0e0;
+        }
+
+        /* Profile Edit Modal - Simple and reliable */
+        #editProfileModal {
             position: fixed;
             top: 0;
             left: 0;
@@ -232,20 +252,19 @@
             justify-content: center;
             align-items: center;
         }
-        .profile-modal-overlay.active {
+        #editProfileModal.show {
             display: flex;
         }
-        .profile-modal-container {
+        .modal-box {
             background: white;
             border-radius: 20px;
             width: 90%;
             max-width: 500px;
             max-height: 85vh;
             overflow-y: auto;
-            position: relative;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
         }
-        .profile-modal-header {
+        .modal-box-header {
             background: #cc0000;
             color: white;
             padding: 18px 20px;
@@ -254,11 +273,11 @@
             justify-content: space-between;
             align-items: center;
         }
-        .profile-modal-header h3 {
+        .modal-box-header h3 {
             margin: 0;
             font-size: 18px;
         }
-        .profile-modal-close {
+        .modal-box-close {
             background: none;
             border: none;
             color: white;
@@ -267,21 +286,21 @@
             padding: 0;
             line-height: 1;
         }
-        .profile-modal-body {
+        .modal-box-body {
             padding: 20px;
         }
-        .profile-form-group {
+        .form-field {
             margin-bottom: 20px;
         }
-        .profile-form-group label {
+        .form-field label {
             display: block;
             font-weight: bold;
             margin-bottom: 8px;
             font-size: 14px;
             color: #333;
         }
-        .profile-form-group input,
-        .profile-form-group textarea {
+        .form-field input,
+        .form-field textarea {
             width: 100%;
             padding: 12px;
             border: 1px solid #ddd;
@@ -289,12 +308,12 @@
             font-size: 14px;
             font-family: inherit;
         }
-        .profile-form-group input:focus,
-        .profile-form-group textarea:focus {
+        .form-field input:focus,
+        .form-field textarea:focus {
             outline: none;
             border-color: #cc0000;
         }
-        .profile-photo-preview {
+        .photo-preview-img {
             width: 100px;
             height: 100px;
             border-radius: 50%;
@@ -303,7 +322,7 @@
             border: 3px solid #cc0000;
             display: block;
         }
-        .profile-photo-upload-label {
+        .upload-label {
             display: inline-block;
             background: #f0f0f0;
             padding: 8px 16px;
@@ -312,7 +331,10 @@
             font-size: 13px;
             margin-top: 8px;
         }
-        .profile-save-btn {
+        .upload-label:hover {
+            background: #e0e0e0;
+        }
+        .save-btn {
             background: #cc0000;
             color: white;
             border: none;
@@ -322,13 +344,14 @@
             font-size: 16px;
             font-weight: bold;
             width: 100%;
+            margin-top: 10px;
         }
-        .profile-save-btn:hover {
+        .save-btn:hover {
             background: #990000;
         }
 
         /* Followers/Following Modals */
-        .follow-modal-overlay {
+        .follow-modal {
             position: fixed;
             top: 0;
             left: 0;
@@ -340,7 +363,7 @@
             justify-content: center;
             align-items: center;
         }
-        .follow-modal-overlay.active {
+        .follow-modal.show {
             display: flex;
         }
         .follow-modal-content {
@@ -367,22 +390,22 @@
             cursor: pointer;
             color: white;
         }
-        .follow-user-list {
+        .follow-list {
             padding: 10px;
             overflow-y: auto;
             max-height: 60vh;
         }
-        .follow-user-item {
+        .follow-item {
             display: flex;
             align-items: center;
             padding: 12px;
             border-bottom: 1px solid #eee;
             cursor: pointer;
         }
-        .follow-user-item:hover {
+        .follow-item:hover {
             background: #f5f5f5;
         }
-        .follow-user-avatar {
+        .follow-avatar {
             width: 45px;
             height: 45px;
             border-radius: 50%;
@@ -393,33 +416,15 @@
             margin-right: 12px;
             font-size: 20px;
         }
-        .follow-user-info {
+        .follow-info {
             flex: 1;
         }
-        .follow-user-name {
+        .follow-name {
             font-weight: bold;
         }
-        .follow-user-id {
+        .follow-username {
             font-size: 12px;
             color: #666;
-        }
-
-        .edit-profile-btn {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: #f0f0f0;
-            border: none;
-            padding: 6px 14px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: bold;
-            color: #333;
-            z-index: 10;
-        }
-        .edit-profile-btn:hover {
-            background: #e0e0e0;
         }
 
         .mention-link {
@@ -460,7 +465,7 @@
             z-index: 300;
             display: none;
         }
-        .mobile-menu-overlay.active { display: block; }
+        .mobile-menu-overlay.show { display: block; }
         .mobile-menu {
             position: fixed;
             top: 0;
@@ -473,7 +478,7 @@
             overflow-y: auto;
             box-shadow: 2px 0 10px rgba(0,0,0,0.2);
         }
-        .mobile-menu.active { left: 0; }
+        .mobile-menu.show { left: 0; }
         .mobile-menu-header {
             background: #cc0000;
             color: white;
@@ -490,14 +495,14 @@
             cursor: pointer;
         }
         .mobile-menu-content { padding: 15px; }
-        .profile-card-mobile {
+        .mobile-profile-card {
             background: white;
             border-radius: 15px;
             padding: 20px;
             text-align: center;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
-        .profile-photo-mobile {
+        .mobile-profile-photo {
             width: 80px;
             height: 80px;
             border-radius: 50%;
@@ -505,13 +510,13 @@
             object-fit: cover;
             margin-bottom: 10px;
         }
-        .stats-mobile {
+        .mobile-stats {
             display: flex;
             justify-content: space-around;
             margin: 15px 0;
         }
-        .stat-mobile { text-align: center; }
-        .stat-number-mobile {
+        .mobile-stat { text-align: center; }
+        .mobile-stat-number {
             font-size: 18px;
             font-weight: bold;
             color: #cc0000;
@@ -550,7 +555,7 @@
         
         <div class="profile-card">
             {% if current_user and current_user.user_id == profile_user.user_id %}
-            <button class="edit-profile-btn" id="editProfileBtn">✏️ Edit Profile</button>
+            <button class="edit-profile-btn" id="editProfileBtn" onclick="openEditModal()">✏️ Edit Profile</button>
             {% endif %}
             {% if profile_user.profile_photo %}
             <img class="profile-photo" src="{{ profile_user.profile_photo }}" alt="Profile">
@@ -620,59 +625,58 @@
         </div>
     </div>
 
-    <!-- Profile Edit Modal -->
-    <div id="profileEditModal" class="profile-modal-overlay">
-        <div class="profile-modal-container">
-            <div class="profile-modal-header">
+    <!-- Edit Profile Modal -->
+    <div id="editProfileModal">
+        <div class="modal-box">
+            <div class="modal-box-header">
                 <h3>Edit Profile</h3>
-                <button class="profile-modal-close" onclick="closeProfileEditModal()">&times;</button>
+                <button class="modal-box-close" onclick="closeEditModal()">&times;</button>
             </div>
-            <div class="profile-modal-body">
-                <div class="profile-form-group">
+            <div class="modal-box-body">
+                <div class="form-field">
                     <label>Profile Photo</label>
-                    <img id="editProfilePhotoPreview" class="profile-photo-preview"
-                         src="{{ profile_user.profile_photo or '/static/default-avatar.png' }}">
-                    <label class="profile-photo-upload-label">
-                        📷 Change Photo**
-                        <input type="file" id="editProfilePhoto" accept="image/*" style="display: none;">
+                    <img id="photoPreview" class="photo-preview-img" src="{{ profile_user.profile_photo or '/static/default-avatar.png' }}">
+                    <label class="upload-label">
+                        📷 Change Photo
+                        <input type="file" id="photoInput" accept="image/*" style="display: none;">
                     </label>
                 </div>
-                <div class="profile-form-group">
+                <div class="form-field">
                     <label>First Name</label>
-                    <input type="text" id="editFirstName" value="{{ profile_user.first_name }}">
+                    <input type="text" id="firstName" value="{{ profile_user.first_name }}">
                 </div>
-                <div class="profile-form-group">
+                <div class="form-field">
                     <label>Last Name</label>
-                    <input type="text" id="editLastName" value="{{ profile_user.last_name }}">
+                    <input type="text" id="lastName" value="{{ profile_user.last_name }}">
                 </div>
-                <div class="profile-form-group">
+                <div class="form-field">
                     <label>Bio</label>
-                    <textarea id="editBio" rows="3" placeholder="Tell us about yourself...">{{ profile_user.bio or '' }}</textarea>
+                    <textarea id="bio" rows="3" placeholder="Tell us about yourself...">{{ profile_user.bio or '' }}</textarea>
                 </div>
-                <button type="button" class="profile-save-btn" onclick="saveProfileChanges()">Save Changes</button>
+                <button class="save-btn" onclick="saveProfile()">Save Changes</button>
             </div>
         </div>
     </div>
 
     <!-- Followers Modal -->
-    <div id="followersModal" class="follow-modal-overlay">
+    <div id="followersModal" class="follow-modal">
         <div class="follow-modal-content">
             <div class="follow-modal-header">
                 <h3>Followers</h3>
                 <span class="follow-modal-close" onclick="closeFollowersModal()">&times;</span>
             </div>
-            <div id="followersList" class="follow-user-list">Loading...</div>
+            <div id="followersList" class="follow-list">Loading...</div>
         </div>
     </div>
 
     <!-- Following Modal -->
-    <div id="followingModal" class="follow-modal-overlay">
+    <div id="followingModal" class="follow-modal">
         <div class="follow-modal-content">
             <div class="follow-modal-header">
                 <h3>Following</h3>
                 <span class="follow-modal-close" onclick="closeFollowingModal()">&times;</span>
             </div>
-            <div id="followingList" class="follow-user-list">Loading...</div>
+            <div id="followingList" class="follow-list">Loading...</div>
         </div>
     </div>
 
@@ -697,7 +701,7 @@
         const firebaseApp = initializeApp(firebaseConfig);
         const storage = getStorage(firebaseApp);
 
-        window.uploadProfilePhotoToFirebase = async function(file, userId) {
+        window.uploadProfilePhoto = async function(file, userId) {
             const fileExt = file.name.split('.').pop();
             const fileName = `profile_${Date.now()}.${fileExt}`;
             const storageRef = ref(storage, `profiles/${userId}/${fileName}`);
@@ -708,59 +712,109 @@
     </script>
 
     <script>
-        console.log('Profile page loaded');
-        
+        // User data from server
         const profileUserId = '{{ profile_user.user_id }}';
         const loggedInUserId = '{{ current_user.user_id if current_user else "" }}';
         
-        const currentProfileData = {
+        // Current profile data for editing
+        let currentData = {
             first_name: '{{ profile_user.first_name }}',
             last_name: '{{ profile_user.last_name }}',
             bio: '{{ profile_user.bio or "" }}',
             profile_photo: '{{ profile_user.profile_photo or "" }}'
         };
 
-        // Format time ago
-        function formatTimeAgo(dateStr) {
-            const date = new Date(dateStr);
-            const now = new Date();
-            const diff = Math.floor((now - date) / 1000);
-            if (diff < 60) return `${diff}s`;
-            if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-            if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-            return date.toLocaleDateString();
+        // ========== EDIT MODAL FUNCTIONS ==========
+        function openEditModal() {
+            console.log('openEditModal called');
+            const modal = document.getElementById('editProfileModal');
+            if (modal) {
+                // Populate form with current data
+                document.getElementById('firstName').value = currentData.first_name;
+                document.getElementById('lastName').value = currentData.last_name;
+                document.getElementById('bio').value = currentData.bio;
+                const preview = document.getElementById('photoPreview');
+                if (preview && currentData.profile_photo) {
+                    preview.src = currentData.profile_photo;
+                }
+                // Show modal
+                modal.classList.add('show');
+                console.log('Modal opened');
+            } else {
+                console.error('Modal element not found!');
+                alert('Error: Could not open edit form');
+            }
         }
-        
-        document.querySelectorAll('.talo-time').forEach(el => {
-            if (el.dataset.time) el.textContent = formatTimeAgo(el.dataset.time);
+
+        function closeEditModal() {
+            const modal = document.getElementById('editProfileModal');
+            if (modal) {
+                modal.classList.remove('show');
+                // Clear file input
+                const fileInput = document.getElementById('photoInput');
+                if (fileInput) fileInput.value = '';
+            }
+        }
+
+        // Preview photo before upload
+        function previewPhoto(input) {
+            const preview = document.getElementById('photoPreview');
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Save profile changes
+        async function saveProfile() {
+            console.log('saveProfile called');
+            const formData = new FormData();
+            const photoFile = document.getElementById('photoInput').files[0];
+            
+            if (photoFile && loggedInUserId) {
+                try {
+                    const uploadResult = await window.uploadProfilePhoto(photoFile, loggedInUserId);
+                    formData.append('profile_photo_url', uploadResult.url);
+                    formData.append('profile_photo_path', uploadResult.path);
+                } catch (err) {
+                    alert('Failed to upload photo. Please try again.');
+                    return;
+                }
+            }
+            
+            formData.append('first_name', document.getElementById('firstName').value);
+            formData.append('last_name', document.getElementById('lastName').value);
+            formData.append('bio', document.getElementById('bio').value);
+            
+            try {
+                const response = await fetch('/api/update_profile', { method: 'POST', body: formData });
+                if (response.ok) {
+                    alert('Profile updated successfully!');
+                    location.reload();
+                } else {
+                    const error = await response.json();
+                    alert('Failed to update profile: ' + (error.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating profile');
+            }
+        }
+
+        // Set up file input listener
+        document.addEventListener('DOMContentLoaded', function() {
+            const photoInput = document.getElementById('photoInput');
+            if (photoInput) {
+                photoInput.addEventListener('change', function() {
+                    previewPhoto(this);
+                });
+            }
         });
-        
-        // Format content with links
-        function formatContentWithLinks(content) {
-            content = content.replace(/@(\w+)/g, (match, username) => {
-                return `<span class="mention-link" onclick="event.stopPropagation(); viewProfile('${username}')">${match}</span>`;
-            });
-            content = content.replace(/#(\w+)/g, (match, hashtag) => {
-                return `<span class="hashtag-link" onclick="event.stopPropagation(); searchByHashtag('${match}')">${match}</span>`;
-            });
-            return content;
-        }
 
-        document.querySelectorAll('.talo-content').forEach(el => {
-            const originalContent = el.textContent;
-            const formattedContent = formatContentWithLinks(originalContent);
-            if (originalContent !== formattedContent) el.innerHTML = formattedContent;
-        });
-
-        function viewProfile(userId) {
-            window.location.href = `/profile/${userId}`;
-        }
-
-        function searchByHashtag(hashtag) {
-            window.location.href = `/dashboard?hashtag=${encodeURIComponent(hashtag)}`;
-        }
-        
-        // Follow functionality
+        // ========== FOLLOW FUNCTIONS ==========
         async function checkFollowStatus() {
             try {
                 const response = await fetch(`/api/get_follow_status/${profileUserId}`);
@@ -774,7 +828,7 @@
                     btn.classList.remove('following');
                 }
             } catch (error) {
-                console.error('Error checking follow status:', error);
+                console.error('Error:', error);
                 document.getElementById('followBtn').textContent = '+ Follow';
             }
         }
@@ -793,16 +847,15 @@
                     btn.classList.remove('following');
                 }
             } catch (error) {
-                console.error('Error toggling follow:', error);
                 alert('Failed to update follow status');
             }
         }
-        
-        // Followers/Following Modals
+
+        // ========== FOLLOWERS/FOLLOWING MODALS ==========
         async function showFollowersModal(userId) {
             const modal = document.getElementById('followersModal');
             const listContainer = document.getElementById('followersList');
-            modal.classList.add('active');
+            modal.classList.add('show');
             listContainer.innerHTML = 'Loading...';
             try {
                 const response = await fetch(`/api/get_followers/${userId}`);
@@ -811,11 +864,11 @@
                     listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No followers yet</div>';
                 } else {
                     listContainer.innerHTML = data.followers.map(follower => `
-                        <div class="follow-user-item" onclick="viewProfile('${follower.user_id}')">
-                            <div class="follow-user-avatar">${follower.name ? follower.name[0] : '👤'}</div>
-                            <div class="follow-user-info">
-                                <div class="follow-user-name">${follower.name}</div>
-                                <div class="follow-user-id">@${follower.user_id}</div>
+                        <div class="follow-item" onclick="viewProfile('${follower.user_id}')">
+                            <div class="follow-avatar">${follower.name ? follower.name[0] : '👤'}</div>
+                            <div class="follow-info">
+                                <div class="follow-name">${follower.name}</div>
+                                <div class="follow-username">@${follower.user_id}</div>
                             </div>
                         </div>
                     `).join('');
@@ -828,7 +881,7 @@
         async function showFollowingModal(userId) {
             const modal = document.getElementById('followingModal');
             const listContainer = document.getElementById('followingList');
-            modal.classList.add('active');
+            modal.classList.add('show');
             listContainer.innerHTML = 'Loading...';
             try {
                 const response = await fetch(`/api/get_following/${userId}`);
@@ -837,11 +890,11 @@
                     listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Not following anyone yet</div>';
                 } else {
                     listContainer.innerHTML = data.following.map(following => `
-                        <div class="follow-user-item" onclick="viewProfile('${following.user_id}')">
-                            <div class="follow-user-avatar">${following.name ? following.name[0] : '👤'}</div>
-                            <div class="follow-user-info">
-                                <div class="follow-user-name">${following.name}</div>
-                                <div class="follow-user-id">@${following.user_id}</div>
+                        <div class="follow-item" onclick="viewProfile('${following.user_id}')">
+                            <div class="follow-avatar">${following.name ? following.name[0] : '👤'}</div>
+                            <div class="follow-info">
+                                <div class="follow-name">${following.name}</div>
+                                <div class="follow-username">@${following.user_id}</div>
                             </div>
                         </div>
                     `).join('');
@@ -852,187 +905,127 @@
         }
         
         function closeFollowersModal() {
-            document.getElementById('followersModal').classList.remove('active');
+            document.getElementById('followersModal').classList.remove('show');
         }
         
         function closeFollowingModal() {
-            document.getElementById('followingModal').classList.remove('active');
+            document.getElementById('followingModal').classList.remove('show');
+        }
+
+        // ========== HELPER FUNCTIONS ==========
+        function formatTimeAgo(dateStr) {
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000);
+            if (diff < 60) return `${diff}s`;
+            if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+            return date.toLocaleDateString();
         }
         
-        // Profile Edit Modal Functions
-        function openProfileEditModal() {
-            console.log('Opening profile edit modal');
-            const modal = document.getElementById('profileEditModal');
-            if (modal) {
-                document.getElementById('editFirstName').value = currentProfileData.first_name || '';
-                document.getElementById('editLastName').value = currentProfileData.last_name || '';
-                document.getElementById('editBio').value = currentProfileData.bio || '';
-                const previewImg = document.getElementById('editProfilePhotoPreview');
-                if (previewImg && currentProfileData.profile_photo) {
-                    previewImg.src = currentProfileData.profile_photo;
-                }
-                modal.classList.add('active');
-            } else {
-                console.error('Modal not found!');
-            }
+        function viewProfile(userId) {
+            window.location.href = `/profile/${userId}`;
         }
 
-        function closeProfileEditModal() {
-            const modal = document.getElementById('profileEditModal');
-            if (modal) {
-                modal.classList.remove('active');
-                const fileInput = document.getElementById('editProfilePhoto');
-                if (fileInput) fileInput.value = '';
-            }
+        function searchByHashtag(hashtag) {
+            window.location.href = `/dashboard?hashtag=${encodeURIComponent(hashtag)}`;
         }
 
-        function previewProfilePhoto(input) {
-            const preview = document.getElementById('editProfilePhotoPreview');
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    preview.src = e.target.result;
-                };
-                reader.readAsDataURL(input.files[0]);
-            }
+        function formatContentWithLinks(content) {
+            content = content.replace(/@(\w+)/g, (match, username) => {
+                return `<span class="mention-link" onclick="event.stopPropagation(); viewProfile('${username}')">${match}</span>`;
+            });
+            content = content.replace(/#(\w+)/g, (match, hashtag) => {
+                return `<span class="hashtag-link" onclick="event.stopPropagation(); searchByHashtag('${match}')">${match}</span>`;
+            });
+            return content;
         }
 
-        async function saveProfileChanges() {
-            const formData = new FormData();
-            const photoFile = document.getElementById('editProfilePhoto').files[0];
-            const userId = loggedInUserId;
-
-            if (photoFile && userId) {
-                try {
-                    const uploadResult = await window.uploadProfilePhotoToFirebase(photoFile, userId);
-                    formData.append('profile_photo_url', uploadResult.url);
-                    formData.append('profile_photo_path', uploadResult.path);
-                } catch (err) {
-                    alert('Failed to upload photo. Please try again.');
-                    return;
-                }
-            }
-
-            formData.append('first_name', document.getElementById('editFirstName').value);
-            formData.append('last_name', document.getElementById('editLastName').value);
-            formData.append('bio', document.getElementById('editBio').value);
-
-            try {
-                const response = await fetch('/api/update_profile', { method: 'POST', body: formData });
-                if (response.ok) {
-                    alert('Profile updated successfully!');
-                    location.reload();
-                } else {
-                    alert('Failed to update profile');
-                }
-            } catch (error) {
-                console.error('Error updating profile:', error);
-                alert('Error updating profile');
-            }
-        }
-
-        // Mobile menu functions
+        // ========== MOBILE MENU ==========
         function toggleMobileMenu() {
             const overlay = document.getElementById('mobileMenuOverlay');
             const menu = document.getElementById('mobileMenu');
-            overlay.classList.toggle('active');
-            menu.classList.toggle('active');
-            if (menu.classList.contains('active')) populateMobileMenu();
+            overlay.classList.toggle('show');
+            menu.classList.toggle('show');
+            if (menu.classList.contains('show')) populateMobileMenu();
         }
         
         function closeMobileMenu() {
-            document.getElementById('mobileMenuOverlay').classList.remove('active');
-            document.getElementById('mobileMenu').classList.remove('active');
+            document.getElementById('mobileMenuOverlay').classList.remove('show');
+            document.getElementById('mobileMenu').classList.remove('show');
         }
         
         function populateMobileMenu() {
-            const mobileProfileDiv = document.getElementById('mobileProfileCard');
-            const profilePhotoHtml = '{{ profile_user.profile_photo }}' ? 
-                `<img class="profile-photo-mobile" src="{{ profile_user.profile_photo }}" alt="Profile">` :
-                `<div class="profile-photo-mobile" style="background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto;">👤</div>`;
-            
-            mobileProfileDiv.innerHTML = `
-                <div class="profile-card-mobile">
-                    ${profilePhotoHtml}
-                    <h3>{{ profile_user.first_name }} {{ profile_user.last_name }}</h3>
-                    <p>@{{ profile_user.user_id }}</p>
-                    ${'{{ profile_user.bio }}' ? `<p style="font-size: 12px; color: #666; margin-top: 8px;">{{ profile_user.bio }}</p>` : ''}
-                    <div class="stats-mobile">
-                        <div class="stat-mobile">
-                            <div class="stat-number-mobile">{{ profile_user.followers_count }}</div>
+            const container = document.getElementById('mobileProfileCard');
+            container.innerHTML = `
+                <div class="mobile-profile-card">
+                    ${currentData.profile_photo ? 
+                        `<img class="mobile-profile-photo" src="${currentData.profile_photo}" alt="Profile">` :
+                        `<div class="mobile-profile-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto;">👤</div>`}
+                    <h3>${currentData.first_name} ${currentData.last_name}</h3>
+                    <p>@${profileUserId}</p>
+                    ${currentData.bio ? `<p style="font-size: 12px; color: #666; margin-top: 8px;">${currentData.bio}</p>` : ''}
+                    <div class="mobile-stats">
+                        <div class="mobile-stat">
+                            <div class="mobile-stat-number">{{ profile_user.followers_count }}</div>
                             <div>Followers</div>
                         </div>
-                        <div class="stat-mobile">
-                            <div class="stat-number-mobile">{{ profile_user.following_count }}</div>
+                        <div class="mobile-stat">
+                            <div class="mobile-stat-number">{{ profile_user.following_count }}</div>
                             <div>Following</div>
                         </div>
-                        <div class="stat-mobile">
-                            <div class="stat-number-mobile">{{ profile_user.talos_count }}</div>
+                        <div class="mobile-stat">
+                            <div class="mobile-stat-number">{{ profile_user.talos_count }}</div>
                             <div>Talos</div>
                         </div>
                     </div>
                 </div>
             `;
         }
-        
-        // Close modals when clicking outside
-        window.onclick = function(event) {
-            const profileModal = document.getElementById('profileEditModal');
-            const followersModal = document.getElementById('followersModal');
-            const followingModal = document.getElementById('followingModal');
-            
-            if (event.target === profileModal) closeProfileEditModal();
-            if (event.target === followersModal) closeFollowersModal();
-            if (event.target === followingModal) closeFollowingModal();
+
+        // ========== INITIALIZATION ==========
+        document.querySelectorAll('.talo-time').forEach(el => {
+            if (el.dataset.time) el.textContent = formatTimeAgo(el.dataset.time);
+        });
+
+        document.querySelectorAll('.talo-content').forEach(el => {
+            const original = el.textContent;
+            const formatted = formatContentWithLinks(original);
+            if (original !== formatted) el.innerHTML = formatted;
+        });
+
+        // Set up follow button
+        const followBtn = document.getElementById('followBtn');
+        if (followBtn) {
+            followBtn.onclick = toggleFollow;
         }
 
-        // Close on Escape key
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') {
-                closeProfileEditModal();
+        // Initialize follow status (only if viewing someone else's profile)
+        if (profileUserId !== loggedInUserId && loggedInUserId) {
+            checkFollowStatus();
+        } else if (!loggedInUserId || profileUserId === loggedInUserId) {
+            if (followBtn) followBtn.style.display = 'none';
+        }
+
+        // Close modals on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeEditModal();
                 closeFollowersModal();
                 closeFollowingModal();
             }
         });
-        
-        // Initialize everything when DOM is ready
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM ready - setting up event listeners');
+
+        // Close modals when clicking outside
+        window.onclick = function(e) {
+            const editModal = document.getElementById('editProfileModal');
+            const followersModal = document.getElementById('followersModal');
+            const followingModal = document.getElementById('followingModal');
             
-            // Set up edit button
-            const editBtn = document.getElementById('editProfileBtn');
-            if (editBtn) {
-                editBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    console.log('Edit button clicked!');
-                    openProfileEditModal();
-                });
-            } else {
-                console.log('Edit button not found');
-            }
-            
-            // Set up photo input
-            const photoInput = document.getElementById('editProfilePhoto');
-            if (photoInput) {
-                photoInput.addEventListener('change', function() {
-                    previewProfilePhoto(this);
-                });
-            }
-            
-            // Set up follow button
-            const followBtn = document.getElementById('followBtn');
-            if (followBtn) {
-                followBtn.onclick = toggleFollow;
-            }
-        });
-        
-        // Initialize follow status
-        if (profileUserId !== loggedInUserId && loggedInUserId) {
-            checkFollowStatus();
-        } else if (!loggedInUserId || profileUserId === loggedInUserId) {
-            const followBtn = document.getElementById('followBtn');
-            if (followBtn) followBtn.style.display = 'none';
-        }
+            if (e.target === editModal) closeEditModal();
+            if (e.target === followersModal) closeFollowersModal();
+            if (e.target === followingModal) closeFollowingModal();
+        };
     </script>
 </body>
 </html>
