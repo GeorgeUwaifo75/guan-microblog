@@ -722,19 +722,100 @@
             cursor: pointer;
         }
         
+        /* Enhanced Photo Grid Styles - 4:5 Aspect Ratio */
         .talo-photos {
-            display: flex;
+            display: grid;
             gap: 8px;
-            flex-wrap: wrap;
             margin: 10px 0;
         }
         
-        .talo-photos img {
-            width: calc(25% - 6px);
-            max-width: 120px;
-            border-radius: 8px;
+        /* 1 photo - full width, 4:5 aspect ratio */
+        .talo-photos.photo-count-1 {
+            grid-template-columns: 1fr;
+        }
+        
+        .talo-photos.photo-count-1 .photo-item {
+            aspect-ratio: 4 / 5;
+        }
+        
+        /* 2 photos - side by side, each 4:5 aspect ratio */
+        .talo-photos.photo-count-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+        
+        .talo-photos.photo-count-2 .photo-item {
+            aspect-ratio: 4 / 5;
+        }
+        
+        /* 3 photos - first takes full width, next two side by side */
+        .talo-photos.photo-count-3 {
+            grid-template-columns: 1fr 1fr;
+            grid-template-areas: 
+                "main main"
+                "sub1 sub2";
+        }
+        
+        .talo-photos.photo-count-3 .photo-item:first-child {
+            grid-area: main;
+            aspect-ratio: 4 / 5;
+        }
+        
+        .talo-photos.photo-count-3 .photo-item:nth-child(2) {
+            grid-area: sub1;
+            aspect-ratio: 4 / 5;
+        }
+        
+        .talo-photos.photo-count-3 .photo-item:nth-child(3) {
+            grid-area: sub2;
+            aspect-ratio: 4 / 5;
+        }
+        
+        /* 4 photos - 2x2 grid, each 4:5 aspect ratio */
+        .talo-photos.photo-count-4 {
+            grid-template-columns: 1fr 1fr;
+        }
+        
+        .talo-photos.photo-count-4 .photo-item {
+            aspect-ratio: 4 / 5;
+        }
+        
+        .photo-item {
+            position: relative;
+            overflow: hidden;
+            border-radius: 12px;
+            background: #f0f0f0;
             cursor: pointer;
+        }
+        
+        .photo-item img {
+            width: 100%;
+            height: 100%;
             object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transition: transform 0.3s ease;
+        }
+        
+        .photo-item:hover img {
+            transform: scale(1.02);
+        }
+        
+        /* Overlay for additional photos indicator */
+        .photo-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            z-index: 2;
         }
         
         .talo-stats {
@@ -1366,14 +1447,6 @@
                 max-height: 70vh;
             }
             
-            .talo-photos img {
-                width: calc(50% - 4px) !important;
-            }
-            
-            .stat-btn {
-                font-size: 12px !important;
-            }
-            
             .flash-notification {
                 top: 105px;
             }
@@ -1541,24 +1614,20 @@
                         <div class="original-post-preview">
                             <div style="font-weight: 500; margin-bottom: 5px;">Original post:</div>
                             <div>{{ talo.content[:150] }}{% if talo.content|length > 150 %}...{% endif %}</div>
-                            {% if talo.photos and talo.photos|length > 0 %}
-                            <div class="talo-photos" style="margin-top: 8px;">
-                                {% for photo in talo.photos[:2] %}
-                                    <img src="{{ photo.url }}" alt="Photo" style="width: 50px; height: 50px; object-fit: cover;">
-                                {% endfor %}
-                                {% if talo.photos|length > 2 %}
-                                    <span style="font-size: 11px; color: #666;">+{{ talo.photos|length - 2 }} more</span>
-                                {% endif %}
-                            </div>
-                            {% endif %}
                         </div>
                         {% endif %}
 
+                        <!-- Enhanced Photo Display with 4:5 Aspect Ratio -->
                         {% if talo.photos and talo.photos|length > 0 %}
-                        <div class="talo-photos">
+                        <div class="talo-photos photo-count-{{ talo.photos|length }}">
                             {% for photo in talo.photos %}
-                                {% if photo.url %}
+                                {% if loop.index <= 4 %}
+                                <div class="photo-item" onclick="event.stopPropagation(); viewPhoto('{{ photo.url }}')">
                                     <img src="{{ photo.url }}" alt="Photo">
+                                    {% if loop.index == 4 and talo.photos|length > 4 %}
+                                    <div class="photo-overlay">+{{ talo.photos|length - 4 }}</div>
+                                    {% endif %}
+                                </div>
                                 {% endif %}
                             {% endfor %}
                         </div>
@@ -1706,6 +1775,14 @@
         </div>
     </div>
 
+    <!-- Photo Viewer Modal -->
+    <div id="photoViewerModal" class="modal-overlay" style="display: none;" onclick="closePhotoViewer()">
+        <div class="modal-content-userlist" style="max-width: 90%; background: transparent; box-shadow: none;" onclick="event.stopPropagation()">
+            <img id="viewerImage" src="" alt="Full size image" style="max-width: 100%; max-height: 80vh; border-radius: 10px; object-fit: contain;">
+            <button class="close-modal" style="position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.5); border-radius: 50%; width: 40px; height: 40px;" onclick="closePhotoViewer()">✖</button>
+        </div>
+    </div>
+
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -1778,6 +1855,18 @@
             talos_count: {{ user.talos_count }}
         };
         
+        // Photo Viewer Function
+        function viewPhoto(url) {
+            const modal = document.getElementById('photoViewerModal');
+            const viewerImage = document.getElementById('viewerImage');
+            viewerImage.src = url;
+            modal.style.display = 'flex';
+        }
+        
+        function closePhotoViewer() {
+            document.getElementById('photoViewerModal').style.display = 'none';
+        }
+        
         // ========== SEARCH FUNCTIONALITY ==========
         const searchInput = document.getElementById('globalSearchInput');
         const searchDropdown = document.getElementById('searchResultsDropdown');
@@ -1818,7 +1907,6 @@
                 
                 let html = '';
                 
-                // Users section
                 if (data.users.length > 0) {
                     html += `<div class="search-result-section">
                         <div class="search-result-title">👥 USERS (${data.users.length})</div>`;
@@ -1839,7 +1927,6 @@
                     html += `</div>`;
                 }
                 
-                // Posts section
                 if (data.posts.length > 0) {
                     html += `<div class="search-result-section">
                         <div class="search-result-title">📝 POSTS (${data.posts.length})</div>`;
@@ -1858,7 +1945,6 @@
                     html += `</div>`;
                 }
                 
-                // View all link
                 if (data.posts.length > 5 || data.users.length > 5) {
                     html += `<div class="view-all-results" onclick="viewAllResults('${escapeHtml(query)}')">
                         View all ${data.posts.length + data.users.length} results →
@@ -1888,19 +1974,14 @@
             window.location.href = `/search?q=${encodeURIComponent(query)}`;
         }
         
-        // CORRECTED: Proper hashtag search function
         function searchHashtag(hashtag) {
-            // Remove any extra quotes or spaces
             let cleanHashtag = String(hashtag).trim();
-            // If it doesn't start with #, add it
             if (!cleanHashtag.startsWith('#')) {
                 cleanHashtag = '#' + cleanHashtag;
             }
-            // Navigate to search page with the hashtag
             window.location.href = `/search?q=${encodeURIComponent(cleanHashtag)}`;
         }
         
-        // Search input event listeners
         if (searchInput) {
             searchInput.addEventListener('input', function(e) {
                 const query = e.target.value.trim();
@@ -1925,7 +2006,6 @@
             });
         }
         
-        // Close dropdown when clicking outside
         document.addEventListener('click', function(e) {
             const searchWrapper = document.querySelector('.search-wrapper');
             if (searchWrapper && !searchWrapper.contains(e.target)) {
@@ -2513,7 +2593,6 @@
             let trendingHtml = '<div class="trending-card"><h4>🔥 Trending Today</h4>';
             if (trendingData.length > 0) {
                 trendingData.forEach(item => {
-                    // Fixed: Use searchHashtag function directly
                     trendingHtml += `<div class="trending-item" onclick="searchHashtag('${item.word}'); closeMobileMenu();">${item.word} (${item.count})</div>`;
                 });
             } else {
@@ -2648,7 +2727,6 @@
                         pullToRefreshEl.classList.add('active');
                     }
                     
-                    // Perform refresh
                     const now = new Date().toISOString();
                     latestTaloTimestamp = now;
                     localStorage.setItem('lastSeenTimestamp', now);
