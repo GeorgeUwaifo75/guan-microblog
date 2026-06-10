@@ -220,6 +220,96 @@
             display: block;
         }
         
+        .search-result-section {
+            padding: 5px 0;
+        }
+        
+        .search-result-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #cc0000;
+            padding: 8px 12px;
+            background: #f9f9f9;
+            margin: 5px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .search-result-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .search-result-item:hover {
+            background: #f5f5f5;
+        }
+        
+        .search-result-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .search-result-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            object-fit: cover;
+        }
+        
+        .search-result-info {
+            flex: 1;
+        }
+        
+        .search-result-name {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .search-result-username {
+            font-size: 11px;
+            color: #666;
+        }
+        
+        .search-result-post {
+            font-size: 13px;
+            color: #333;
+            line-height: 1.3;
+        }
+        
+        .search-result-post small {
+            font-size: 11px;
+            color: #999;
+        }
+        
+        .highlight-text {
+            background: #ffcc00;
+            color: #990000;
+            padding: 0 2px;
+            border-radius: 3px;
+        }
+        
+        .view-all-results {
+            text-align: center;
+            padding: 10px;
+            background: #f9f9f9;
+            border-top: 1px solid #eee;
+            color: #cc0000;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .view-all-results:hover {
+            background: #f0f0f0;
+        }
+        
         /* Pull to Refresh Indicator */
         .pull-to-refresh {
             position: fixed;
@@ -629,6 +719,7 @@
             padding: 0 4px;
             border-radius: 4px;
             display: inline-block;
+            cursor: pointer;
         }
         
         .talo-photos {
@@ -1666,13 +1757,6 @@
         let unreadNotifications = 0;
         let searchTimeout = null;
         
-        // Pull to refresh variables
-        let pullStartY = 0;
-        let pullMoveY = 0;
-        let isPulling = false;
-        let pullThreshold = 80;
-        let isRefreshingPull = false;
-        
         const loggedInUserId = '{{ user.user_id }}';
         const MAX_CHARS = 250;
         
@@ -1693,106 +1777,6 @@
             following_count: {{ user.following_count }},
             talos_count: {{ user.talos_count }}
         };
-        
-        // ========== PULL TO REFRESH FUNCTIONALITY ==========
-        const scrollableContent = document.getElementById('scrollableContent');
-        const pullToRefreshEl = document.getElementById('pullToRefresh');
-        const refreshText = pullToRefreshEl ? pullToRefreshEl.querySelector('.refresh-text') : null;
-        
-        function initPullToRefresh() {
-            if (!scrollableContent) return;
-            
-            // Only enable on mobile devices
-            if (window.innerWidth > 768) return;
-            
-            let startY = 0;
-            let isAtTop = false;
-            
-            scrollableContent.addEventListener('touchstart', function(e) {
-                // Check if scroll is at top
-                if (scrollableContent.scrollTop <= 0 && !isRefreshingPull) {
-                    startY = e.touches[0].clientY;
-                    isAtTop = true;
-                } else {
-                    isAtTop = false;
-                }
-            });
-            
-            scrollableContent.addEventListener('touchmove', function(e) {
-                if (!isAtTop || isRefreshingPull) return;
-                
-                const currentY = e.touches[0].clientY;
-                const pullDistance = currentY - startY;
-                
-                if (pullDistance > 0) {
-                    e.preventDefault();
-                    const pullPercent = Math.min(pullDistance / pullThreshold, 1);
-                    const translateY = Math.min(pullDistance, pullThreshold);
-                    
-                    if (pullToRefreshEl) {
-                        pullToRefreshEl.style.transform = `translateY(${translateY}px)`;
-                        
-                        if (pullDistance >= pullThreshold) {
-                            if (refreshText) refreshText.textContent = 'Release to refresh...';
-                            pullToRefreshEl.classList.add('active');
-                        } else {
-                            if (refreshText) refreshText.textContent = 'Pull to refresh...';
-                        }
-                    }
-                }
-            });
-            
-            scrollableContent.addEventListener('touchend', function(e) {
-                if (!isAtTop || isRefreshingPull) {
-                    if (pullToRefreshEl) {
-                        pullToRefreshEl.style.transform = '';
-                    }
-                    return;
-                }
-                
-                const currentY = e.changedTouches[0].clientY;
-                const pullDistance = currentY - startY;
-                
-                if (pullDistance >= pullThreshold && !isRefreshingPull) {
-                    // Perform refresh
-                    if (pullToRefreshEl) {
-                        pullToRefreshEl.style.transform = '';
-                        if (refreshText) refreshText.textContent = 'Refreshing...';
-                        pullToRefreshEl.classList.add('active');
-                    }
-                    
-                    performPullToRefresh();
-                } else {
-                    if (pullToRefreshEl) {
-                        pullToRefreshEl.style.transform = '';
-                        pullToRefreshEl.classList.remove('active');
-                    }
-                }
-                
-                isAtTop = false;
-            });
-        }
-        
-        async function performPullToRefresh() {
-            if (isRefreshingPull) return;
-            isRefreshingPull = true;
-            
-            // Update last seen timestamp
-            const now = new Date().toISOString();
-            latestTaloTimestamp = now;
-            localStorage.setItem('lastSeenTimestamp', now);
-            
-            // Reload the page to refresh timeline
-            location.reload();
-            
-            // Reset after a short delay (in case reload doesn't happen)
-            setTimeout(() => {
-                if (pullToRefreshEl) {
-                    pullToRefreshEl.classList.remove('active');
-                }
-                isRefreshingPull = false;
-            }, 2000);
-        }
         
         // ========== SEARCH FUNCTIONALITY ==========
         const searchInput = document.getElementById('globalSearchInput');
@@ -1904,8 +1888,16 @@
             window.location.href = `/search?q=${encodeURIComponent(query)}`;
         }
         
+        // CORRECTED: Proper hashtag search function
         function searchHashtag(hashtag) {
-            window.location.href = `/search?q=${encodeURIComponent(hashtag)}`;
+            // Remove any extra quotes or spaces
+            let cleanHashtag = String(hashtag).trim();
+            // If it doesn't start with #, add it
+            if (!cleanHashtag.startsWith('#')) {
+                cleanHashtag = '#' + cleanHashtag;
+            }
+            // Navigate to search page with the hashtag
+            window.location.href = `/search?q=${encodeURIComponent(cleanHashtag)}`;
         }
         
         // Search input event listeners
@@ -2521,6 +2513,7 @@
             let trendingHtml = '<div class="trending-card"><h4>🔥 Trending Today</h4>';
             if (trendingData.length > 0) {
                 trendingData.forEach(item => {
+                    // Fixed: Use searchHashtag function directly
                     trendingHtml += `<div class="trending-item" onclick="searchHashtag('${item.word}'); closeMobileMenu();">${item.word} (${item.count})</div>`;
                 });
             } else {
@@ -2589,6 +2582,93 @@
             } else {
                 alert('Failed to initiate promotion');
             }
+        }
+        
+        // ========== PULL TO REFRESH ==========
+        const scrollableContent = document.getElementById('scrollableContent');
+        const pullToRefreshEl = document.getElementById('pullToRefresh');
+        const refreshText = pullToRefreshEl ? pullToRefreshEl.querySelector('.refresh-text') : null;
+        
+        function initPullToRefresh() {
+            if (!scrollableContent) return;
+            if (window.innerWidth > 768) return;
+            
+            let startY = 0;
+            let isAtTop = false;
+            let isRefreshingPull = false;
+            
+            scrollableContent.addEventListener('touchstart', function(e) {
+                if (scrollableContent.scrollTop <= 0 && !isRefreshingPull) {
+                    startY = e.touches[0].clientY;
+                    isAtTop = true;
+                } else {
+                    isAtTop = false;
+                }
+            });
+            
+            scrollableContent.addEventListener('touchmove', function(e) {
+                if (!isAtTop || isRefreshingPull) return;
+                
+                const currentY = e.touches[0].clientY;
+                const pullDistance = currentY - startY;
+                
+                if (pullDistance > 0) {
+                    e.preventDefault();
+                    const translateY = Math.min(pullDistance, 80);
+                    
+                    if (pullToRefreshEl) {
+                        pullToRefreshEl.style.transform = `translateY(${translateY}px)`;
+                        
+                        if (pullDistance >= 80) {
+                            if (refreshText) refreshText.textContent = 'Release to refresh...';
+                            pullToRefreshEl.classList.add('active');
+                        } else {
+                            if (refreshText) refreshText.textContent = 'Pull to refresh...';
+                        }
+                    }
+                }
+            });
+            
+            scrollableContent.addEventListener('touchend', function(e) {
+                if (!isAtTop || isRefreshingPull) {
+                    if (pullToRefreshEl) {
+                        pullToRefreshEl.style.transform = '';
+                    }
+                    return;
+                }
+                
+                const currentY = e.changedTouches[0].clientY;
+                const pullDistance = currentY - startY;
+                
+                if (pullDistance >= 80 && !isRefreshingPull) {
+                    isRefreshingPull = true;
+                    if (pullToRefreshEl) {
+                        pullToRefreshEl.style.transform = '';
+                        if (refreshText) refreshText.textContent = 'Refreshing...';
+                        pullToRefreshEl.classList.add('active');
+                    }
+                    
+                    // Perform refresh
+                    const now = new Date().toISOString();
+                    latestTaloTimestamp = now;
+                    localStorage.setItem('lastSeenTimestamp', now);
+                    location.reload();
+                    
+                    setTimeout(() => {
+                        isRefreshingPull = false;
+                        if (pullToRefreshEl) {
+                            pullToRefreshEl.classList.remove('active');
+                        }
+                    }, 2000);
+                } else {
+                    if (pullToRefreshEl) {
+                        pullToRefreshEl.style.transform = '';
+                        pullToRefreshEl.classList.remove('active');
+                    }
+                }
+                
+                isAtTop = false;
+            });
         }
         
         // ========== REAL-TIME NOTIFICATIONS ==========
