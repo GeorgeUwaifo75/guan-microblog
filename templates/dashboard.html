@@ -51,7 +51,6 @@
             color: white;
             font-style: italic;
         }
-        /* Right side icons container - always on extreme right */
         .right-icons {
             display: flex;
             gap: 15px;
@@ -88,6 +87,156 @@
             min-width: 18px;
             text-align: center;
         }
+        
+        /* Search Bar Section */
+        .search-bar-container {
+            background: white;
+            padding: 12px 16px;
+            position: sticky;
+            top: 64px;
+            z-index: 99;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-bottom: 1px solid #eee;
+        }
+        .search-wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+        }
+        .search-input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: #f5f5f5;
+            border-radius: 30px;
+            padding: 8px 16px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+        .search-input-group:focus-within {
+            border-color: #cc0000;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(204, 0, 0, 0.1);
+        }
+        .search-icon {
+            font-size: 20px;
+            color: #999;
+        }
+        .search-input {
+            flex: 1;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 16px;
+            padding: 8px 0;
+        }
+        .search-input::placeholder {
+            color: #aaa;
+        }
+        .clear-search {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #999;
+            padding: 0 5px;
+            display: none;
+        }
+        .clear-search:hover {
+            color: #cc0000;
+        }
+        .search-results-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            margin-top: 8px;
+        }
+        .search-results-dropdown.show {
+            display: block;
+        }
+        .search-result-section {
+            padding: 10px;
+        }
+        .search-result-title {
+            font-size: 12px;
+            font-weight: bold;
+            color: #cc0000;
+            padding: 8px 12px;
+            background: #f9f9f9;
+            margin: 5px 0;
+        }
+        .search-result-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .search-result-item:hover {
+            background: #f5f5f5;
+        }
+        .search-result-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .search-result-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            object-fit: cover;
+        }
+        .search-result-info {
+            flex: 1;
+        }
+        .search-result-name {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .search-result-username {
+            font-size: 11px;
+            color: #666;
+        }
+        .search-result-post {
+            font-size: 13px;
+            color: #333;
+            line-height: 1.3;
+        }
+        .search-result-post small {
+            font-size: 11px;
+            color: #999;
+        }
+        .highlight-text {
+            background: #ffcc00;
+            color: #990000;
+            padding: 0 2px;
+            border-radius: 3px;
+        }
+        .view-all-results {
+            text-align: center;
+            padding: 10px;
+            background: #f9f9f9;
+            border-top: 1px solid #eee;
+            color: #cc0000;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .view-all-results:hover {
+            background: #f0f0f0;
+        }
+        
         .dashboard-container {
             display: flex;
             max-width: 1400px;
@@ -144,54 +293,6 @@
         }
         .mobile-menu-content {
             padding: 15px;
-        }
-        .trending-modal {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: white;
-            border-radius: 20px 20px 0 0;
-            z-index: 350;
-            transform: translateY(100%);
-            transition: transform 0.3s ease;
-            max-height: 70vh;
-            overflow-y: auto;
-        }
-        .trending-modal.active {
-            transform: translateY(0);
-        }
-        .trending-modal-header {
-            background: #cc0000;
-            color: white;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-radius: 20px 20px 0 0;
-            position: sticky;
-            top: 0;
-        }
-        .trending-modal-close {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-        }
-        .trending-modal-content {
-            padding: 15px;
-        }
-        .trending-item {
-            padding: 12px 0;
-            border-bottom: 1px solid #eee;
-            font-size: 14px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .trending-item:hover {
-            background: #f5f5f5;
-            padding-left: 10px;
         }
         .profile-card {
             background: white;
@@ -262,12 +363,14 @@
             margin-top: 20px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
-        .trending-clickable {
+        .trending-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
             cursor: pointer;
             transition: background 0.2s;
-            padding: 8px 0;
         }
-        .trending-clickable:hover {
+        .trending-item:hover {
             background: #f5f5f5;
             padding-left: 8px;
         }
@@ -422,10 +525,6 @@
         .stat-btn.liked {
             color: #ffcc00;
         }
-        .stat-btn.retaled {
-            color: #28a745;
-        }
-        /* Floating Action Buttons Container */
         .fab-container {
             position: fixed;
             bottom: 20px;
@@ -435,7 +534,6 @@
             gap: 12px;
             z-index: 200;
         }
-        /* New Post Button (Polygon) */
         .new-post-btn {
             width: 54px;
             height: 54px;
@@ -456,7 +554,6 @@
             color: white;
             font-weight: bold;
         }
-        /* Home Button (Circle) - positioned below polygon */
         .home-btn {
             width: 50px;
             height: 50px;
@@ -488,15 +585,15 @@
         }
         .notifications-panel {
             position: fixed;
-            top: 70px;
+            top: 120px;
             right: 20px;
-            width: 320px;
+            width: 360px;
             background: white;
             border-radius: 15px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
             z-index: 150;
             display: none;
-            max-height: 400px;
+            max-height: 500px;
             overflow-y: auto;
         }
         .notifications-panel.show {
@@ -514,186 +611,18 @@
         .notification-item.unread {
             background: #fff8e8;
         }
-        .footer {
-            background: #cc0000;
-            color: white;
-            text-align: center;
-            padding: 15px;
-            margin-top: 30px;
-            font-size: 12px;
-        }
-        .reply-btn {
-            background: none;
-            border: none;
-            color: #666;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 16px;
-        }
-        .reply-btn:hover {
-            color: #cc0000;
-        }
-        .remove-photo {
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            background: red;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .photo-container {
-            position: relative;
-            display: inline-block;
-        }
         
-        .profile-edit-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.8);
-            z-index: 1000;
-            display: none;
-            justify-content: center;
-            align-items: center;
-        }
-        .profile-edit-modal.active {
-            display: flex;
-        }
-        .profile-edit-content {
-            background: white;
-            border-radius: 20px;
-            width: 90%;
-            max-width: 450px;
-            max-height: 85vh;
-            overflow-y: auto;
-            padding: 20px;
-        }
-        .profile-edit-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #ffcc00;
-        }
-        .profile-edit-header h3 {
-            color: #cc0000;
-        }
-        .profile-edit-close {
-            background: none;
-            border: none;
-            font-size: 28px;
-            cursor: pointer;
-            color: #999;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #333;
-        }
-        .form-group input, .form-group select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
-        }
-        .profile-photo-preview {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            object-fit: cover;
-            margin: 0 auto 10px;
-            display: block;
-            border: 3px solid #cc0000;
-        }
-        .photo-upload-label {
-            display: block;
-            text-align: center;
-            background: #f0f0f0;
-            padding: 8px;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-        .save-profile-btn {
-            background: #cc0000;
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 25px;
-            width: 100%;
-            font-size: 16px;
-            cursor: pointer;
-            margin-top: 15px;
-        }
-        
-        @media (max-width: 768px) {
-            .dashboard-container {
-                flex-direction: column;
-                padding: 12px;
-            }
-            .sidebar {
-                display: none;
-            }
-            /* FAB container adjustments for mobile */
-            .fab-container {
-                bottom: 15px;
-                right: 15px;
-                gap: 10px;
-            }
-            .new-post-btn, .home-btn {
-                transform: scale(0.9);
-            }
-            /* Header adjustments for mobile */
-            .header {
-                padding: 10px 12px;
-            }
-            .logo-text h2 {
-                font-size: 16px;
-            }
-            .logo-text p {
-                display: none;
-            }
-            .right-icons {
-                gap: 12px;
-            }
-        }
-        
-        @media (min-width: 769px) {
-            .mobile-menu-overlay, .mobile-menu, .trending-modal, .menu-icon-btn {
-                display: none !important;
-            }
-            .sidebar {
-                display: block !important;
-            }
-            .right-icons {
-                display: flex !important;
-            }
-            /* FAB container for desktop - keep in bottom right */
-            .fab-container {
-                bottom: 20px;
-                right: 20px;
-            }
-        }
-        
+.footer {
+    background: #cc0000;
+    color: white;
+    text-align: center;
+    padding: 15px;
+    font-size: 12px;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    z-index: 100;
+}
         .btn {
             padding: 8px 16px;
             border: none;
@@ -704,12 +633,75 @@
             background: #cc0000;
             color: white;
         }
-        .btn-primary:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        
+        @media (max-width: 768px) {
+            .dashboard-container {
+                flex-direction: column;
+                padding: 12px;
+            }
+            .sidebar {
+                display: none;
+            }
+            .fab-container {
+                bottom: 15px;
+                right: 15px;
+                gap: 10px;
+            }
+            .new-post-btn, .home-btn {
+                transform: scale(0.9);
+            }
+            .header {
+                padding: 10px 12px;
+            }
+            .search-bar-container {
+                top: 56px;
+                padding: 10px 12px;
+            }
+            .notifications-panel {
+                top: 110px;
+                width: calc(100% - 20px);
+                right: 10px;
+                left: 10px;
+            }
         }
         
-        .modal-overlay {
+        @media (min-width: 769px) {
+            .mobile-menu-overlay, .mobile-menu, .menu-icon-btn {
+                display: none !important;
+            }
+            .sidebar {
+                display: block !important;
+            }
+        }
+        
+        .promote-btn {
+            background: linear-gradient(135deg, #ffcc00 0%, #ffaa00 100%);
+            border: none;
+            color: #990000;
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: transform 0.2s;
+        }
+        .promote-btn:hover {
+            transform: scale(1.05);
+        }
+        .promoted-badge {
+            background: #ffcc00;
+            color: #990000;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        
+        .promotion-modal {
             position: fixed;
             top: 0;
             left: 0;
@@ -717,536 +709,244 @@
             height: 100%;
             background: rgba(0,0,0,0.7);
             z-index: 1000;
-            display: flex;
+            display: none;
             justify-content: center;
             align-items: center;
         }
-        
-        .modal-content-userlist {
+        .promotion-modal-content {
             background: white;
-            border-radius: 15px;
+            border-radius: 20px;
             width: 90%;
             max-width: 400px;
-            max-height: 80vh;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
+            padding: 25px;
         }
-        
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 20px;
-            border-bottom: 1px solid #eee;
-            background: #cc0000;
+        .payment-option {
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .payment-option.selected {
+            border-color: #cc0000;
+            background: #fff5f5;
+        }
+        .flash-notification {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             color: white;
-        }
-        
-        .close-modal {
-            font-size: 28px;
-            cursor: pointer;
-            color: white;
-        }
-        
-        .user-list {
-            padding: 10px;
-            overflow-y: auto;
-            max-height: 60vh;
-        }
-        
-        .user-list-item {
+            padding: 12px 24px;
+            border-radius: 50px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            z-index: 1000;
             display: flex;
             align-items: center;
-            padding: 12px;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-        }
-        
-        .user-list-item:hover {
-            background: #f5f5f5;
-        }
-        
-        .user-list-avatar {
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            background: #ddd;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 12px;
-            font-size: 20px;
-        }
-        
-        .user-list-info {
-            flex: 1;
-        }
-        
-        .user-list-name {
-            font-weight: bold;
-        }
-        
-        .user-list-id {
-            font-size: 12px;
-            color: #666;
-        }
-        
-        .follow-btn {
-            background: #cc0000;
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 25px;
-            cursor: pointer;
+            gap: 12px;
             font-size: 14px;
-            font-weight: bold;
-            transition: transform 0.2s;
+            font-weight: 500;
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
         }
-        
-        .follow-btn.following {
-            background: #ffcc00;
-            color: #990000;
+        .flash-notification.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
         }
-        
-        .follow-btn:hover {
-            transform: translateY(-2px);
+        .flash-notification.error {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
         }
-        
-        .filter-bar {
-            background: white;
-            border-radius: 15px;
-            padding: 12px 15px;
-            margin-bottom: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        .filter-tag {
-            background: #ffcc00;
-            color: #990000;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-weight: bold;
-            font-size: 14px;
-        }
-        .clear-filter {
-            background: none;
-            border: none;
-            color: #cc0000;
-            cursor: pointer;
-            font-size: 14px;
-            text-decoration: underline;
-        }
-        
-        .loading-spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #cc0000;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .retalo-original {
-            background: #f0f8f0;
-            border-left: 3px solid #28a745;
-            padding: 10px;
-            margin-top: 10px;
+        .repost-info {
+            background: #e8f5e9;
             border-radius: 8px;
-            font-size: 13px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            color: #2e7d32;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-/* Add to the style section of dashboard.html */
-.flash-notification {
-    position: fixed;
-    top: 80px;
-    left: 50%;
-    transform: translateX(-50%) translateY(-100px);
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    color: white;
-    padding: 12px 24px;
-    border-radius: 50px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 14px;
-    font-weight: 500;
-    opacity: 0;
-    transition: all 0.3s ease;
-    pointer-events: none;
-}
-
-.flash-notification.show {
-    transform: translateX(-50%) translateY(0);
-    opacity: 1;
-}
-
-.flash-notification.error {
-    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-}
-
-.flash-notification.warning {
-    background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
-    color: #333;
-}
-
-.flash-notification-icon {
-    font-size: 20px;
-}
-
-.flash-notification-message {
-    flex: 1;
-}
-
-/* Updated retalo card styling */
-.retalo-card {
-    background: #f8f9fa;
-    border-left: 3px solid #28a745;
-    padding: 12px;
-    margin-top: 10px;
-    border-radius: 10px;
-    font-size: 13px;
-}
-
-.retalo-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-    padding-bottom: 6px;
-    border-bottom: 1px dashed #ddd;
-    font-size: 12px;
-    color: #28a745;
-}
-
-.retalo-original-content {
-    color: #555;
-    line-height: 1.4;
-}
-
-.retalo-original-photos {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    margin-top: 8px;
-}
-
-.retalo-original-photos img {
-    width: 60px;
-    height: 60px;
-    object-fit: cover;
-    border-radius: 6px;
-}
-
-/* Add to style section - better repost styling */
-.repost-info {
-    background: #e8f5e9;
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin-bottom: 10px;
-    font-size: 12px;
-    color: #2e7d32;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.repost-info::before {
-    content: '🔄';
-    font-size: 14px;
-}
-
-.repost-original-author {
-    font-weight: bold;
-    color: #1b5e20;
-}
-
-.original-post-preview {
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px dashed #c8e6c9;
-    color: #555;
-    font-size: 12px;
-}
-
-
-/* Promotion button styling */
-.promote-btn {
-    background: linear-gradient(135deg, #ffcc00 0%, #ffaa00 100%);
-    border: none;
-    color: #990000;
-    padding: 6px 12px;
-    border-radius: 20px;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: bold;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    transition: transform 0.2s;
-}
-
-.promote-btn:hover {
-    transform: scale(1.05);
-}
-
-.promoted-badge {
-    background: #ffcc00;
-    color: #990000;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 10px;
-    font-weight: bold;
-    margin-left: 8px;
-}
-
-/* Promotion modal */
-.promotion-modal {
+<!-- Add these styles to the existing <style> section in dashboard.html -->
+/* Profile Edit Modal - Fixed centered popup overlay */
+.profile-edit-modal {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.7);
-    z-index: 1000;
-    display: none;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 10000;
     justify-content: center;
     align-items: center;
-}
-
-.promotion-modal-content {
-    background: white;
-    border-radius: 20px;
-    width: 90%;
-    max-width: 400px;
-    padding: 25px;
-}
-
-.payment-option {
-    border: 2px solid #e0e0e0;
-    border-radius: 12px;
-    padding: 15px;
-    margin: 10px 0;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.payment-option.selected {
-    border-color: #cc0000;
-    background: #fff5f5;
-}
-
-.payment-option:hover {
-    border-color: #cc0000;
-}
-
-.paystack-btn, .paypal-btn {
-    width: 100%;
-    padding: 12px;
-    border: none;
-    border-radius: 10px;
-    font-weight: bold;
-    cursor: pointer;
-    margin-top: 15px;
-}
-
-.paystack-btn {
-    background: #1e3c72;
-    color: white;
-}
-
-.paypal-btn {
-    background: #0070ba;
-    color: white;
-}
-
-.progress-container {
-    margin-top: 20px;
-    text-align: center;
-}
-
-/* Feed filter info */
-.feed-info {
-    background: #e8f5e9;
-    border-radius: 10px;
-    padding: 10px 15px;
-    margin-bottom: 15px;
-    font-size: 13px;
-    color: #2e7d32;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-
-.notifications-panel {
-    position: fixed;
-    top: 70px;
-    right: 20px;
-    width: 360px;
-    background: white;
-    border-radius: 15px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-    z-index: 150;
-    display: none;
-    max-height: 500px;
-    overflow-y: auto;
-}
-
-.notifications-panel.show {
-    display: block;
-}
-
-.notification-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 12px 15px;
-    border-bottom: 1px solid #eee;
-    cursor: pointer;
-    transition: background 0.2s;
-    position: relative;
-}
-
-.notification-item:hover {
-    background: #f9f9f9;
-}
-
-.notification-item.unread {
-    background: #fff8e8;
-    border-left: 3px solid #ffcc00;
-}
-
-.notification-item.read {
-    background: white;
-}
-
-.notification-icon {
-    font-size: 24px;
-    flex-shrink: 0;
-}
-
-.notification-content {
-    flex: 1;
-    min-width: 0;
-}
-
-.notification-message {
-    font-size: 13px;
-    color: #333;
-    margin: 4px 0;
-    word-wrap: break-word;
-}
-
-.notification-mention {
-    color: #cc0000;
-    font-weight: bold;
-    cursor: pointer;
-    text-decoration: none;
-}
-
-.notification-mention:hover {
-    text-decoration: underline;
-}
-
-.notification-time {
-    font-size: 11px;
-    color: #999;
-}
-
-.notification-close {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: none;
-    border: none;
-    font-size: 14px;
-    color: #999;
-    cursor: pointer;
+    visibility: hidden;
     opacity: 0;
-    transition: opacity 0.2s;
-    padding: 4px 8px;
-    border-radius: 50%;
+    transition: visibility 0.3s, opacity 0.3s;
+    display: flex !important;
 }
 
-.notification-item:hover .notification-close {
+.profile-edit-modal.active {
+    visibility: visible;
     opacity: 1;
 }
 
-.notification-close:hover {
-    background: #eee;
-    color: #cc0000;
+.profile-edit-content {
+    background: white;
+    border-radius: 20px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 85vh;
+    overflow-y: auto;
+    position: relative;
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 }
 
-.clear-all-btn {
-    padding: 10px 15px;
-    text-align: center;
-    border-top: 1px solid #eee;
-    background: #f9f9f9;
+.profile-edit-modal.active .profile-edit-content {
+    transform: scale(1);
 }
 
-.clear-all-btn button {
+.profile-edit-header {
     background: #cc0000;
     color: white;
+    padding: 18px 20px;
+    border-radius: 20px 20px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.profile-edit-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.profile-edit-close {
+    background: none;
     border: none;
+    color: white;
+    font-size: 28px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.profile-edit-close:hover {
+    opacity: 1;
+}
+
+.profile-edit-content .form-group {
+    margin-bottom: 20px;
+    padding: 0 20px;
+}
+
+.profile-edit-content .form-group label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #333;
+}
+
+.profile-edit-content .form-group input,
+.profile-edit-content .form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+.profile-edit-content .form-group input:focus,
+.profile-edit-content .form-group textarea:focus {
+    outline: none;
+    border-color: #cc0000;
+}
+
+.profile-photo-preview {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: 12px;
+    border: 3px solid #cc0000;
+    display: block;
+}
+
+.photo-upload-label {
+    display: inline-block;
+    background: #f0f0f0;
     padding: 8px 16px;
     border-radius: 20px;
     cursor: pointer;
-    font-size: 12px;
-    transition: transform 0.2s;
+    font-size: 13px;
+    transition: background 0.2s;
+    margin-top: 8px;
 }
 
-.clear-all-btn button:hover {
-    transform: scale(1.02);
+.photo-upload-label:hover {
+    background: #e0e0e0;
 }
 
-@keyframes pulse {
-    0% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.2); opacity: 0.7; }
-    100% { transform: scale(1); opacity: 1; }
+.save-profile-btn {
+    background: #cc0000;
+    color: white;
+    border: none;
+    padding: 14px 20px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    width: calc(100% - 40px);
+    margin: 0 20px 20px 20px;
+    transition: transform 0.2s, background 0.2s;
 }
 
-/* Mobile responsive */
-@media (max-width: 768px) {
-    .notifications-panel {
-        width: calc(100% - 20px);
-        right: 10px;
-        left: 10px;
-        top: 65px;
-        max-height: 70vh;
-    }
+.save-profile-btn:hover {
+    background: #990000;
+    transform: translateY(-1px);
 }
+/* The rest of the modal styles remain the same */
+</style>
 
-
-    </style>
 </head>
 <body>
     <div class="header">
-    <div class="logo-area">
-        <div class="ram-icon">🐏</div>
-        <div class="logo-text">
-            <h2>GuAn</h2>
-            <p>Freedom of expression is right but don't hurt others with yours.</p>
+        <div class="logo-area">
+            <div class="ram-icon">🐏</div>
+            <div class="logo-text">
+                <h2>GuAn</h2>
+                <p>Freedom of expression is right but don't hurt others with yours.+++</p>
+            </div>
+        </div>
+        <div class="right-icons">
+            <button class="menu-icon-btn" onclick="toggleMobileMenu()" id="menuIconBtn">☰</button>
+            <button class="icon-btn" onclick="toggleNotifications()">🔔 <span id="notificationCount" class="notification-badge" style="display: none;">0</span></button>
+            <a href="/logout"><button class="icon-btn">🚪</button></a>
         </div>
     </div>
-    <!-- Right side icons - always on extreme right -->
-    <div class="right-icons">
-        <button class="menu-icon-btn" onclick="toggleMobileMenu()" id="menuIconBtn">☰</button>
-        <button class="icon-btn" onclick="toggleNotifications()">🔔 <span id="notificationCount" class="notification-badge" style="display: none;">0</span></button>
-        <a href="/logout"><button class="icon-btn">🚪</button></a>
-    </div>
-</div>
 
-    <!-- Mobile Menu Overlay -->
+    <!-- Search Bar Section -->
+    <div class="search-bar-container">
+        <div class="search-wrapper">
+            <div class="search-input-group">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="search-input" id="globalSearchInput" placeholder="Search for posts, hashtags, or @username..." autocomplete="off">
+                <button class="clear-search" id="clearSearchBtn" onclick="clearSearch()">✖</button>
+            </div>
+            <div class="search-results-dropdown" id="searchResultsDropdown"></div>
+        </div>
+    </div>
+
     <div id="mobileMenuOverlay" class="mobile-menu-overlay" onclick="closeMobileMenu()"></div>
     <div id="mobileMenu" class="mobile-menu">
         <div class="mobile-menu-header">
@@ -1256,48 +956,6 @@
         <div class="mobile-menu-content">
             <div id="mobileProfileCard"></div>
             <div id="mobileTrendingCard"></div>
-        </div>
-    </div>
-
-    <!-- Trending Modal for Mobile -->
-    <div id="trendingModal" class="trending-modal">
-        <div class="trending-modal-header">
-            <span>🔥 Trending Today</span>
-            <button class="trending-modal-close" onclick="closeTrendingModal()">&times;</button>
-        </div>
-        <div class="trending-modal-content" id="trendingModalContent"></div>
-    </div>
-
-    <!-- Profile Edit Modal -->
-    <div id="profileEditModal" class="profile-edit-modal">
-        <div class="profile-edit-content">
-            <div class="profile-edit-header">
-                <h3>Edit Profile</h3>
-                <button class="profile-edit-close" onclick="closeProfileEditModal()">&times;</button>
-            </div>
-            <form id="profileEditForm">
-                <div class="form-group">
-                    <label>Profile Photo</label>
-                    <img id="editProfilePhotoPreview" class="profile-photo-preview" src="{{ user.profile_photo or '/static/default-avatar.png' }}" alt="Profile Photo">
-                    <label class="photo-upload-label">
-                        📷 Change Photo
-                        <input type="file" id="editProfilePhoto" accept="image/*" style="display: none;" onchange="previewProfilePhoto(this)">
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label>First Name</label>
-                    <input type="text" id="editFirstName" value="{{ user.first_name }}">
-                </div>
-                <div class="form-group">
-                    <label>Last Name</label>
-                    <input type="text" id="editLastName" value="{{ user.last_name }}">
-                </div>
-                <div class="form-group">
-                    <label>Bio/Bio</label>
-                    <textarea id="editBio" rows="3" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;" placeholder="Tell us about yourself...">{{ user.bio or '' }}</textarea>
-                </div>
-                <button type="button" class="save-profile-btn" onclick="saveProfileChanges()">Save Changes</button>
-            </form>
         </div>
     </div>
 
@@ -1324,8 +982,6 @@
                 <div class="premium-badge">🐏 PREMIUM</div>
                 {% endif %}
                 
-                <div id="followButtonContainer" style="margin: 15px 0;"></div>
-                
                 <div class="stats">
                     <div class="stat" style="cursor: pointer;" onclick="showFollowersModal('{{ user.user_id }}')">
                         <div class="stat-number" id="followersCountDesktop">{{ user.followers_count }}</div>
@@ -1345,20 +1001,14 @@
             <div class="trending-card">
                 <h4>🔥 Trending Today</h4>
                 {% for word, count in trending %}
-                <div class="trending-item" onclick="filterByHashtag('{{ word }}')">{{ word }} ({{ count }})</div>
+                <div class="trending-item" onclick="searchHashtag('{{ word }}')">{{ word }} ({{ count }})</div>
                 {% else %}
                 <div class="trending-item">No trending topics yet</div>
                 {% endfor %}
             </div>
         </div>
-
+        
         <div class="main-feed">
-            <!-- Filter bar -->
-            <div id="filterBar" class="filter-bar" style="display: none;">
-                <span>Showing posts with tag: <span id="activeFilterTag" class="filter-tag"></span></span>
-                <button class="clear-filter" onclick="clearHashtagFilter()">Clear filter</button>
-            </div>
-
             <div class="create-talo" id="createTaloSection">
                 <form id="createTaloForm" enctype="multipart/form-data">
                     <textarea name="content" id="taloContent" rows="3" placeholder="What's happening? (max 250 characters)" maxlength="250"></textarea>
@@ -1381,7 +1031,7 @@
 
             <div id="talosFeed">
                 {% for talo in talos %}
-                <div class="talo-card" data-talo-id="{{ talo.id }}" data-hashtags="{{ talo.hashtags|default('')|join(',') }}">
+                <div class="talo-card" data-talo-id="{{ talo.id }}">
                     <div class="talo-header">
                         {% if talo.user_photo %}
                         <img class="talo-user-photo" src="{{ talo.user_photo }}" alt="">
@@ -1392,34 +1042,23 @@
                             <a href="/profile/{{ talo.user_id }}" style="text-decoration: none; color: inherit;">
                                 <span class="talo-user-name">{{ talo.user_name }}</span>
                                 <span class="talo-user-id">@{{ talo.user_id }}</span>
+                                {% if talo.promoted %}
+                                <span class="promoted-badge">⭐ Promoted</span>
+                                {% endif %}
                             </a>
                             <div class="talo-time" data-time="{{ talo.created_at }}"></div>
                         </div>
+                        {% if talo.user_id == user.user_id and not talo.promoted %}
+                        <button class="promote-btn" onclick="openPromotionModal('{{ talo.id }}')">🔊 Promote</button>
+                        {% endif %}
                     </div>
                     <div class="talo-content" id="taloContent_{{ talo.id }}">{{ talo.content }}</div>
 
-<!-- After the talo content, before photos -->
-{% if talo.is_retalo %}
-<div class="repost-info">
-    <span>🔄 Reposted from @{{ talo.original_user_id }}</span>
-</div>
-<div class="original-post-preview">
-    <div style="font-weight: 500; margin-bottom: 5px;">Original post:</div>
-    <div>{{ talo.content[:150] }}{% if talo.content|length > 150 %}...{% endif %}</div>
-    {% if talo.photos and talo.photos|length > 0 %}
-    <div class="talo-photos" style="margin-top: 8px;">
-        {% for photo in talo.photos[:2] %}
-            <img src="{{ photo.url }}" alt="Photo" style="width: 50px; height: 50px; object-fit: cover;">
-        {% endfor %}
-        {% if talo.photos|length > 2 %}
-            <span style="font-size: 11px; color: #666;">+{{ talo.photos|length - 2 }} more</span>
-        {% endif %}
-    </div>
-    {% endif %}
-</div>
-{% endif %}
-
-
+                    {% if talo.is_retalo %}
+                    <div class="repost-info">
+                        <span>🔄 Reposted from @{{ talo.original_user_id }}</span>
+                    </div>
+                    {% endif %}
 
                     {% if talo.photos and talo.photos|length > 0 %}
                     <div class="talo-photos">
@@ -1430,23 +1069,11 @@
                         {% endfor %}
                     </div>
                     {% endif %}
-                    <!-- Show original post if this is a retalo -->
-                    {% if talo.original_talo %}
-                    <div class="retalo-original">
-                        <small>🔄 Reposted from @{{ talo.original_user_id }}</small>
-                        <div>{{ talo.original_content }}</div>
-                    </div>
-                    {% endif %}
+
                     <div class="talo-stats">
                         <button class="stat-btn like-btn" data-id="{{ talo.id }}">💎 <span class="like-count">{{ talo.likes }}</span></button>
-                        <button class="stat-btn dislike-btn" data-id="{{ talo.id }}">👎 <span class="dislike-count">{{ talo.dislikes }}</span></button>
-                        <button class="stat-btn retalo-btn" data-id="{{ talo.id }}" data-user-id="{{ talo.user_id }}" data-content="{{ talo.content }}" 
-                           data-photos='{{ talo.photos|tojson }}'>
-                             🔄 <span class="retalo-count">{{ talo.retalos }}</span>
-                          </button>
-                        <a href="/post/{{ talo.id }}" class="reply-btn" style="background: none; border: none; color: #666; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
-                            💬 <span>{{ talo.reply_count }}</span>
-                        </a>
+                        <button class="stat-btn retalo-btn" data-id="{{ talo.id }}" data-user-id="{{ talo.user_id }}" data-content="{{ talo.content }}" data-photos='{{ talo.photos|tojson }}'>🔄 <span class="retalo-count">{{ talo.retalos }}</span></button>
+                        <a href="/post/{{ talo.id }}" class="reply-btn" style="background: none; border: none; color: #666; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">💬 <span>{{ talo.reply_count }}</span></a>
                     </div>
                 </div>
                 {% else %}
@@ -1458,13 +1085,10 @@
         </div>
     </div>
 
-    <!-- Floating Action Buttons Container -->
     <div class="fab-container">
-        <!-- New Post Button (Polygon shape) -->
         <div class="new-post-btn" onclick="scrollToTopAndHighlight()">
             <span>+</span>
         </div>
-        <!-- Home Button (Circle shape) - positioned below polygon -->
         <div class="home-btn" onclick="refreshTimeline()" id="homeBtn">
             <span>🏠</span>
             <div class="home-indicator-fab gray" id="homeIndicator"></div>
@@ -1475,7 +1099,7 @@
         <p>&copy; 2026 GuAn Microblogging Platform. All rights reserved.</p>
     </div>
 
-    <!-- Modals for Followers/Following -->
+    <!-- Modals -->
     <div id="followersModal" class="modal-overlay" style="display: none;">
         <div class="modal-content-userlist">
             <div class="modal-header">
@@ -1496,12 +1120,29 @@
         </div>
     </div>
 
+
+
+    <div id="promotionModal" class="promotion-modal">
+        <div class="promotion-modal-content">
+            <h3 style="color: #cc0000; margin-bottom: 20px;">🔊 Promote Your Post</h3>
+            <p style="margin-bottom: 15px;">Promoted posts get higher visibility in feeds!</p>
+            <div class="form-group">
+                <label>Amount ($USD)</label>
+                <input type="number" id="promotionAmount" class="form-control" placeholder="Minimum $100" min="100" step="1">
+            </div>
+            <div class="payment-option" id="option-paystack" data-method="paystack" onclick="selectPaymentMethod('paystack')">
+                <strong>🇳🇬 Paystack</strong> - Pay with card, bank transfer, USSD
+            </div>
+            <button class="paystack-btn" onclick="initiatePromotion()">Continue to Payment →</button>
+            <button style="width: 100%; padding: 10px; margin-top: 10px; background: #ccc; border: none; border-radius: 10px; cursor: pointer;" onclick="closePromotionModal()">Cancel</button>
+        </div>
+    </div>
+
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
         
-        // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyBj9wQ04hnfPjowVvEa_yf8_Fq3VXVaH5I",
             authDomain: "giteksolhub-project.firebaseapp.com",
@@ -1511,17 +1152,14 @@
             appId: "1:917911843059:web:0aa2438be6605d1f400786"
         };
         
-        // Initialize Firebase
         const firebaseApp = initializeApp(firebaseConfig);
         const storage = getStorage(firebaseApp);
         
-        // Make storage available globally
         window.firebaseStorage = storage;
         window.firebaseRef = ref;
         window.uploadBytes = uploadBytes;
         window.getDownloadURL = getDownloadURL;
         
-        // Store Firebase functions globally
         window.uploadPhotoToFirebase = async function(file, userId, taloId, photoIndex) {
             const fileExt = file.name.split('.').pop();
             const fileName = `${userId}/${taloId}/${photoIndex}_${Date.now()}.${fileExt}`;
@@ -1539,392 +1177,179 @@
             const downloadURL = await getDownloadURL(snapshot.ref);
             return { url: downloadURL, path: `profiles/${userId}/${fileName}` };
         };
-        
-        console.log('Firebase initialized for photo storage');
     </script>
 
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+    
     <script>
         let photoFiles = [];
-        let currentHashtagFilter = null;
-        let allTalos = [];
-        let latestTaloTimestamp = null;
-        let isRefreshing = false;
-        let unreadNotifications = 0;
-        
+        let searchTimeout = null;
+        let currentPromotionTalo = null;
         const loggedInUserId = '{{ user.user_id }}';
         const MAX_CHARS = 250;
         
-        // Store trending data for mobile
+        const userData = {
+            user_id: '{{ user.user_id }}',
+            first_name: '{{ user.first_name }}',
+            last_name: '{{ user.last_name }}',
+            profile_photo: '{{ user.profile_photo or "" }}',
+            bio: '{{ user.bio or "" }}',
+            is_premium: {{ user.is_premium|lower }},
+            followers_count: {{ user.followers_count }},
+            following_count: {{ user.following_count }},
+            talos_count: {{ user.talos_count }}
+        };
+        
         const trendingData = [
             {% for word, count in trending %}
             {word: "{{ word }}", count: {{ count }}},
             {% endfor %}
         ];
         
-        // Load last seen timestamp from localStorage
-        function loadLastSeenTimestamp() {
-            const saved = localStorage.getItem('lastSeenTimestamp');
-            if (saved) {
-                latestTaloTimestamp = saved;
-            }
-            checkForNewTalos();
-        }
+        // Search functionality
+        const searchInput = document.getElementById('globalSearchInput');
+        const searchDropdown = document.getElementById('searchResultsDropdown');
+        const clearBtn = document.getElementById('clearSearchBtn');
         
-        // Check for new talos periodically
-        async function checkForNewTalos() {
-            if (isRefreshing) return;
+        async function performSearch(query) {
+            if (!query || query.length < 1) {
+                searchDropdown.classList.remove('show');
+                return;
+            }
             
             try {
-                const response = await fetch('/api/get_latest_talo_timestamp');
+                const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
                 const data = await response.json();
                 
-                if (data.latest_timestamp) {
-                    const indicator = document.getElementById('homeIndicator');
-                    if (!latestTaloTimestamp || data.latest_timestamp > latestTaloTimestamp) {
-                        // New posts available
-                        indicator.classList.remove('gray');
-                        indicator.style.background = '#28a745';
-                    } else {
-                        indicator.classList.add('gray');
-                        indicator.style.background = '#888';
-                    }
+                if (data.posts.length === 0 && data.users.length === 0) {
+                    searchDropdown.innerHTML = `
+                        <div class="search-result-section">
+                            <div style="padding: 20px; text-align: center; color: #999;">
+                                No results found for "${escapeHtml(query)}"
+                            </div>
+                        </div>
+                    `;
+                    searchDropdown.classList.add('show');
+                    return;
                 }
+                
+                let html = '';
+                
+                // Users section
+                if (data.users.length > 0) {
+                    html += `<div class="search-result-section">
+                        <div class="search-result-title">👥 USERS (${data.users.length})</div>`;
+                    for (const user of data.users.slice(0, 5)) {
+                        html += `
+                            <div class="search-result-item" onclick="viewProfile('${user.user_id}')">
+                                <div class="search-result-user">
+                                    ${user.profile_photo ? 
+                                        `<img class="search-result-avatar" src="${user.profile_photo}" alt="">` : 
+                                        `<div class="search-result-avatar">👤</div>`}
+                                    <div class="search-result-info">
+                                        <div class="search-result-name">${escapeHtml(user.first_name)} ${escapeHtml(user.last_name)}</div>
+                                        <div class="search-result-username">@${escapeHtml(user.user_id)}</div>
+                                    </div>
+                                </div>
+                            </div>`;
+                    }
+                    html += `</div>`;
+                }
+                
+                // Posts section
+                if (data.posts.length > 0) {
+                    html += `<div class="search-result-section">
+                        <div class="search-result-title">📝 POSTS (${data.posts.length})</div>`;
+                    for (const post of data.posts.slice(0, 5)) {
+                        let contentPreview = post.content.substring(0, 80);
+                        if (post.content.length > 80) contentPreview += '...';
+                        html += `
+                            <div class="search-result-item" onclick="viewPost('${post.id}')">
+                                <div class="search-result-post">
+                                    <strong>@${escapeHtml(post.user_id)}</strong><br>
+                                    ${highlightText(contentPreview, query)}
+                                    <br><small>💎 ${post.likes} 💬 ${post.reply_count} 🔄 ${post.retalos}</small>
+                                </div>
+                            </div>`;
+                    }
+                    html += `</div>`;
+                }
+                
+                if (data.posts.length > 5 || data.users.length > 5) {
+                    html += `<div class="view-all-results" onclick="viewAllResults('${escapeHtml(query)}')">
+                        View all ${data.posts.length + data.users.length} results →
+                    </div>`;
+                }
+                
+                searchDropdown.innerHTML = html;
+                searchDropdown.classList.add('show');
             } catch (error) {
-                console.error('Error checking for new talos:', error);
+                console.error('Search error:', error);
             }
         }
         
-        // Refresh timeline
-        async function refreshTimeline() {
-            if (isRefreshing) return;
-            isRefreshing = true;
-            
-            const indicator = document.getElementById('homeIndicator');
-            indicator.classList.add('gray');
-            indicator.style.background = '#888';
-            
-            // Update last seen timestamp
-            const now = new Date().toISOString();
-            latestTaloTimestamp = now;
-            localStorage.setItem('lastSeenTimestamp', now);
-            
-            // Reload the page to refresh timeline
-            location.reload();
+        function highlightText(text, query) {
+            const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            return text.replace(regex, '<span class="highlight-text">$1</span>');
         }
         
-        // Retalo function
-
-
-
-
-/*
-        async function retalo(taloId, originalUserId, originalContent) {
-            try {
-                const response = await fetch('/api/retalo', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        original_talo_id: taloId,
-                        original_user_id: originalUserId,
-                        original_content: originalContent
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    // Update retalo count on the button
-                    const btn = document.querySelector(`.retalo-btn[data-id="${taloId}"]`);
-                    if (btn) {
-                        const countSpan = btn.querySelector('.retalo-count');
-                        if (countSpan) {
-                            countSpan.textContent = parseInt(countSpan.textContent) + 1;
-                        }
-                        btn.classList.add('retaled');
-                    }
-                    
-                    // Show success message
-                    alert('Post retaled successfully!');
-                    
-                    // Reload to show the retalo
-                    setTimeout(() => location.reload(), 1000);
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function viewProfile(userId) {
+            window.location.href = `/profile/${userId}`;
+        }
+        
+        function viewPost(postId) {
+            window.location.href = `/post/${postId}`;
+        }
+        
+        function viewAllResults(query) {
+            window.location.href = `/search?q=${encodeURIComponent(query)}`;
+        }
+        
+        function clearSearch() {
+            searchInput.value = '';
+            searchDropdown.classList.remove('show');
+            clearBtn.style.display = 'none';
+        }
+        
+        searchInput.addEventListener('input', function(e) {
+            const query = e.target.value.trim();
+            clearBtn.style.display = query ? 'block' : 'none';
+            
+            if (searchTimeout) clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                if (query) {
+                    performSearch(query);
                 } else {
-                    alert('Failed to retalo: ' + (data.detail || 'Unknown error'));
+                    searchDropdown.classList.remove('show');
                 }
-            } catch (error) {
-                console.error('Error retaling:', error);
-                alert('Failed to retalo. Please try again.');
-            }
-        }
-        
-*/
-
-// Replace the existing retalo function with this enhanced version:
-
-// Flash notification function
-function showFlashNotification(message, type = 'success') {
-    // Remove existing notification if any
-    const existingNotification = document.querySelector('.flash-notification');
-    if (existingNotification) {
-        existingNotification.remove();
-    }
-    
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = `flash-notification ${type}`;
-    
-    let icon = '🔄';
-    if (type === 'success') icon = '✅';
-    else if (type === 'error') icon = '❌';
-    else if (type === 'warning') icon = '⚠️';
-    
-    notification.innerHTML = `
-        <span class="flash-notification-icon">${icon}</span>
-        <span class="flash-notification-message">${message}</span>
-    `;
-    
-    document.body.appendChild(notification);
-    
-    // Trigger animation
-    setTimeout(() => notification.classList.add('show'), 10);
-    
-    // Remove after 2.5 seconds
-    setTimeout(() => {
-        notification.classList.remove('show');
-        setTimeout(() => notification.remove(), 300);
-    }, 2500);
-}
-
-async function retalo(taloId, originalUserId, originalContent, originalPhotos = []) {
-    // Show loading state on the button
-    const btn = document.querySelector(`.retalo-btn[data-id="${taloId}"]`);
-    const originalText = btn.innerHTML;
-    
-    if (btn) {
-        btn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px;"></span> Reposting...';
-        btn.disabled = true;
-    }
-    
-    try {
-        const response = await fetch('/api/retalo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                original_talo_id: taloId,
-                original_user_id: originalUserId,
-                original_content: originalContent,
-                original_photos: originalPhotos
-            })
+            }, 300);
         });
         
-        const data = await response.json();
-        
-        if (response.ok) {
-            // Update retalo count on the original button
-            if (btn) {
-                const countSpan = btn.querySelector('.retalo-count');
-                if (countSpan) {
-                    countSpan.textContent = parseInt(countSpan.textContent) + 1;
-                }
-                btn.classList.add('retaled');
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+        searchInput.addEventListener('focus', function() {
+            if (searchInput.value.trim()) {
+                performSearch(searchInput.value.trim());
             }
-            
-            // Show success flash notification
-            showFlashNotification('✓ Post reposted successfully! It will appear in your followers\' feeds.', 'success');
-            
-            // Reload after a short delay to show the repost in feed
-            setTimeout(() => location.reload(), 2000);
-        } else {
-            showFlashNotification(data.detail || 'Failed to repost. Please try again.', 'error');
-            if (btn) {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+        });
+        
+        document.addEventListener('click', function(e) {
+            if (!searchWrapper.contains(e.target)) {
+                searchDropdown.classList.remove('show');
             }
-        }
-    } catch (error) {
-        console.error('Error retaling:', error);
-        showFlashNotification('Network error. Please check your connection.', 'error');
-        if (btn) {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        }
-    }
-}
-
-
-        // Load notifications
-        async function loadNotifications() {
-            try {
-                const response = await fetch('/api/get_notifications');
-                const data = await response.json();
-                
-                const notificationsList = document.getElementById('notificationsList');
-                const notificationCountSpan = document.getElementById('notificationCount');
-                
-                if (data.notifications && data.notifications.length > 0) {
-                    const unreadCount = data.notifications.filter(n => !n.read).length;
-                    if (unreadCount > 0) {
-                        notificationCountSpan.style.display = 'inline-block';
-                        notificationCountSpan.textContent = unreadCount;
-                        unreadNotifications = unreadCount;
-                    } else {
-                        notificationCountSpan.style.display = 'none';
-                    }
-                    
-                    notificationsList.innerHTML = data.notifications.map(notif => `
-                        <div class="notification-item ${notif.read ? '' : 'unread'}" onclick="markNotificationRead('${notif.id}')">
-                            <strong>${notif.type === 'retalo' ? '🔄 Repost' : notif.type === 'like' ? '💎 Like' : notif.type === 'follow' ? '👥 Follow' : '💬 Reply'}</strong><br>
-                            <small>${notif.message}</small><br>
-                            <small style="color: #999;">${new Date(notif.created_at).toLocaleString()}</small>
-                        </div>
-                    `).join('');
-                } else {
-                    notificationsList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No notifications</div>';
-                    notificationCountSpan.style.display = 'none';
-                }
-            } catch (error) {
-                console.error('Error loading notifications:', error);
-                document.getElementById('notificationsList').innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">Error loading notifications</div>';
-            }
+        });
+        
+        const searchWrapper = document.querySelector('.search-wrapper');
+        
+        function searchHashtag(hashtag) {
+            window.location.href = `/search?q=${encodeURIComponent(hashtag)}`;
         }
         
-        async function markNotificationRead(notificationId) {
-            try {
-                await fetch(`/api/mark_notification_read/${notificationId}`, { method: 'POST' });
-                unreadNotifications--;
-                if (unreadNotifications <= 0) {
-                    document.getElementById('notificationCount').style.display = 'none';
-                } else {
-                    document.getElementById('notificationCount').textContent = unreadNotifications;
-                }
-                loadNotifications();
-            } catch (error) {
-                console.error('Error marking notification read:', error);
-            }
-        }
-        
-        function highlightHashtagsInContent(content) {
-            const hashtagRegex = /(#\w+)/g;
-            return content.replace(hashtagRegex, match => {
-                return `<span class="hashtag-highlight" onclick="event.stopPropagation(); filterByHashtag('${match}')" style="cursor: pointer;">${match}</span>`;
-            });
-        }
-        
-        function applyHashtagFilter() {
-            const filterBar = document.getElementById('filterBar');
-            const activeFilterSpan = document.getElementById('activeFilterTag');
-            const taloCards = document.querySelectorAll('.talo-card');
-            
-            if (currentHashtagFilter) {
-                filterBar.style.display = 'flex';
-                activeFilterSpan.textContent = currentHashtagFilter;
-                
-                let visibleCount = 0;
-                taloCards.forEach(card => {
-                    const content = card.querySelector('.talo-content').textContent;
-                    if (content.toLowerCase().includes(currentHashtagFilter.toLowerCase())) {
-                        card.style.display = 'block';
-                        visibleCount++;
-                    } else {
-                        card.style.display = 'none';
-                    }
-                });
-                
-                let noResultsMsg = document.getElementById('noFilterResults');
-                if (!noResultsMsg) {
-                    noResultsMsg = document.createElement('div');
-                    noResultsMsg.id = 'noFilterResults';
-                    noResultsMsg.style.textAlign = 'center';
-                    noResultsMsg.style.padding = '40px';
-                    noResultsMsg.style.background = 'white';
-                    noResultsMsg.style.borderRadius = '15px';
-                    noResultsMsg.style.color = '#999';
-                    document.getElementById('talosFeed').appendChild(noResultsMsg);
-                }
-                
-                if (visibleCount === 0) {
-                    noResultsMsg.innerHTML = `<p>No posts found with tag ${currentHashtagFilter}</p>`;
-                    noResultsMsg.style.display = 'block';
-                } else {
-                    noResultsMsg.style.display = 'none';
-                }
-            } else {
-                filterBar.style.display = 'none';
-                taloCards.forEach(card => {
-                    card.style.display = 'block';
-                });
-                const noResultsMsg = document.getElementById('noFilterResults');
-                if (noResultsMsg) noResultsMsg.style.display = 'none';
-            }
-        }
-        
-        function filterByHashtag(hashtag) {
-            currentHashtagFilter = hashtag;
-            applyHashtagFilter();
-            closeMobileMenu();
-            closeTrendingModal();
-            
-            const createSection = document.getElementById('createTaloSection');
-            createSection.classList.add('highlight');
-            setTimeout(() => {
-                createSection.classList.remove('highlight');
-            }, 1000);
-        }
-        
-        function clearHashtagFilter() {
-            currentHashtagFilter = null;
-            applyHashtagFilter();
-        }
-        
-        function scrollToTopAndHighlight() {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            setTimeout(() => {
-                const createSection = document.getElementById('createTaloSection');
-                createSection.classList.add('highlight');
-                createSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                setTimeout(() => {
-                    createSection.classList.remove('highlight');
-                }, 1000);
-            }, 300);
-        }
-        
-        function applyHashtagHighlighting() {
-            document.querySelectorAll('.talo-content').forEach(contentDiv => {
-                const originalContent = contentDiv.innerText;
-                const highlightedContent = highlightHashtagsInContent(originalContent);
-                if (originalContent !== highlightedContent) {
-                    contentDiv.innerHTML = highlightedContent;
-                }
-            });
-        }
-        
-        function updateCharCounter() {
-            const textarea = document.getElementById('taloContent');
-            const counterDiv = document.getElementById('charCounter');
-            const submitBtn = document.getElementById('submitTaloBtn');
-            const currentLength = textarea.value.length;
-            const remaining = MAX_CHARS - currentLength;
-            
-            if (remaining >= 0) {
-                counterDiv.textContent = `${remaining} characters remaining`;
-                counterDiv.classList.remove('exceed');
-                if (remaining <= 20) {
-                    counterDiv.classList.add('warning');
-                } else {
-                    counterDiv.classList.remove('warning');
-                }
-                submitBtn.disabled = false;
-            } else {
-                const exceeded = Math.abs(remaining);
-                counterDiv.textContent = `${exceeded} characters over limit`;
-                counterDiv.classList.add('exceed');
-                counterDiv.classList.remove('warning');
-                submitBtn.disabled = true;
-            }
-        }
-        
+        // Format time ago
         function formatTimeAgo(dateStr) {
             const date = new Date(dateStr);
             const now = new Date();
@@ -1941,6 +1366,7 @@ async function retalo(taloId, originalUserId, originalContent, originalPhotos = 
             }
         });
         
+        // Like functionality
         async function likeTalo(taloId, btn) {
             try {
                 const response = await fetch(`/api/like/${taloId}`, { method: 'POST' });
@@ -1958,27 +1384,91 @@ async function retalo(taloId, originalUserId, originalContent, originalPhotos = 
             btn.addEventListener('click', () => likeTalo(btn.dataset.id, btn));
         });
         
-        // Retalo button handlers
-        document.querySelectorAll('.retalo-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const taloId = btn.dataset.id;
-        const userId = btn.dataset.userId;
-        const content = btn.dataset.content;
-        let photos = [];
-        
-        // Parse photos if present
-        if (btn.dataset.photos && btn.dataset.photos !== '[]') {
+        // Retalo function
+        async function retalo(taloId, originalUserId, originalContent, originalPhotos = []) {
+            const btn = document.querySelector(`.retalo-btn[data-id="${taloId}"]`);
+            const originalText = btn.innerHTML;
+            
+            if (btn) {
+                btn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px;"></span> Reposting...';
+                btn.disabled = true;
+            }
+            
             try {
-                photos = JSON.parse(btn.dataset.photos);
-            } catch (e) {
-                photos = [];
+                const response = await fetch('/api/retalo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        original_talo_id: taloId,
+                        original_user_id: originalUserId,
+                        original_content: originalContent,
+                        original_photos: originalPhotos
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    if (btn) {
+                        const countSpan = btn.querySelector('.retalo-count');
+                        if (countSpan) {
+                            countSpan.textContent = parseInt(countSpan.textContent) + 1;
+                        }
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }
+                    showFlashNotification('✓ Post reposted successfully!', 'success');
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    showFlashNotification(data.detail || 'Failed to repost', 'error');
+                    if (btn) {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }
+                }
+            } catch (error) {
+                console.error('Error retaling:', error);
+                showFlashNotification('Network error', 'error');
+                if (btn) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
             }
         }
         
-        retalo(taloId, userId, content, photos);
-    });
-});
+        document.querySelectorAll('.retalo-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const taloId = btn.dataset.id;
+                const userId = btn.dataset.userId;
+                const content = btn.dataset.content;
+                let photos = [];
+                if (btn.dataset.photos && btn.dataset.photos !== '[]') {
+                    try {
+                        photos = JSON.parse(btn.dataset.photos);
+                    } catch (e) {
+                        photos = [];
+                    }
+                }
+                retalo(taloId, userId, content, photos);
+            });
+        });
+        
+        function showFlashNotification(message, type = 'success') {
+            const existingNotification = document.querySelector('.flash-notification');
+            if (existingNotification) existingNotification.remove();
+            
+            const notification = document.createElement('div');
+            notification.className = `flash-notification ${type}`;
+            const icon = type === 'success' ? '✅' : '❌';
+            notification.innerHTML = `<span class="flash-notification-icon">${icon}</span><span class="flash-notification-message">${message}</span>`;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.classList.add('show'), 10);
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 2500);
+        }
         
         function addPhotoInput() {
             if (photoFiles.length >= 4) {
@@ -2018,9 +1508,7 @@ async function retalo(taloId, originalUserId, originalContent, originalPhotos = 
                         removeBtn.onclick = () => {
                             container.remove();
                             const fileIndex = photoFiles.indexOf(file);
-                            if (fileIndex > -1) {
-                                photoFiles.splice(fileIndex, 1);
-                            }
+                            if (fileIndex > -1) photoFiles.splice(fileIndex, 1);
                         };
                         
                         container.appendChild(img);
@@ -2030,20 +1518,16 @@ async function retalo(taloId, originalUserId, originalContent, originalPhotos = 
                     reader.readAsDataURL(file);
                 }
             };
-            
             document.getElementById('createTaloForm').appendChild(input);
             input.click();
         }
         
-        // Create talo with Firebase photo upload
         async function createTaloWithFirebase() {
             const content = document.getElementById('taloContent').value;
-            
             if (!content.trim()) {
                 alert('Please enter some content');
                 return;
             }
-            
             if (content.length > MAX_CHARS) {
                 alert(`Content cannot exceed ${MAX_CHARS} characters`);
                 return;
@@ -2059,7 +1543,6 @@ async function retalo(taloId, originalUserId, originalContent, originalPhotos = 
             progressDiv.style.display = 'block';
             
             try {
-                // Upload photos to Firebase first
                 const photoUrls = [];
                 for (let i = 0; i < photoFiles.length; i++) {
                     progressBar.style.width = `${((i + 1) / (photoFiles.length + 1)) * 100}%`;
@@ -2071,30 +1554,19 @@ async function retalo(taloId, originalUserId, originalContent, originalPhotos = 
                     const storageRef = window.firebaseRef(window.firebaseStorage, `talos/${fileName}`);
                     const snapshot = await window.uploadBytes(storageRef, file);
                     const downloadURL = await window.getDownloadURL(snapshot.ref);
-                    photoUrls.push({
-                        url: downloadURL,
-                        path: `talos/${fileName}`,
-                        type: file.type
-                    });
+                    photoUrls.push({ url: downloadURL, path: `talos/${fileName}`, type: file.type });
                 }
                 
                 progressBar.style.width = '100%';
                 progressText.textContent = 'Creating post...';
                 
-                // Send to backend
                 const response = await fetch('/api/create_talo', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        content: content,
-                        photos: photoUrls
-                    })
+                    body: JSON.stringify({ content: content, photos: photoUrls })
                 });
                 
                 if (response.ok) {
-                    // Update last seen timestamp
-                    latestTaloTimestamp = new Date().toISOString();
-                    localStorage.setItem('lastSeenTimestamp', latestTaloTimestamp);
                     location.reload();
                 } else {
                     const error = await response.json();
@@ -2111,93 +1583,63 @@ async function retalo(taloId, originalUserId, originalContent, originalPhotos = 
             }
         }
         
-        function toggleNotifications() {
-            const panel = document.getElementById('notificationsPanel');
-            panel.classList.toggle('show');
-            if (panel.classList.contains('show')) {
-                loadNotifications();
-                // Mark all as read when opened
-                fetch('/api/mark_all_notifications_read', { method: 'POST' }).catch(console.error);
-                document.getElementById('notificationCount').style.display = 'none';
-                unreadNotifications = 0;
-            }
-        }
-        
-        function openProfileEditModal() {
-            document.getElementById('profileEditModal').classList.add('active');
-        }
-        
-        function closeProfileEditModal() {
-            document.getElementById('profileEditModal').classList.remove('active');
-        }
-        
-        function previewProfilePhoto(input) {
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    document.getElementById('editProfilePhotoPreview').src = e.target.result;
-                };
-                reader.readAsDataURL(input.files[0]);
-            }
-        }
-        
-        async function saveProfileChanges() {
-            const formData = new FormData();
-            const photoFile = document.getElementById('editProfilePhoto').files[0];
+        function updateCharCounter() {
+            const textarea = document.getElementById('taloContent');
+            const counterDiv = document.getElementById('charCounter');
+            const submitBtn = document.getElementById('submitTaloBtn');
+            const currentLength = textarea.value.length;
+            const remaining = MAX_CHARS - currentLength;
             
-            // If new profile photo selected, upload to Firebase first
-            if (photoFile) {
-                const uploadResult = await window.uploadProfilePhotoToFirebase(photoFile, loggedInUserId);
-                formData.append('profile_photo_url', uploadResult.url);
-                formData.append('profile_photo_path', uploadResult.path);
-            }
-            
-            formData.append('first_name', document.getElementById('editFirstName').value);
-            formData.append('last_name', document.getElementById('editLastName').value);
-            formData.append('bio', document.getElementById('editBio').value);
-            
-            try {
-                const response = await fetch('/api/update_profile', {
-                    method: 'POST',
-                    body: formData
-                });
-                if (response.ok) {
-                    alert('Profile updated successfully!');
-                    location.reload();
-                } else {
-                    alert('Failed to update profile');
-                }
-            } catch (error) {
-                console.error('Error updating profile:', error);
-                alert('Error updating profile');
+            if (remaining >= 0) {
+                counterDiv.textContent = `${remaining} characters remaining`;
+                counterDiv.classList.remove('exceed');
+                if (remaining <= 20) counterDiv.classList.add('warning');
+                else counterDiv.classList.remove('warning');
+                submitBtn.disabled = false;
+            } else {
+                counterDiv.textContent = `${Math.abs(remaining)} characters over limit`;
+                counterDiv.classList.add('exceed');
+                submitBtn.disabled = true;
             }
         }
+        
+        const taloTextarea = document.getElementById('taloContent');
+        if (taloTextarea) {
+            taloTextarea.addEventListener('input', updateCharCounter);
+            updateCharCounter();
+        }
+        
+        function scrollToTopAndHighlight() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            setTimeout(() => {
+                const createSection = document.getElementById('createTaloSection');
+                createSection.classList.add('highlight');
+                createSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                setTimeout(() => createSection.classList.remove('highlight'), 1000);
+            }, 300);
+        }
+        
+        function refreshTimeline() { location.reload(); }
         
         function toggleMobileMenu() {
-            const overlay = document.getElementById('mobileMenuOverlay');
-            const menu = document.getElementById('mobileMenu');
-            overlay.classList.toggle('active');
-            menu.classList.toggle('active');
-            if (menu.classList.contains('active')) populateMobileMenu();
+            document.getElementById('mobileMenuOverlay').classList.toggle('active');
+            document.getElementById('mobileMenu').classList.toggle('active');
+            if (document.getElementById('mobileMenu').classList.contains('active')) populateMobileMenu();
         }
         
         function closeMobileMenu() {
-            const overlay = document.getElementById('mobileMenuOverlay');
-            const menu = document.getElementById('mobileMenu');
-            overlay.classList.remove('active');
-            menu.classList.remove('active');
+            document.getElementById('mobileMenuOverlay').classList.remove('active');
+            document.getElementById('mobileMenu').classList.remove('active');
         }
         
         function populateMobileMenu() {
             const mobileProfileDiv = document.getElementById('mobileProfileCard');
-            const profilePhotoHtml = userData.profile_photo ? 
-                `<img class="profile-photo" src="${userData.profile_photo}" alt="Profile" style="cursor: pointer;" onclick="openProfileEditModal(); closeMobileMenu();">` :
-                `<div class="profile-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto; cursor: pointer;" onclick="openProfileEditModal(); closeMobileMenu();">👤</div>`;
-            
             mobileProfileDiv.innerHTML = `
                 <div class="profile-card" style="margin-bottom: 20px;">
                     <button class="edit-profile-btn" onclick="openProfileEditModal(); closeMobileMenu();">✏️ Edit</button>
-                    ${profilePhotoHtml}
+                    ${userData.profile_photo ? 
+                        `<img class="profile-photo" src="${userData.profile_photo}" alt="Profile" style="cursor: pointer;" onclick="openProfileEditModal(); closeMobileMenu();">` :
+                        `<div class="profile-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto; cursor: pointer;" onclick="openProfileEditModal(); closeMobileMenu();">👤</div>`}
                     <h3>${userData.first_name} ${userData.last_name}</h3>
                     <p>@${userData.user_id}</p>
                     ${userData.bio ? `<p style="font-size: 12px; color: #666; margin-top: 8px;">${userData.bio}</p>` : ''}
@@ -2223,7 +1665,7 @@ async function retalo(taloId, originalUserId, originalContent, originalPhotos = 
             let trendingHtml = '<div class="trending-card"><h4>🔥 Trending Today</h4>';
             if (trendingData.length > 0) {
                 trendingData.forEach(item => {
-                    trendingHtml += `<div class="trending-item" onclick="filterByHashtag('${item.word}'); closeMobileMenu();">${item.word} (${item.count})</div>`;
+                    trendingHtml += `<div class="trending-item" onclick="searchHashtag('${item.word}'); closeMobileMenu();">${item.word} (${item.count})</div>`;
                 });
             } else {
                 trendingHtml += '<div class="trending-item">No trending topics yet</div>';
@@ -2232,44 +1674,97 @@ async function retalo(taloId, originalUserId, originalContent, originalPhotos = 
             mobileTrendingDiv.innerHTML = trendingHtml;
         }
         
-        function closeTrendingModal() {
-            document.getElementById('trendingModal').classList.remove('active');
+     function openProfileEditModal() { 
+    const modal = document.getElementById('profileEditModal');
+    if (modal) {
+        modal.classList.add('active');
+        // Also populate the form with current values
+        document.getElementById('editFirstName').value = userData.first_name || '';
+        document.getElementById('editLastName').value = userData.last_name || '';
+        document.getElementById('editBio').value = userData.bio || '';
+        const previewImg = document.getElementById('editProfilePhotoPreview');
+        if (previewImg && userData.profile_photo) {
+            previewImg.src = userData.profile_photo;
         }
-        
-        async function checkFollowStatus(profileUserId) {
-            try {
-                const response = await fetch(`/api/get_follow_status/${profileUserId}`);
-                const data = await response.json();
-                const container = document.getElementById('followButtonContainer');
-                if (container) {
-                    container.innerHTML = data.following ? 
-                        '<button class="follow-btn following" onclick="toggleFollow(\'' + profileUserId + '\')">✓ Following</button>' :
-                        '<button class="follow-btn" onclick="toggleFollow(\'' + profileUserId + '\')">+ Follow</button>';
-                }
-            } catch (error) {
-                console.error('Error checking follow status:', error);
+    }
+}
+
+function closeProfileEditModal() { 
+    const modal = document.getElementById('profileEditModal');
+    if (modal) {
+        modal.classList.remove('active');
+        // Clear file input
+        const fileInput = document.getElementById('editProfilePhoto');
+        if (fileInput) fileInput.value = '';
+    }
+}
+
+
+function previewProfilePhoto(input) {
+    const preview = document.getElementById('editProfilePhotoPreview');
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// Close modal on escape key press
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const modal = document.getElementById('profileEditModal');
+        if (modal && modal.classList.contains('active')) {
+            closeProfileEditModal();
+        }
+    }
+});
+
+// Close modal when clicking outside the content
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('profileEditModal');
+    if (modal && modal.classList.contains('active')) {
+        const content = modal.querySelector('.profile-edit-content');
+        if (content && !content.contains(event.target)) {
+            closeProfileEditModal();
+        }
+    }
+});
+
+// Close modal on escape key press
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const modal = document.getElementById('profileEditModal');
+        if (modal.classList.contains('active')) {
+            closeProfileEditModal();
+        }
+    }
+});
+     
+        async function saveProfileChanges() {
+            const formData = new FormData();
+            const photoFile = document.getElementById('editProfilePhoto').files[0];
+            
+            if (photoFile) {
+                const uploadResult = await window.uploadProfilePhotoToFirebase(photoFile, loggedInUserId);
+                formData.append('profile_photo_url', uploadResult.url);
+                formData.append('profile_photo_path', uploadResult.path);
             }
-        }
-        
-        async function toggleFollow(userIdToFollow) {
+            
+            formData.append('first_name', document.getElementById('editFirstName').value);
+            formData.append('last_name', document.getElementById('editLastName').value);
+            formData.append('bio', document.getElementById('editBio').value);
+            
             try {
-                const response = await fetch(`/api/follow/${userIdToFollow}`, { method: 'POST' });
-                const data = await response.json();
-                const followersCountSpan = document.getElementById('followersCountDesktop');
-                if (followersCountSpan) followersCountSpan.textContent = data.followers_count;
-                const btn = document.querySelector('.follow-btn');
-                if (btn) {
-                    if (data.following) {
-                        btn.textContent = '✓ Following';
-                        btn.classList.add('following');
-                    } else {
-                        btn.textContent = '+ Follow';
-                        btn.classList.remove('following');
-                    }
-                }
+                const response = await fetch('/api/update_profile', { method: 'POST', body: formData });
+                if (response.ok) {
+                    alert('Profile updated successfully!');
+                    location.reload();
+                } else alert('Failed to update profile');
             } catch (error) {
-                console.error('Error toggling follow:', error);
-                alert('Failed to update follow status');
+                console.error('Error updating profile:', error);
+                alert('Error updating profile');
             }
         }
         
@@ -2277,649 +1772,128 @@ async function retalo(taloId, originalUserId, originalContent, originalPhotos = 
             const modal = document.getElementById('followersModal');
             const listContainer = document.getElementById('followersList');
             modal.style.display = 'flex';
-            listContainer.innerHTML = 'Loading...';
+            listContainer.innerHTML = '<div class="loading-spinner"></div> Loading...';
             try {
                 const response = await fetch(`/api/get_followers/${userId}`);
                 const data = await response.json();
-                if (data.followers.length === 0) {
-                    listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No followers yet</div>';
-                } else {
+                if (data.followers.length === 0) listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No followers yet</div>';
+                else {
                     listContainer.innerHTML = data.followers.map(follower => `
                         <div class="user-list-item" onclick="viewProfile('${follower.user_id}')">
                             <div class="user-list-avatar">${follower.name ? follower.name[0] : '👤'}</div>
-                            <div class="user-list-info">
-                                <div class="user-list-name">${follower.name}</div>
-                                <div class="user-list-id">@${follower.user_id}</div>
-                            </div>
+                            <div class="user-list-info"><div class="user-list-name">${follower.name}</div><div class="user-list-id">@${follower.user_id}</div></div>
                         </div>
                     `).join('');
                 }
-            } catch (error) {
-                listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Error loading followers</div>';
-            }
+            } catch (error) { listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Error loading followers</div>'; }
         }
         
         async function showFollowingModal(userId) {
             const modal = document.getElementById('followingModal');
             const listContainer = document.getElementById('followingList');
             modal.style.display = 'flex';
-            listContainer.innerHTML = 'Loading...';
+            listContainer.innerHTML = '<div class="loading-spinner"></div> Loading...';
             try {
                 const response = await fetch(`/api/get_following/${userId}`);
                 const data = await response.json();
-                if (data.following.length === 0) {
-                    listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Not following anyone yet</div>';
-                } else {
+                if (data.following.length === 0) listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Not following anyone yet</div>';
+                else {
                     listContainer.innerHTML = data.following.map(following => `
                         <div class="user-list-item" onclick="viewProfile('${following.user_id}')">
                             <div class="user-list-avatar">${following.name ? following.name[0] : '👤'}</div>
-                            <div class="user-list-info">
-                                <div class="user-list-name">${following.name}</div>
-                                <div class="user-list-id">@${following.user_id}</div>
-                            </div>
+                            <div class="user-list-info"><div class="user-list-name">${following.name}</div><div class="user-list-id">@${following.user_id}</div></div>
                         </div>
                     `).join('');
                 }
-            } catch (error) {
-                listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Error loading following list</div>';
-            }
+            } catch (error) { listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Error loading following list</div>'; }
         }
         
         function closeFollowersModal() { document.getElementById('followersModal').style.display = 'none'; }
         function closeFollowingModal() { document.getElementById('followingModal').style.display = 'none'; }
-        function viewProfile(userId) { window.location.href = `/profile/${userId}`; }
         
         window.onclick = function(event) {
-            const followersModal = document.getElementById('followersModal');
-            const followingModal = document.getElementById('followingModal');
-            if (event.target === followersModal) closeFollowersModal();
-            if (event.target === followingModal) closeFollowingModal();
+            if (event.target === document.getElementById('followersModal')) closeFollowersModal();
+            if (event.target === document.getElementById('followingModal')) closeFollowingModal();
         }
         
-        const userData = {
-            user_id: '{{ user.user_id }}',
-            first_name: '{{ user.first_name }}',
-            last_name: '{{ user.last_name }}',
-            profile_photo: '{{ user.profile_photo or "" }}',
-            bio: '{{ user.bio or "" }}',
-            is_premium: {{ user.is_premium|lower }},
-            followers_count: {{ user.followers_count }},
-            following_count: {{ user.following_count }},
-            talos_count: {{ user.talos_count }}
-        };
-        
-        const currentProfileUserId = '{{ user.user_id }}';
-        if (currentProfileUserId !== loggedInUserId) {
-            checkFollowStatus(currentProfileUserId);
-        } else {
-            const followContainer = document.getElementById('followButtonContainer');
-            if (followContainer) followContainer.style.display = 'none';
+        async function toggleNotifications() {
+            const panel = document.getElementById('notificationsPanel');
+            panel.classList.toggle('show');
+            if (panel.classList.contains('show')) {
+                try {
+                    const response = await fetch('/api/get_notifications');
+                    const data = await response.json();
+                    const notificationsList = document.getElementById('notificationsList');
+                    if (data.notifications && data.notifications.length > 0) {
+                        notificationsList.innerHTML = data.notifications.map(notif => `
+                            <div class="notification-item ${notif.read ? '' : 'unread'}" onclick="markNotificationRead('${notif.id}')">
+                                <strong>${notif.type === 'retalo' ? '🔄 Repost' : notif.type === 'like' ? '💎 Like' : notif.type === 'follow' ? '👥 Follow' : '💬 Reply'}</strong><br>
+                                <small>${notif.message}</small><br>
+                                <small style="color: #999;">${new Date(notif.created_at).toLocaleString()}</small>
+                            </div>
+                        `).join('');
+                    } else notificationsList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No notifications</div>';
+                    await fetch('/api/mark_all_notifications_read', { method: 'POST' });
+                    document.getElementById('notificationCount').style.display = 'none';
+                } catch (error) { console.error('Error loading notifications:', error); }
+            }
         }
         
-        const taloTextarea = document.getElementById('taloContent');
-        if (taloTextarea) {
-            taloTextarea.addEventListener('input', updateCharCounter);
-            updateCharCounter();
+        function openPromotionModal(taloId) {
+            currentPromotionTalo = taloId;
+            document.getElementById('promotionModal').style.display = 'flex';
         }
         
-        applyHashtagHighlighting();
-        loadLastSeenTimestamp();
+        function closePromotionModal() {
+            document.getElementById('promotionModal').style.display = 'none';
+            currentPromotionTalo = null;
+        }
         
-        // Check for new talos every 30 seconds
-        setInterval(checkForNewTalos, 30000);
+        function selectPaymentMethod(method) {
+            document.querySelectorAll('.payment-option').forEach(opt => opt.classList.remove('selected'));
+            document.getElementById(`option-${method}`).classList.add('selected');
+        }
         
-        let touchStartY = 0;
-        document.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; });
-        document.addEventListener('touchmove', (e) => {
-            if (window.scrollY === 0 && e.touches[0].clientY - touchStartY > 100) location.reload();
-        });
-
-
-// Promotion functionality  //New additions
-let currentPromotionTalo = null;
-
-function openPromotionModal(taloId, content) {
-    currentPromotionTalo = taloId;
-    document.getElementById('promotionModal').style.display = 'flex';
-}
-
-function closePromotionModal() {
-    document.getElementById('promotionModal').style.display = 'none';
-    currentPromotionTalo = null;
-}
-
-function selectPaymentMethod(method) {
-    document.querySelectorAll('.payment-option').forEach(opt => {
-        opt.classList.remove('selected');
-    });
-    document.getElementById(`option-${method}`).classList.add('selected');
-}
-
-async function initiatePromotion() {
-    const selectedOption = document.querySelector('.payment-option.selected');
-    if (!selectedOption) {
-        alert('Please select a payment method');
-        return;
-    }
-    
-    const paymentMethod = selectedOption.dataset.method;
-    const amount = parseFloat(document.getElementById('promotionAmount').value);
-    
-    if (!amount || amount < 100) {
-        alert('Minimum promotion amount is $100/N50,000');
-        return;
-    }
-    
-    const response = await fetch('/api/promote_post', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            talo_id: currentPromotionTalo,
-            amount: amount,
-            payment_method: paymentMethod
-        })
-    });
-    
-    if (response.ok) {
-        const data = await response.json();
-        
-        if (paymentMethod === 'paystack') {
-            // Initialize Paystack payment
-            const paystack = new PaystackPop();
-            paystack.newTransaction({
-                key: '{{ paystack_public_key }}',
-                amount: amount * (amount >= 50000 ? 100 : 100), // For NGN or USD conversion
-                email: '{{ user.email }}',
-                onSuccess: async (transaction) => {
-                    await confirmPromotionPayment(data.promotion_id);
-                },
-                onCancel: () => {
-                    alert('Payment cancelled');
-                }
+        async function initiatePromotion() {
+            const selectedOption = document.querySelector('.payment-option.selected');
+            if (!selectedOption) { alert('Please select a payment method'); return; }
+            const paymentMethod = selectedOption.dataset.method;
+            const amount = parseFloat(document.getElementById('promotionAmount').value);
+            if (!amount || amount < 100) { alert('Minimum promotion amount is $100'); return; }
+            
+            const response = await fetch('/api/promote_post', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ talo_id: currentPromotionTalo, amount: amount, payment_method: paymentMethod })
             });
-        } else if (paymentMethod === 'paypal') {
-            // For PayPal, just confirm and await admin
-            await confirmPromotionPayment(data.promotion_id);
-            alert('Payment recorded. Your post promotion will be activated once admin verifies the PayPal payment to victor_uwafo@yahoo.com');
-            closePromotionModal();
-        }
-    } else {
-        const error = await response.json();
-        alert('Failed to initiate promotion: ' + (error.detail || 'Unknown error'));
-    }
-}
-
-async function confirmPromotionPayment(promotionId) {
-    const response = await fetch(`/api/confirm_promotion_payment/${promotionId}`, {
-        method: 'POST'
-    });
-    
-    if (response.ok) {
-        alert('Promotion request submitted successfully!');
-        closePromotionModal();
-        location.reload();
-    } else {
-        alert('Failed to confirm payment');
-    }
-}
-
-// Update the talo-card HTML to include promote button
-function updateTaloCardHTML(talo) {
-    return `
-        <div class="talo-card" data-talo-id="${talo.id}">
-            <div class="talo-header">
-                <img class="talo-user-photo" src="${talo.user_photo || '/static/default-avatar.png'}" alt="">
-                <div class="talo-user-info">
-                    <a href="/profile/${talo.user_id}" style="text-decoration: none; color: inherit;">
-                        <span class="talo-user-name">${talo.user_name}</span>
-                        <span class="talo-user-id">@${talo.user_id}</span>
-                        ${talo.promoted ? '<span class="promoted-badge">⭐ Promoted</span>' : ''}
-                    </a>
-                    <div class="talo-time">${formatTimeAgo(talo.created_at)}</div>
-                </div>
-                ${talo.user_id === loggedInUserId && !talo.promoted ? 
-                    `<button class="promote-btn" onclick="openPromotionModal('${talo.id}', '${talo.content.replace(/'/g, "\\'")}')">⭐ Promote</button>` : 
-                    ''}
-            </div>
-            <div class="talo-content">${highlightHashtags(talo.content)}</div>
-            ${talo.photos && talo.photos.length > 0 ? `
-                <div class="talo-photos">
-                    ${talo.photos.map(photo => `<img src="${photo.url}" alt="Photo">`).join('')}
-                </div>
-            ` : ''}
-            <div class="talo-stats">
-                <button class="stat-btn like-btn" data-id="${talo.id}">💎 <span class="like-count">${talo.likes}</span></button>
-                <button class="stat-btn dislike-btn" data-id="${talo.id}">👎 <span class="dislike-count">${talo.dislikes || 0}</span></button>
-                <button class="stat-btn retalo-btn" data-id="${talo.id}" data-user-id="${talo.user_id}" data-content="${talo.content.replace(/'/g, "\\'")}" data-photos='${JSON.stringify(talo.photos || [])}'>
-                    🔄 <span class="retalo-count">${talo.retalos}</span>
-                </button>
-                <a href="/post/${talo.id}" class="reply-btn">💬 <span>${talo.reply_count}</span></a>
-            </div>
-        </div>
-    `;
-}
-
-// Update notification loading
-async function loadNotifications() {
-    try {
-        const response = await fetch('/api/get_notifications');
-        const data = await response.json();
-        
-        const notificationsList = document.getElementById('notificationsList');
-        const notificationCountSpan = document.getElementById('notificationCount');
-        
-        if (data.unread_count > 0) {
-            notificationCountSpan.style.display = 'inline-block';
-            notificationCountSpan.textContent = data.unread_count;
-        } else {
-            notificationCountSpan.style.display = 'none';
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (paymentMethod === 'paystack') {
+                    const paystack = new PaystackPop();
+                    paystack.newTransaction({
+                        key: '{{ paystack_public_key }}',
+                        amount: amount * 100,
+                        email: '{{ user.email }}',
+                        onSuccess: async (transaction) => {
+                            await fetch(`/api/confirm_promotion_payment/${data.promotion_id}`, { method: 'POST' });
+                            alert('Promotion activated successfully!');
+                            closePromotionModal();
+                            location.reload();
+                        },
+                        onCancel: () => alert('Payment cancelled')
+                    });
+                }
+            } else alert('Failed to initiate promotion');
         }
         
-        if (data.notifications && data.notifications.length > 0) {
-            notificationsList.innerHTML = data.notifications.map(notif => `
-                <div class="notification-item ${notif.read ? '' : 'unread'}" onclick="markNotificationRead('${notif.id}')">
-                    <strong>${getNotificationIcon(notif.type)} ${getNotificationTitle(notif.type)}</strong><br>
-                    <small>${notif.message}</small><br>
-                    <small style="color: #999;">${new Date(notif.created_at).toLocaleString()}</small>
-                </div>
-            `).join('');
-        } else {
-            notificationsList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No notifications</div>';
-        }
-    } catch (error) {
-        console.error('Error loading notifications:', error);
-    }
-}
-
-function getNotificationIcon(type) {
-    const icons = {
-        'like': '💎',
-        'reply': '💬',
-        'follow': '👥',
-        'retalo': '🔄',
-        'new_post': '📝',
-        'promotion': '⭐'
-    };
-    return icons[type] || '🔔';
-}
-
-function getNotificationTitle(type) {
-    const titles = {
-        'like': 'Like',
-        'reply': 'Reply',
-        'follow': 'Follow',
-        'retalo': 'Repost',
-        'new_post': 'New Post',
-        'promotion': 'Promotion'
-    };
-    return titles[type] || 'Notification';
-}
-
-function highlightHashtags(content) {
-    const hashtagRegex = /(#\w+)/g;
-    return content.replace(hashtagRegex, match => {
-        return `<span class="hashtag-highlight" onclick="event.stopPropagation(); filterByHashtag('${match}')" style="cursor: pointer;">${match}</span>`;
-    });
-}
-
-function formatTimeAgo(dateStr) {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = Math.floor((now - date) / 1000);
-    if (diff < 60) return `${diff}s`;
-    if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-    return date.toLocaleDateString();
-}
-
-// Add this HTML for promotion modal at the end of body
-
+        document.querySelectorAll('.hashtag-highlight').forEach(el => {
+            el.addEventListener('click', (e) => { e.stopPropagation(); searchHashtag(el.textContent); });
+        });
     </script>
 
-<!-- Add this JavaScript for real-time notifications -->
-<script>
-// Real-time notification system
-let notificationPollInterval = null;
-let lastNotificationCheck = localStorage.getItem('lastNotificationCheck') || new Date().toISOString();
-let notificationSound = null;
-
-// Initialize real-time notifications
-function initRealTimeNotifications() {
-    // Start polling every 10 seconds
-    if (notificationPollInterval) {
-        clearInterval(notificationPollInterval);
-    }
-    notificationPollInterval = setInterval(checkForNewNotifications, 10000);
     
-    // Also check on page visibility change
-    document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) {
-            checkForNewNotifications();
-        }
-    });
-}
 
-async function checkForNewNotifications() {
-    try {
-        const response = await fetch('/api/check_new_notifications', {
-            headers: {
-                'X-Last-Checked': lastNotificationCheck
-            }
-        });
-        const data = await response.json();
-        
-        if (data.has_new) {
-            // Update notification badge
-            const badge = document.getElementById('notificationCount');
-            const currentCount = parseInt(badge.textContent) || 0;
-            const newCount = currentCount + data.count;
-            
-            if (newCount > 0) {
-                badge.style.display = 'inline-block';
-                badge.textContent = newCount;
-            }
-            
-            // Play sound if enabled (optional)
-            //playNotificationSound();
-            
-            // Flash the notification icon
-            const notifBtn = document.querySelector('.icon-btn');
-            if (notifBtn) {
-                notifBtn.style.animation = 'pulse 0.5s ease-in-out 3';
-                setTimeout(() => {
-                    notifBtn.style.animation = '';
-                }, 1500);
-            }
-        }
-    } catch (error) {
-        console.error('Error checking notifications:', error);
-    }
-}
 
-// Mark a notification as read (and remove from list when viewed)
-async function markAndClearNotification(notificationId) {
-    try {
-        // First mark as read
-        await fetch(`/api/mark_notification_read/${notificationId}`, { method: 'POST' });
-        
-        // Then remove it from the view
-        const notificationElement = document.querySelector(`.notification-item[data-id="${notificationId}"]`);
-        if (notificationElement) {
-            notificationElement.remove();
-        }
-        
-        // Update count
-        updateNotificationCount();
-        
-        // Also clear from server (optional - remove permanently)
-        // await fetch(`/api/clear_single_notification/${notificationId}`, { method: 'POST' });
-        
-    } catch (error) {
-        console.error('Error clearing notification:', error);
-    }
-}
-
-// Clear all notifications
-async function clearAllNotifications() {
-    if (confirm('Clear all notifications? This action cannot be undone.')) {
-        try {
-            await fetch('/api/clear_notifications', { method: 'POST' });
-            
-            // Clear the notifications panel
-            document.getElementById('notificationsList').innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No notifications</div>';
-            
-            // Hide badge
-            document.getElementById('notificationCount').style.display = 'none';
-            
-            // Update last check time
-            lastNotificationCheck = new Date().toISOString();
-            localStorage.setItem('lastNotificationCheck', lastNotificationCheck);
-            
-        } catch (error) {
-            console.error('Error clearing notifications:', error);
-        }
-    }
-}
-
-function updateNotificationCount() {
-    const visibleNotifications = document.querySelectorAll('.notification-item').length;
-    if (visibleNotifications === 0) {
-        document.getElementById('notificationCount').style.display = 'none';
-    } else {
-        document.getElementById('notificationCount').textContent = visibleNotifications;
-        document.getElementById('notificationCount').style.display = 'inline-block';
-    }
-}
-
-// Enhanced load notifications with better UI
-async function loadNotifications() {
-    try {
-        const response = await fetch('/api/get_notifications');
-        const data = await response.json();
-        
-        const notificationsList = document.getElementById('notificationsList');
-        const notificationCountSpan = document.getElementById('notificationCount');
-        
-        // Update last check time
-        lastNotificationCheck = new Date().toISOString();
-        localStorage.setItem('lastNotificationCheck', lastNotificationCheck);
-        
-        if (data.notifications && data.notifications.length > 0) {
-            // Sort by newest first
-            data.notifications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-            
-            notificationsList.innerHTML = data.notifications.map(notif => `
-                <div class="notification-item ${notif.read ? 'read' : 'unread'}" data-id="${notif.id}" onclick="handleNotificationClick('${notif.id}', '${notif.related_talo_id || ''}', '${notif.from_user_id || ''}')">
-                    <div class="notification-icon">${getNotificationIcon(notif.type)}</div>
-                    <div class="notification-content">
-                        <strong>${getNotificationTitle(notif.type)}</strong>
-                        <div class="notification-message">
-                            ${formatNotificationMessage(notif.message, notif.from_user_id)}
-                        </div>
-                        <div class="notification-time">${formatTimeAgo(notif.created_at)}</div>
-                    </div>
-                    <button class="notification-close" onclick="event.stopPropagation(); clearSingleNotification('${notif.id}')">✖</button>
-                </div>
-            `).join('');
-            
-            const unreadCount = data.notifications.filter(n => !n.read).length;
-            notificationCountSpan.style.display = unreadCount > 0 ? 'inline-block' : 'none';
-            notificationCountSpan.textContent = unreadCount;
-            
-            // Add clear all button
-            if (data.notifications.length > 0) {
-                const clearButton = document.createElement('div');
-                clearButton.className = 'clear-all-btn';
-                clearButton.innerHTML = '<button onclick="clearAllNotifications()">Clear All</button>';
-                if (!document.querySelector('.clear-all-btn')) {
-                    notificationsList.parentElement.insertBefore(clearButton, notificationsList.nextSibling);
-                }
-            }
-        } else {
-            notificationsList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">✨ No notifications yet</div>';
-            notificationCountSpan.style.display = 'none';
-            
-            // Remove clear all button if exists
-            const clearBtn = document.querySelector('.clear-all-btn');
-            if (clearBtn) clearBtn.remove();
-        }
-    } catch (error) {
-        console.error('Error loading notifications:', error);
-        document.getElementById('notificationsList').innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">Error loading notifications</div>';
-    }
-}
-
-function formatNotificationMessage(message, fromUserId) {
-    // Make @username clickable
-    const regex = /@(\w+)/g;
-    return message.replace(regex, (match, username) => {
-        return `<span class="notification-mention" onclick="event.stopPropagation(); viewProfile('${username}')">${match}</span>`;
-    });
-}
-
-function handleNotificationClick(notificationId, taloId, fromUserId) {
-    // Mark as read/clear from list
-    markAndClearNotification(notificationId);
-    
-    // Navigate based on notification type
-    if (taloId) {
-        window.location.href = `/post/${taloId}`;
-    } else if (fromUserId) {
-        window.location.href = `/profile/${fromUserId}`;
-    }
-}
-
-async function clearSingleNotification(notificationId) {
-    try {
-        await fetch(`/api/clear_single_notification/${notificationId}`, { method: 'POST' });
-        
-        // Remove from DOM
-        const notificationElement = document.querySelector(`.notification-item[data-id="${notificationId}"]`);
-        if (notificationElement) {
-            notificationElement.remove();
-        }
-        
-        updateNotificationCount();
-        
-        // Reload if no notifications left
-        const remaining = document.querySelectorAll('.notification-item').length;
-        if (remaining === 0) {
-            loadNotifications();
-        }
-    } catch (error) {
-        console.error('Error clearing notification:', error);
-    }
-}
-
-function toggleNotifications() {
-    const panel = document.getElementById('notificationsPanel');
-    const isOpening = !panel.classList.contains('show');
-    
-    panel.classList.toggle('show');
-    
-    if (isOpening) {
-        loadNotifications();
-        // Mark all as read when opened
-        fetch('/api/mark_all_notifications_read', { method: 'POST' }).catch(console.error);
-        document.getElementById('notificationCount').style.display = 'none';
-        
-        // Update last check time
-        lastNotificationCheck = new Date().toISOString();
-        localStorage.setItem('lastNotificationCheck', lastNotificationCheck);
-    }
-}
-
-// Update the createTalo function to only notify followers
-async function createTaloWithFirebase() {
-    const content = document.getElementById('taloContent').value;
-    
-    if (!content.trim()) {
-        alert('Please enter some content');
-        return;
-    }
-    
-    if (content.length > MAX_CHARS) {
-        alert(`Content cannot exceed ${MAX_CHARS} characters`);
-        return;
-    }
-    
-    const submitBtn = document.getElementById('submitTaloBtn');
-    const progressDiv = document.getElementById('uploadProgress');
-    const progressBar = document.getElementById('progressBar');
-    const progressText = document.getElementById('progressText');
-    
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Uploading...';
-    progressDiv.style.display = 'block';
-    
-    try {
-        // Upload photos to Firebase first
-        const photoUrls = [];
-        for (let i = 0; i < photoFiles.length; i++) {
-            progressBar.style.width = `${((i + 1) / (photoFiles.length + 1)) * 100}%`;
-            progressText.textContent = `Uploading photo ${i + 1}/${photoFiles.length}...`;
-            
-            const file = photoFiles[i];
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${loggedInUserId}/${Date.now()}/${i}_${Date.now()}.${fileExt}`;
-            const storageRef = window.firebaseRef(window.firebaseStorage, `talos/${fileName}`);
-            const snapshot = await window.uploadBytes(storageRef, file);
-            const downloadURL = await window.getDownloadURL(snapshot.ref);
-            photoUrls.push({
-                url: downloadURL,
-                path: `talos/${fileName}`,
-                type: file.type
-            });
-        }
-        
-        progressBar.style.width = '100%';
-        progressText.textContent = 'Creating post...';
-        
-        // Send to backend
-        const response = await fetch('/api/create_talo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                content: content,
-                photos: photoUrls
-            })
-        });
-        
-        if (response.ok) {
-            // Update last seen timestamp
-            latestTaloTimestamp = new Date().toISOString();
-            localStorage.setItem('lastSeenTimestamp', latestTaloTimestamp);
-            location.reload();
-        } else {
-            const error = await response.json();
-            alert('Failed to create post: ' + (error.detail || 'Unknown error'));
-        }
-    } catch (error) {
-        console.error('Error creating post:', error);
-        alert('Failed to create post. Please try again.');
-    } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Talo →';
-        progressDiv.style.display = 'none';
-        progressBar.style.width = '0%';
-    }
-}
-
-// Initialize real-time notifications on page load
-document.addEventListener('DOMContentLoaded', () => {
-    initRealTimeNotifications();
-});
-</script>
-
-<!-- Promotion Modal -->
-<div id="promotionModal" class="promotion-modal">
-    <div class="promotion-modal-content">
-        <h3 style="color: #cc0000; margin-bottom: 20px;">⭐ Promote Your Post</h3>
-        <p style="margin-bottom: 15px;">Promoted posts get higher visibility in feeds and appear at the top!</p>
-        
-        <div class="form-group">
-            <label>Amount ($USD / ₦NGN)</label>
-            <input type="number" id="promotionAmount" class="form-control" placeholder="Minimum $100 / ₦50,000" min="100" step="1">
-        </div>
-        
-        <div class="payment-option" id="option-paystack" data-method="paystack" onclick="selectPaymentMethod('paystack')">
-            <strong>🇳🇬 Paystack</strong> - Pay with card, bank transfer, USSD
-        </div>
-        
-        <div class="payment-option" id="option-paypal" data-method="paypal" onclick="selectPaymentMethod('paypal')">
-            <strong>🌍 PayPal</strong> - Pay with PayPal (International)
-        </div>
-        
-        <p style="font-size: 12px; color: #666; margin-top: 10px;">
-            Note: PayPal payments require admin verification. You will be notified once your post is promoted.
-        </p>
-        
-        <button class="paystack-btn" onclick="initiatePromotion()">Continue to Payment →</button>
-        <button style="width: 100%; padding: 10px; margin-top: 10px; background: #ccc; border: none; border-radius: 10px; cursor: pointer;" onclick="closePromotionModal()">Cancel</button>
-    </div>
-</div>
-
-<!-- Paystack Script -->
-<script src="https://js.paystack.co/v1/inline.js"></script>
 </body>
 </html>
