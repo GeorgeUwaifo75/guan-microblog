@@ -90,111 +90,208 @@ WA_GUAN_LAST_NAME = "GuAn"
 WA_GUAN_EMAIL = "support@guan.com"
 
 async def ensure_wa_guan_account():
-    """Ensure the @wa_guan support account exists"""
-    data = await get_jsonbin_data()
-    
-    wa_guan_exists = False
-    for user in data.get("users", []):
-        if user.get("user_id") == WA_GUAN_USER_ID:
-            wa_guan_exists = True
-            break
-    
-    if not wa_guan_exists:
-        new_user = {
-            "id": str(uuid.uuid4()),
-            "user_id": WA_GUAN_USER_ID,
-            "email": WA_GUAN_EMAIL,
-            "first_name": WA_GUAN_FIRST_NAME,
-            "last_name": WA_GUAN_LAST_NAME,
-            "password_hash": hash_password("support123"),
-            "gender": "Male",
-            "age": 25,
-            "country": "Nigeria",
-            "profile_photo": None,
-            "background_image": None,
-            "is_active": True,
-            "is_premium": True,
-            "user_category": "Support",
-            "followers_count": 0,
-            "following_count": 0,
-            "talos_count": 0,
-            "created_at": datetime.now().isoformat(),
-            "last_active": datetime.now().isoformat(),
-            "bio": "Official Support Account for GuAn Microblogging Platform"
-        }
-        data["users"].append(new_user)
-        
-        # Create welcome post
-        welcome_content = "Wa guan. 👋 Welcome to GuAn! Connect with others of like minds by following them and being followed. Stay positive, objective, and truthful with your posts. Together we build a great community! #WelcomeToGuAn #StayPositive"
-        
-        talo = {
-            "id": str(uuid.uuid4()),
-            "user_id": WA_GUAN_USER_ID,
-            "content": welcome_content,
-            "photos": [],
-            "likes": 0,
-            "dislikes": 0,
-            "retalos": 0,
-            "reply_count": 0,
-            "created_at": datetime.now().isoformat(),
-            "promoted": True,
-            "promotion_level": 1,
-            "is_welcome": True
-        }
-        
-        if "talos" not in data:
-            data["talos"] = []
-        data["talos"].insert(0, talo)
-        
-        await save_jsonbin_data(data)
-        logger.info(f"Created @{WA_GUAN_USER_ID} support account with welcome post")
-
-async def get_jsonbin_data() -> Dict:
-    """Fetch data from jsonbinbro API"""
+    """Ensure the @wa_guan support account exists with welcome post"""
     try:
-        url = f"{API_BASE}/bins/{BIN_ID}?api_key={API_KEY}"
+        data = await get_jsonbin_data()
         
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(url)
+        # Check if wa_guan account already exists
+        wa_guan_exists = False
+        wa_guan_user = None
+        for user in data.get("users", []):
+            if user.get("user_id") == WA_GUAN_USER_ID:
+                wa_guan_exists = True
+                wa_guan_user = user
+                break
+        
+        # Create wa_guan account if it doesn't exist
+        if not wa_guan_exists:
+            logger.info("Creating @wa_guan support account...")
+            new_user = {
+                "id": str(uuid.uuid4()),
+                "user_id": WA_GUAN_USER_ID,
+                "email": WA_GUAN_EMAIL,
+                "first_name": WA_GUAN_FIRST_NAME,
+                "last_name": WA_GUAN_LAST_NAME,
+                "password_hash": hash_password("support123"),
+                "gender": "Male",
+                "age": 25,
+                "country": "Nigeria",
+                "profile_photo": None,
+                "background_image": None,
+                "is_active": True,
+                "is_premium": True,
+                "user_category": "Support",
+                "followers_count": 0,
+                "following_count": 0,
+                "talos_count": 0,
+                "created_at": datetime.now().isoformat(),
+                "last_active": datetime.now().isoformat(),
+                "bio": "Official Support Account for GuAn Microblogging Platform. Follow for updates and guidelines!"
+            }
             
-            if response.status_code == 200:
-                result = response.json()
+            if "users" not in data:
+                data["users"] = []
+            data["users"].append(new_user)
+            logger.info(f"Created @{WA_GUAN_USER_ID} support account")
+            
+            # Create welcome post for wa_guan
+            welcome_content = """Wa guan. 👋 Welcome to GuAn!
+
+We're excited to have you here! 
+
+🌟 **Tips for a Great Experience:**
+1. **Connect with like minds** - Follow users who share your interests and engage with their content
+2. **Be authentic** - Share your thoughts, ideas, and experiences truthfully
+3. **Stay positive** - Spread encouragement and build meaningful connections
+4. **Post responsibly** - Share content that adds value to our community
+
+Remember: Freedom of expression is a right, but please don't hurt others with yours. Let's build a supportive community together! 
+
+Get started by following interesting accounts and sharing your first talo. 
+
+#WelcomeToGuAn #StayPositive #BeAuthentic #CommunityFirst"""
+            
+            welcome_talo = {
+                "id": str(uuid.uuid4()),
+                "user_id": WA_GUAN_USER_ID,
+                "content": welcome_content,
+                "photos": [],
+                "likes": 0,
+                "dislikes": 0,
+                "retalos": 0,
+                "reply_count": 0,
+                "created_at": datetime.now().isoformat(),
+                "promoted": True,
+                "promotion_level": 1,
+                "is_welcome": True
+            }
+            
+            if "talos" not in data:
+                data["talos"] = []
+            data["talos"].insert(0, welcome_talo)
+            logger.info("Created welcome post for @wa_guan")
+            
+            await save_jsonbin_data(data)
+            logger.info("@wa_guan account setup completed successfully")
+        else:
+            logger.info("@wa_guan account already exists")
+            
+            # Check if welcome post exists, create if not
+            has_welcome_post = False
+            for talo in data.get("talos", []):
+                if talo.get("user_id") == WA_GUAN_USER_ID and talo.get("is_welcome"):
+                    has_welcome_post = True
+                    break
+            
+            if not has_welcome_post:
+                welcome_content = """Wa guan. 👋 Welcome to GuAn!
+
+We're excited to have you here! 
+
+🌟 **Tips for a Great Experience:**
+1. **Connect with like minds** - Follow users who share your interests and engage with their content
+2. **Be authentic** - Share your thoughts, ideas, and experiences truthfully
+3. **Stay positive** - Spread encouragement and build meaningful connections
+4. **Post responsibly** - Share content that adds value to our community
+
+Remember: Freedom of expression is a right, but please don't hurt others with yours. Let's build a supportive community together! 
+
+Get started by following interesting accounts and sharing your first talo. 
+
+#WelcomeToGuAn #StayPositive #BeAuthentic #CommunityFirst"""
                 
-                if 'data' in result:
-                    data_content = result['data']
-                    if isinstance(data_content, dict):
-                        collections = ["users", "talos", "replies", "admins", "likes", 
-                                      "dislikes", "retalos", "follows", "blocks", 
-                                      "payments", "notifications", "adverts", "premium_requests",
-                                      "promotions"]
-                        for col in collections:
-                            if col not in data_content:
-                                data_content[col] = []
-                        return data_content
-                    else:
-                        return {
-                            "users": [], "talos": [], "replies": [], "admins": [],
-                            "likes": [], "dislikes": [], "retalos": [], "follows": [],
-                            "blocks": [], "payments": [], "notifications": [], "adverts": [],
-                            "premium_requests": [], "promotions": []
-                        }
-                else:
-                    return result
-            elif response.status_code == 404:
-                logger.warning("Bin not found, creating initial data structure")
-                initial_data = {
-                    "users": [], "talos": [], "replies": [], "admins": [],
-                    "likes": [], "dislikes": [], "retalos": [], "follows": [],
-                    "blocks": [], "payments": [], "notifications": [], "adverts": [],
-                    "premium_requests": [], "promotions": []
+                welcome_talo = {
+                    "id": str(uuid.uuid4()),
+                    "user_id": WA_GUAN_USER_ID,
+                    "content": welcome_content,
+                    "photos": [],
+                    "likes": 0,
+                    "dislikes": 0,
+                    "retalos": 0,
+                    "reply_count": 0,
+                    "created_at": datetime.now().isoformat(),
+                    "promoted": True,
+                    "promotion_level": 1,
+                    "is_welcome": True
                 }
-                await save_jsonbin_data(initial_data)
-                return initial_data
-            else:
-                raise HTTPException(status_code=503, detail=f"API error: Status {response.status_code}")
+                data["talos"].insert(0, welcome_talo)
+                await save_jsonbin_data(data)
+                logger.info("Created missing welcome post for @wa_guan")
+                
     except Exception as e:
-        logger.error(f"Error fetching data: {str(e)}")
-        raise HTTPException(status_code=503, detail=f"Unable to access API: {str(e)}")
+        logger.error(f"Error in ensure_wa_guan_account: {str(e)}")
+        # Don't raise the exception - allow the app to start anyway
+        # The account will be created on next API call if needed
+        logger.warning("Could not verify/create wa_guan account. Will retry on next request.")
+
+# Also update the get_jsonbin_data function to be more resilient
+async def get_jsonbin_data() -> Dict:
+    """Fetch data from jsonbinbro API with retry logic"""
+    max_retries = 3
+    retry_delay = 2
+    
+    for attempt in range(max_retries):
+        try:
+            url = f"{API_BASE}/bins/{BIN_ID}?api_key={API_KEY}"
+            
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(url)
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    
+                    if 'data' in result:
+                        data_content = result['data']
+                        if isinstance(data_content, dict):
+                            collections = ["users", "talos", "replies", "admins", "likes", 
+                                          "dislikes", "retalos", "follows", "blocks", 
+                                          "payments", "notifications", "adverts", "premium_requests",
+                                          "promotions"]
+                            for col in collections:
+                                if col not in data_content:
+                                    data_content[col] = []
+                            return data_content
+                        else:
+                            return {
+                                "users": [], "talos": [], "replies": [], "admins": [],
+                                "likes": [], "dislikes": [], "retalos": [], "follows": [],
+                                "blocks": [], "payments": [], "notifications": [], "adverts": [],
+                                "premium_requests": [], "promotions": []
+                            }
+                    else:
+                        return result
+                elif response.status_code == 404:
+                    logger.warning("Bin not found, creating initial data structure")
+                    initial_data = {
+                        "users": [], "talos": [], "replies": [], "admins": [],
+                        "likes": [], "dislikes": [], "retalos": [], "follows": [],
+                        "blocks": [], "payments": [], "notifications": [], "adverts": [],
+                        "premium_requests": [], "promotions": []
+                    }
+                    await save_jsonbin_data(initial_data)
+                    return initial_data
+                else:
+                    if attempt < max_retries - 1:
+                        logger.warning(f"API returned {response.status_code}, retrying in {retry_delay}s...")
+                        await asyncio.sleep(retry_delay)
+                        continue
+                    raise HTTPException(status_code=503, detail=f"API error: Status {response.status_code}")
+                    
+        except httpx.TimeoutException:
+            logger.error(f"Timeout error (attempt {attempt + 1}/{max_retries})")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(retry_delay)
+                continue
+            raise HTTPException(status_code=503, detail="API timeout - Please try again")
+            
+        except Exception as e:
+            logger.error(f"Error fetching data (attempt {attempt + 1}/{max_retries}): {str(e)}")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(retry_delay)
+                continue
+            raise HTTPException(status_code=503, detail=f"Unable to access API: {str(e)}")
+    
+    raise HTTPException(status_code=503, detail="Unable to access API after multiple attempts")
 
 async def save_jsonbin_data(data: Dict) -> bool:
     """Save data to jsonbinbro API"""
@@ -1773,9 +1870,25 @@ async def health_check():
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}
 
+# Update the startup event to be more resilient
 @app.on_event("startup")
 async def startup_event():
-    await ensure_wa_guan_account()
+    """Startup with graceful handling of API issues"""
+    logger.info("Starting GuAn Microblogging Platform...")
+    
+    # Try to ensure wa_guan account exists, but don't block startup
+    for attempt in range(3):
+        try:
+            await ensure_wa_guan_account()
+            logger.info("Startup completed successfully")
+            break
+        except Exception as e:
+            logger.error(f"Startup attempt {attempt + 1} failed: {str(e)}")
+            if attempt < 2:
+                logger.info(f"Retrying in 5 seconds...")
+                await asyncio.sleep(5)
+            else:
+                logger.warning("Could not verify/create wa_guan account on startup. Account will be created on first API call if needed.")
 
 if __name__ == "__main__":
     import uvicorn
