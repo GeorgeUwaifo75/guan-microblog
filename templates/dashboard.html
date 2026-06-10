@@ -1138,6 +1138,39 @@
         </div>
     </div>
 
+<!-- Profile Edit Modal - Add this RIGHT BEFORE the closing </body> tag -->
+    <div id="profileEditModal" class="profile-edit-modal">
+        <div class="profile-edit-content">
+            <div class="profile-edit-header">
+                <h3>Edit Profile</h3>
+                <button class="profile-edit-close" onclick="closeProfileEditModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Profile Photo</label>
+                <img id="editProfilePhotoPreview" class="profile-photo-preview" 
+                     src="{{ user.profile_photo or '/static/default-avatar.png' }}" alt="Profile Photo">
+                <label class="photo-upload-label">
+                    📷 Change Photo
+                    <input type="file" id="editProfilePhoto" accept="image/*" style="display: none;" onchange="previewProfilePhoto(this)">
+                </label>
+            </div>
+            <div class="form-group">
+                <label>First Name</label>
+                <input type="text" id="editFirstName" value="{{ user.first_name }}">
+            </div>
+            <div class="form-group">
+                <label>Last Name</label>
+                <input type="text" id="editLastName" value="{{ user.last_name }}">
+            </div>
+            <div class="form-group">
+                <label>Bio</label>
+                <textarea id="editBio" rows="3" placeholder="Tell us about yourself...">{{ user.bio or '' }}</textarea>
+            </div>
+            <button type="button" class="save-profile-btn" onclick="saveProfileChanges()">Save Changes</button>
+        </div>
+    </div>
+
+
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -1891,5 +1924,9 @@ document.addEventListener('keydown', function(event) {
             el.addEventListener('click', (e) => { e.stopPropagation(); searchHashtag(el.textContent); });
         });
     </script>
+
+    
+
+
 </body>
 </html>
