@@ -58,7 +58,6 @@
             white-space: normal;
             line-height: 1.2;
         }
-        /* Right side icons container - always on extreme right */
         .right-icons {
             display: flex;
             gap: 15px;
@@ -94,6 +93,7 @@
             text-align: center;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             margin-bottom: 20px;
+            position: relative;
         }
         .profile-photo {
             width: 100px;
@@ -122,6 +122,12 @@
         .stat {
             text-align: center;
             cursor: pointer;
+            padding: 5px;
+            border-radius: 10px;
+            transition: background 0.2s;
+        }
+        .stat:hover {
+            background: #f5f5f5;
         }
         .stat-number {
             font-size: 20px;
@@ -218,19 +224,166 @@
             margin-top: 30px;
             font-size: 12px;
         }
-        .modal-overlay {
+        
+        /* Edit Profile Button */
+        .edit-profile-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #f0f0f0;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            color: #333;
+            transition: background 0.2s;
+            z-index: 10;
+        }
+        .edit-profile-btn:hover {
+            background: #e0e0e0;
+        }
+
+        /* Profile Edit Modal */
+        #editProfileModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 20000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        #editProfileModal.show {
+            display: flex;
+        }
+        .modal-box {
+            background: white;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            animation: modalFadeIn 0.3s ease;
+        }
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        .modal-header {
+            background: #cc0000;
+            color: white;
+            padding: 18px 20px;
+            border-radius: 20px 20px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+        .modal-body {
+            padding: 20px;
+        }
+        .form-field {
+            margin-bottom: 20px;
+        }
+        .form-field label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #333;
+        }
+        .form-field input,
+        .form-field textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        .form-field input:focus,
+        .form-field textarea:focus {
+            outline: none;
+            border-color: #cc0000;
+        }
+        .photo-preview {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 12px;
+            border: 3px solid #cc0000;
+            display: block;
+        }
+        .upload-btn {
+            display: inline-block;
+            background: #f0f0f0;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+        .upload-btn:hover {
+            background: #e0e0e0;
+        }
+        .save-btn {
+            background: #cc0000;
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .save-btn:hover {
+            background: #990000;
+        }
+
+        /* User List Modal */
+        .userlist-modal {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             background: rgba(0,0,0,0.7);
-            z-index: 1000;
-            display: flex;
+            z-index: 15000;
+            display: none;
             justify-content: center;
             align-items: center;
         }
-        .modal-content-userlist {
+        .userlist-modal.show {
+            display: flex;
+        }
+        .userlist-container {
             background: white;
             border-radius: 15px;
             width: 90%;
@@ -240,7 +393,7 @@
             display: flex;
             flex-direction: column;
         }
-        .modal-header {
+        .userlist-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -249,27 +402,27 @@
             background: #cc0000;
             color: white;
         }
-        .close-modal {
+        .userlist-close {
             font-size: 28px;
             cursor: pointer;
             color: white;
         }
-        .user-list {
+        .userlist-content {
             padding: 10px;
             overflow-y: auto;
             max-height: 60vh;
         }
-        .user-list-item {
+        .user-item {
             display: flex;
             align-items: center;
             padding: 12px;
             border-bottom: 1px solid #eee;
             cursor: pointer;
         }
-        .user-list-item:hover {
+        .user-item:hover {
             background: #f5f5f5;
         }
-        .user-list-avatar {
+        .user-avatar {
             width: 45px;
             height: 45px;
             border-radius: 50%;
@@ -280,45 +433,115 @@
             margin-right: 12px;
             font-size: 20px;
         }
-        .user-list-info {
+        .user-info {
             flex: 1;
         }
-        .user-list-name {
+        .user-name {
             font-weight: bold;
         }
-        .user-list-id {
+        .user-username {
             font-size: 12px;
             color: #666;
         }
+
+        .mention-link {
+            color: #cc0000;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .mention-link:hover {
+            text-decoration: underline;
+        }
+        .hashtag-link {
+            background: #ffcc00;
+            color: #990000;
+            font-weight: bold;
+            padding: 0 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: inline-block;
+        }
+        .hashtag-link:hover {
+            background: #ffaa00;
+        }
+
         @media (max-width: 768px) {
-            .container {
-                padding: 0 12px;
-            }
-            .logo-text p {
-                display: block;
-                font-size: 8px;
-                max-width: 180px;
-            }
-            .logo-text h2 {
-                font-size: 16px;
-            }
-            .ram-icon {
-                width: 35px;
-                height: 35px;
-                font-size: 18px;
-            }
-            .right-icons {
-                gap: 10px;
-            }
-            .icon-btn, .menu-icon-btn {
-                font-size: 22px;
-                padding: 4px;
-            }
+            .container { padding: 0 12px; }
+            .logo-text p { font-size: 8px; max-width: 180px; }
+            .logo-text h2 { font-size: 16px; }
+            .ram-icon { width: 35px; height: 35px; font-size: 18px; }
+            .right-icons { gap: 10px; }
+            .icon-btn, .menu-icon-btn { font-size: 22px; padding: 4px; }
         }
         @media (min-width: 769px) {
-            .menu-icon-btn {
-                display: none !important;
-            }
+            .menu-icon-btn { display: none !important; }
+        }
+
+        .mobile-menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 300;
+            display: none;
+        }
+        .mobile-menu-overlay.show { display: block; }
+        .mobile-menu {
+            position: fixed;
+            top: 0;
+            left: -280px;
+            width: 280px;
+            height: 100%;
+            background: white;
+            z-index: 301;
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+        }
+        .mobile-menu.show { left: 0; }
+        .mobile-menu-header {
+            background: #cc0000;
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .mobile-menu-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+        }
+        .mobile-menu-content { padding: 15px; }
+        .mobile-profile {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+        }
+        .mobile-profile-photo {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 3px solid #cc0000;
+            object-fit: cover;
+            margin-bottom: 10px;
+        }
+        .mobile-stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 15px 0;
+        }
+        .mobile-stat { text-align: center; }
+        .mobile-stat-number {
+            font-size: 18px;
+            font-weight: bold;
+            color: #cc0000;
         }
     </style>
 </head>
@@ -331,17 +554,15 @@
                 <p>Freedom of expression is right but don't hurt others with yours.</p>
             </div>
         </div>
-        <!-- Right side icons - always on extreme right -->
         <div class="right-icons">
-            <button class="menu-icon-btn" onclick="toggleMobileMenu()" id="menuIconBtn">☰</button>
+            <button class="menu-icon-btn" onclick="toggleMobileMenu()">☰</button>
             <a href="/dashboard"><button class="icon-btn">🏠</button></a>
             <a href="/logout"><button class="icon-btn">🚪</button></a>
         </div>
     </div>
 
-    <!-- Mobile Menu (if needed for profile page) -->
-    <div id="mobileMenuOverlay" class="mobile-menu-overlay" style="display: none;" onclick="closeMobileMenu()"></div>
-    <div id="mobileMenu" class="mobile-menu" style="display: none;">
+    <div id="mobileMenuOverlay" class="mobile-menu-overlay" onclick="closeMobileMenu()"></div>
+    <div id="mobileMenu" class="mobile-menu">
         <div class="mobile-menu-header">
             <span>Menu</span>
             <button class="mobile-menu-close" onclick="closeMobileMenu()">&times;</button>
@@ -355,6 +576,9 @@
         <a href="/dashboard" class="back-btn">← Back to Dashboard</a>
         
         <div class="profile-card">
+            {% if current_user and current_user.user_id == profile_user.user_id %}
+            <button class="edit-profile-btn" id="editProfileBtn">✏️ Edit Profile</button>
+            {% endif %}
             {% if profile_user.profile_photo %}
             <img class="profile-photo" src="{{ profile_user.profile_photo }}" alt="Profile">
             {% else %}
@@ -369,14 +593,14 @@
             <div class="premium-badge">🐏 PREMIUM</div>
             {% endif %}
             
-            <button class="follow-btn" id="followBtn" onclick="toggleFollow()">Loading...</button>
+            <button class="follow-btn" id="followBtn">Loading...</button>
             
             <div class="stats">
-                <div class="stat" onclick="showFollowersModal('{{ profile_user.user_id }}')">
+                <div class="stat" id="followersStat">
                     <div class="stat-number" id="followersCount">{{ profile_user.followers_count }}</div>
                     <div>Followers</div>
                 </div>
-                <div class="stat" onclick="showFollowingModal('{{ profile_user.user_id }}')">
+                <div class="stat" id="followingStat">
                     <div class="stat-number" id="followingCount">{{ profile_user.following_count }}</div>
                     <div>Following</div>
                 </div>
@@ -423,24 +647,58 @@
         </div>
     </div>
 
-    <!-- Modals -->
-    <div id="followersModal" class="modal-overlay" style="display: none;">
-        <div class="modal-content-userlist">
+    <!-- Edit Profile Modal -->
+    <div id="editProfileModal">
+        <div class="modal-box">
             <div class="modal-header">
-                <h3>Followers</h3>
-                <span class="close-modal" onclick="closeFollowersModal()">&times;</span>
+                <h3>Edit Profile</h3>
+                <button class="modal-close" onclick="closeEditModal()">&times;</button>
             </div>
-            <div id="followersList" class="user-list">Loading...</div>
+            <div class="modal-body">
+                <div class="form-field">
+                    <label>Profile Photo</label>
+                    <img id="photoPreview" class="photo-preview" src="{{ profile_user.profile_photo or '/static/default-avatar.png' }}">
+                    <label class="upload-btn">
+                        📷 Change Photo
+                        <input type="file" id="photoInput" accept="image/*" style="display: none;">
+                    </label>
+                </div>
+                <div class="form-field">
+                    <label>First Name</label>
+                    <input type="text" id="firstName" value="{{ profile_user.first_name }}">
+                </div>
+                <div class="form-field">
+                    <label>Last Name</label>
+                    <input type="text" id="lastName" value="{{ profile_user.last_name }}">
+                </div>
+                <div class="form-field">
+                    <label>Bio</label>
+                    <textarea id="bio" rows="3" placeholder="Tell us about yourself...">{{ profile_user.bio or '' }}</textarea>
+                </div>
+                <button class="save-btn" id="saveProfileBtn">Save Changes</button>
+            </div>
         </div>
     </div>
 
-    <div id="followingModal" class="modal-overlay" style="display: none;">
-        <div class="modal-content-userlist">
-            <div class="modal-header">
-                <h3>Following</h3>
-                <span class="close-modal" onclick="closeFollowingModal()">&times;</span>
+    <!-- Followers Modal -->
+    <div id="followersModal" class="userlist-modal">
+        <div class="userlist-container">
+            <div class="userlist-header">
+                <h3>Followers</h3>
+                <span class="userlist-close" onclick="closeFollowersModal()">&times;</span>
             </div>
-            <div id="followingList" class="user-list">Loading...</div>
+            <div id="followersList" class="userlist-content">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Following Modal -->
+    <div id="followingModal" class="userlist-modal">
+        <div class="userlist-container">
+            <div class="userlist-header">
+                <h3>Following</h3>
+                <span class="userlist-close" onclick="closeFollowingModal()">&times;</span>
+            </div>
+            <div id="followingList" class="userlist-content">Loading...</div>
         </div>
     </div>
 
@@ -448,128 +706,121 @@
         <p>&copy; 2026 GuAn Microblogging Platform. All rights reserved.</p>
     </div>
 
-    <style>
-        .mobile-menu-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 300;
-        }
-        .mobile-menu {
-            position: fixed;
-            top: 0;
-            left: -280px;
-            width: 280px;
-            height: 100%;
-            background: white;
-            z-index: 301;
-            transition: left 0.3s ease;
-            overflow-y: auto;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.2);
-        }
-        .mobile-menu.active {
-            left: 0;
-            display: block !important;
-        }
-        .mobile-menu-overlay.active {
-            display: block !important;
-        }
-        .mobile-menu-header {
-            background: #cc0000;
-            color: white;
-            padding: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .mobile-menu-close {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 28px;
-            cursor: pointer;
-        }
-        .mobile-menu-content {
-            padding: 15px;
-        }
-        .profile-card-mobile {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        .profile-photo-mobile {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            border: 3px solid #cc0000;
-            object-fit: cover;
-            margin-bottom: 10px;
-        }
-        .stats-mobile {
-            display: flex;
-            justify-content: space-around;
-            margin: 15px 0;
-        }
-        .stat-mobile {
-            text-align: center;
-        }
-        .stat-number-mobile {
-            font-size: 18px;
-            font-weight: bold;
-            color: #cc0000;
-        }
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
-.mention-link {
-    color: #cc0000;
-    font-weight: bold;
-    cursor: pointer;
-    text-decoration: none;
-}
+        const firebaseConfig = {
+            apiKey: "AIzaSyBj9wQ04hnfPjowVvEa_yf8_Fq3VXVaH5I",
+            authDomain: "giteksolhub-project.firebaseapp.com",
+            projectId: "giteksolhub-project",
+            storageBucket: "giteksolhub-project.firebasestorage.app",
+            messagingSenderId: "917911843059",
+            appId: "1:917911843059:web:0aa2438be6605d1f400786"
+        };
 
-.mention-link:hover {
-    text-decoration: underline;
-}
+        const firebaseApp = initializeApp(firebaseConfig);
+        const storage = getStorage(firebaseApp);
 
-.hashtag-link {
-    background: #ffcc00;
-    color: #990000;
-    font-weight: bold;
-    padding: 0 4px;
-    border-radius: 4px;
-    cursor: pointer;
-    display: inline-block;
-}
-
-.hashtag-link:hover {
-    background: #ffaa00;
-}
-    </style>
+        window.uploadProfilePhoto = async function(file, userId) {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `profile_${Date.now()}.${fileExt}`;
+            const storageRef = ref(storage, `profiles/${userId}/${fileName}`);
+            const snapshot = await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(snapshot.ref);
+            return { url: downloadURL, path: `profiles/${userId}/${fileName}` };
+        };
+    </script>
 
     <script>
+        // User data from server
         const profileUserId = '{{ profile_user.user_id }}';
         const loggedInUserId = '{{ current_user.user_id if current_user else "" }}';
         
-        function formatTimeAgo(dateStr) {
-            const date = new Date(dateStr);
-            const now = new Date();
-            const diff = Math.floor((now - date) / 1000);
-            if (diff < 60) return `${diff}s`;
-            if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-            if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-            return date.toLocaleDateString();
-        }
-        
-        document.querySelectorAll('.talo-time').forEach(el => {
-            if (el.dataset.time) {
-                el.textContent = formatTimeAgo(el.dataset.time);
+        // Current profile data
+        let currentData = {
+            first_name: '{{ profile_user.first_name }}',
+            last_name: '{{ profile_user.last_name }}',
+            bio: '{{ profile_user.bio or "" }}',
+            profile_photo: '{{ profile_user.profile_photo or "" }}'
+        };
+
+        // ========== EDIT MODAL FUNCTIONS ==========
+        function openEditModal() {
+            console.log('Opening edit modal');
+            const modal = document.getElementById('editProfileModal');
+            if (modal) {
+                // Populate form fields
+                document.getElementById('firstName').value = currentData.first_name;
+                document.getElementById('lastName').value = currentData.last_name;
+                document.getElementById('bio').value = currentData.bio;
+                const preview = document.getElementById('photoPreview');
+                if (preview && currentData.profile_photo) {
+                    preview.src = currentData.profile_photo;
+                }
+                // Show modal
+                modal.classList.add('show');
+            } else {
+                console.error('Modal not found!');
+                alert('Could not open edit form');
             }
-        });
-        
+        }
+
+        function closeEditModal() {
+            const modal = document.getElementById('editProfileModal');
+            if (modal) {
+                modal.classList.remove('show');
+                const fileInput = document.getElementById('photoInput');
+                if (fileInput) fileInput.value = '';
+            }
+        }
+
+        function previewPhoto(input) {
+            const preview = document.getElementById('photoPreview');
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        async function saveProfile() {
+            const formData = new FormData();
+            const photoFile = document.getElementById('photoInput').files[0];
+            
+            if (photoFile && loggedInUserId) {
+                try {
+                    const uploadResult = await window.uploadProfilePhoto(photoFile, loggedInUserId);
+                    formData.append('profile_photo_url', uploadResult.url);
+                    formData.append('profile_photo_path', uploadResult.path);
+                } catch (err) {
+                    alert('Failed to upload photo. Please try again.');
+                    return;
+                }
+            }
+            
+            formData.append('first_name', document.getElementById('firstName').value);
+            formData.append('last_name', document.getElementById('lastName').value);
+            formData.append('bio', document.getElementById('bio').value);
+            
+            try {
+                const response = await fetch('/api/update_profile', { method: 'POST', body: formData });
+                if (response.ok) {
+                    alert('Profile updated successfully!');
+                    location.reload();
+                } else {
+                    alert('Failed to update profile');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating profile');
+            }
+        }
+
+        // ========== FOLLOW FUNCTIONS ==========
         async function checkFollowStatus() {
             try {
                 const response = await fetch(`/api/get_follow_status/${profileUserId}`);
@@ -583,8 +834,9 @@
                     btn.classList.remove('following');
                 }
             } catch (error) {
-                console.error('Error checking follow status:', error);
-                document.getElementById('followBtn').textContent = '+ Follow';
+                console.error('Error:', error);
+                const btn = document.getElementById('followBtn');
+                if (btn) btn.textContent = '+ Follow';
             }
         }
         
@@ -592,9 +844,7 @@
             try {
                 const response = await fetch(`/api/follow/${profileUserId}`, { method: 'POST' });
                 const data = await response.json();
-                
                 document.getElementById('followersCount').textContent = data.followers_count;
-                
                 const btn = document.getElementById('followBtn');
                 if (data.following) {
                     btn.textContent = '✓ Following';
@@ -604,36 +854,33 @@
                     btn.classList.remove('following');
                 }
             } catch (error) {
-                console.error('Error toggling follow:', error);
                 alert('Failed to update follow status');
             }
         }
-        
+
+        // ========== FOLLOWERS/FOLLOWING MODALS ==========
         async function showFollowersModal(userId) {
             const modal = document.getElementById('followersModal');
             const listContainer = document.getElementById('followersList');
-            modal.style.display = 'flex';
-            listContainer.innerHTML = 'Loading...';
-            
+            modal.classList.add('show');
+            listContainer.innerHTML = '<div style="text-align: center; padding: 20px;">Loading...</div>';
             try {
                 const response = await fetch(`/api/get_followers/${userId}`);
                 const data = await response.json();
-                
                 if (data.followers.length === 0) {
                     listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No followers yet</div>';
                 } else {
                     listContainer.innerHTML = data.followers.map(follower => `
-                        <div class="user-list-item" onclick="viewProfile('${follower.user_id}')">
-                            <div class="user-list-avatar">${follower.name ? follower.name[0] : '👤'}</div>
-                            <div class="user-list-info">
-                                <div class="user-list-name">${follower.name}</div>
-                                <div class="user-list-id">@${follower.user_id}</div>
+                        <div class="user-item" onclick="viewProfile('${follower.user_id}')">
+                            <div class="user-avatar">${follower.name ? follower.name.charAt(0) : '👤'}</div>
+                            <div class="user-info">
+                                <div class="user-name">${follower.name}</div>
+                                <div class="user-username">@${follower.user_id}</div>
                             </div>
                         </div>
                     `).join('');
                 }
             } catch (error) {
-                console.error('Error loading followers:', error);
                 listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Error loading followers</div>';
             }
         }
@@ -641,146 +888,203 @@
         async function showFollowingModal(userId) {
             const modal = document.getElementById('followingModal');
             const listContainer = document.getElementById('followingList');
-            modal.style.display = 'flex';
-            listContainer.innerHTML = 'Loading...';
-            
+            modal.classList.add('show');
+            listContainer.innerHTML = '<div style="text-align: center; padding: 20px;">Loading...</div>';
             try {
                 const response = await fetch(`/api/get_following/${userId}`);
                 const data = await response.json();
-                
                 if (data.following.length === 0) {
                     listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Not following anyone yet</div>';
                 } else {
                     listContainer.innerHTML = data.following.map(following => `
-                        <div class="user-list-item" onclick="viewProfile('${following.user_id}')">
-                            <div class="user-list-avatar">${following.name ? following.name[0] : '👤'}</div>
-                            <div class="user-list-info">
-                                <div class="user-list-name">${following.name}</div>
-                                <div class="user-list-id">@${following.user_id}</div>
+                        <div class="user-item" onclick="viewProfile('${following.user_id}')">
+                            <div class="user-avatar">${following.name ? following.name.charAt(0) : '👤'}</div>
+                            <div class="user-info">
+                                <div class="user-name">${following.name}</div>
+                                <div class="user-username">@${following.user_id}</div>
                             </div>
                         </div>
                     `).join('');
                 }
             } catch (error) {
-                console.error('Error loading following:', error);
                 listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Error loading following list</div>';
             }
         }
         
         function closeFollowersModal() {
-            document.getElementById('followersModal').style.display = 'none';
+            document.getElementById('followersModal').classList.remove('show');
         }
         
         function closeFollowingModal() {
-            document.getElementById('followingModal').style.display = 'none';
+            document.getElementById('followingModal').classList.remove('show');
+        }
+
+        // ========== HELPER FUNCTIONS ==========
+        function formatTimeAgo(dateStr) {
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000);
+            if (diff < 60) return `${diff}s`;
+            if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+            return date.toLocaleDateString();
         }
         
         function viewProfile(userId) {
             window.location.href = `/profile/${userId}`;
         }
-        
-        // Mobile menu functions
+
+        function searchHashtag(hashtag) {
+            window.location.href = `/search?q=${encodeURIComponent(hashtag)}`;
+        }
+
+        function formatContentWithLinks(content) {
+            content = content.replace(/@(\w+)/g, (match, username) => {
+                return `<span class="mention-link" onclick="event.stopPropagation(); viewProfile('${username}')">${match}</span>`;
+            });
+            content = content.replace(/#(\w+)/g, (match, hashtag) => {
+                return `<span class="hashtag-link" onclick="event.stopPropagation(); searchHashtag('${match}')">${match}</span>`;
+            });
+            return content;
+        }
+
+        // ========== MOBILE MENU ==========
         function toggleMobileMenu() {
             const overlay = document.getElementById('mobileMenuOverlay');
             const menu = document.getElementById('mobileMenu');
-            overlay.classList.toggle('active');
-            menu.classList.toggle('active');
-            if (menu.classList.contains('active')) {
-                populateMobileMenu();
-            }
+            overlay.classList.toggle('show');
+            menu.classList.toggle('show');
+            if (menu.classList.contains('show')) populateMobileMenu();
         }
         
         function closeMobileMenu() {
-            const overlay = document.getElementById('mobileMenuOverlay');
-            const menu = document.getElementById('mobileMenu');
-            overlay.classList.remove('active');
-            menu.classList.remove('active');
+            document.getElementById('mobileMenuOverlay').classList.remove('show');
+            document.getElementById('mobileMenu').classList.remove('show');
         }
         
         function populateMobileMenu() {
-            const mobileProfileDiv = document.getElementById('mobileProfileCard');
-            const profilePhotoHtml = '{{ profile_user.profile_photo }}' ? 
-                `<img class="profile-photo-mobile" src="{{ profile_user.profile_photo }}" alt="Profile">` :
-                `<div class="profile-photo-mobile" style="background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto;">👤</div>`;
-            
-            mobileProfileDiv.innerHTML = `
-                <div class="profile-card-mobile">
-                    ${profilePhotoHtml}
-                    <h3>{{ profile_user.first_name }} {{ profile_user.last_name }}</h3>
-                    <p>@{{ profile_user.user_id }}</p>
-                    {% if profile_user.bio %}
-                    <p style="font-size: 12px; color: #666; margin-top: 8px;">{{ profile_user.bio }}</p>
-                    {% endif %}
-                    <div class="stats-mobile">
-                        <div class="stat-mobile">
-                            <div class="stat-number-mobile">{{ profile_user.followers_count }}</div>
+            const container = document.getElementById('mobileProfileCard');
+            container.innerHTML = `
+                <div class="mobile-profile">
+                    ${currentData.profile_photo ? 
+                        `<img class="mobile-profile-photo" src="${currentData.profile_photo}" alt="Profile">` :
+                        `<div class="mobile-profile-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto;">👤</div>`}
+                    <h3>${currentData.first_name} ${currentData.last_name}</h3>
+                    <p>@${profileUserId}</p>
+                    ${currentData.bio ? `<p style="font-size: 12px; color: #666; margin-top: 8px;">${currentData.bio}</p>` : ''}
+                    <div class="mobile-stats">
+                        <div class="mobile-stat">
+                            <div class="mobile-stat-number">{{ profile_user.followers_count }}</div>
                             <div>Followers</div>
                         </div>
-                        <div class="stat-mobile">
-                            <div class="stat-number-mobile">{{ profile_user.following_count }}</div>
+                        <div class="mobile-stat">
+                            <div class="mobile-stat-number">{{ profile_user.following_count }}</div>
                             <div>Following</div>
                         </div>
-                        <div class="stat-mobile">
-                            <div class="stat-number-mobile">{{ profile_user.talos_count }}</div>
+                        <div class="mobile-stat">
+                            <div class="mobile-stat-number">{{ profile_user.talos_count }}</div>
                             <div>Talos</div>
                         </div>
                     </div>
                 </div>
             `;
         }
-        
-        window.onclick = function(event) {
+
+        // ========== INITIALIZATION ==========
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded - initializing');
+            
+            // Format time
+            document.querySelectorAll('.talo-time').forEach(el => {
+                if (el.dataset.time) el.textContent = formatTimeAgo(el.dataset.time);
+            });
+
+            // Format content with links
+            document.querySelectorAll('.talo-content').forEach(el => {
+                const original = el.innerHTML;
+                const formatted = formatContentWithLinks(original);
+                if (original !== formatted) el.innerHTML = formatted;
+            });
+
+            // Edit button - DIRECT onclick handler
+            const editBtn = document.getElementById('editProfileBtn');
+            if (editBtn) {
+                editBtn.onclick = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Edit button clicked!');
+                    openEditModal();
+                };
+            } else {
+                console.log('Edit button not found on page');
+            }
+
+            // Save button
+            const saveBtn = document.getElementById('saveProfileBtn');
+            if (saveBtn) {
+                saveBtn.onclick = function(e) {
+                    e.preventDefault();
+                    saveProfile();
+                };
+            }
+
+            // Photo input
+            const photoInput = document.getElementById('photoInput');
+            if (photoInput) {
+                photoInput.onchange = function() {
+                    previewPhoto(this);
+                };
+            }
+
+            // Followers stat click
+            const followersStat = document.getElementById('followersStat');
+            if (followersStat) {
+                followersStat.onclick = function() {
+                    showFollowersModal(profileUserId);
+                };
+            }
+
+            // Following stat click
+            const followingStat = document.getElementById('followingStat');
+            if (followingStat) {
+                followingStat.onclick = function() {
+                    showFollowingModal(profileUserId);
+                };
+            }
+
+            // Follow button
+            const followBtn = document.getElementById('followBtn');
+            if (followBtn) {
+                followBtn.onclick = toggleFollow;
+            }
+
+            // Initialize follow status
+            if (profileUserId !== loggedInUserId && loggedInUserId) {
+                checkFollowStatus();
+            } else if (!loggedInUserId || profileUserId === loggedInUserId) {
+                if (followBtn) followBtn.style.display = 'none';
+            }
+        });
+
+        // Close modals on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeEditModal();
+                closeFollowersModal();
+                closeFollowingModal();
+            }
+        });
+
+        // Close modals when clicking outside
+        window.onclick = function(e) {
+            const editModal = document.getElementById('editProfileModal');
             const followersModal = document.getElementById('followersModal');
             const followingModal = document.getElementById('followingModal');
-            if (event.target === followersModal) closeFollowersModal();
-            if (event.target === followingModal) closeFollowingModal();
-        }
-        
-        // Initialize
-        if (profileUserId !== loggedInUserId && loggedInUserId) {
-            checkFollowStatus();
-        } else if (!loggedInUserId) {
-            document.getElementById('followBtn').style.display = 'none';
-        } else {
-            document.getElementById('followBtn').style.display = 'none';
-        }
+            
+            if (e.target === editModal) closeEditModal();
+            if (e.target === followersModal) closeFollowersModal();
+            if (e.target === followingModal) closeFollowingModal();
+        };
     </script>
-<script>
-// Format content with clickable @mentions and hashtags
-function formatContentWithLinks(content) {
-    // Make @username clickable
-    content = content.replace(/@(\w+)/g, (match, username) => {
-        return `<span class="mention-link" onclick="event.stopPropagation(); viewProfile('${username}')">${match}</span>`;
-    });
-    
-    // Make #hashtag clickable
-    content = content.replace(/#(\w+)/g, (match, hashtag) => {
-        return `<span class="hashtag-link" onclick="event.stopPropagation(); searchByHashtag('${match}')">${match}</span>`;
-    });
-    
-    return content;
-}
-
-// Apply formatting to all talo contents
-document.querySelectorAll('.talo-content').forEach(el => {
-    const originalContent = el.textContent;
-    const formattedContent = formatContentWithLinks(originalContent);
-    if (originalContent !== formattedContent) {
-        el.innerHTML = formattedContent;
-    }
-});
-
-// Function to view profile from @mention
-function viewProfile(userId) {
-    window.location.href = `/profile/${userId}`;
-}
-
-// Function to search by hashtag
-function searchByHashtag(hashtag) {
-    window.location.href = `/dashboard?hashtag=${encodeURIComponent(hashtag)}`;
-}
-</script>
-
-
 </body>
 </html>
