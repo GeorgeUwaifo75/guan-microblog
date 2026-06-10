@@ -1274,7 +1274,120 @@ async def logout():
     response.delete_cookie("session_token")
     return response
 
-
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_panel(request: Request):
+    """Admin dashboard panel"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        return RedirectResponse(url="/", status_code=303)
+    
+    data = await get_jsonbin_data()
+    admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+    
+    if not admin or not admin.get("is_active", True):
+        # Clear invalid session
+        response = RedirectResponse(url="/", status_code=303)
+        response.delete_cookie("session_token")
+        return response
+    
+    # Get statistics for dashboard
+    users = data.get("users", [])
+    talos = data.get("talos", [])
+    payments = data.get("payments", [])
+    
+    now = datetime.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    
+    stats = {
+        "total_users": len(users),
+        "active_users": len([u for u in users if u.get("is_active", True)]),
+        "daily_active": len([u for u in users if u.get("last_active", "") > today_start]),
+        "premium_users": len([u for u in users if u.get("is_premium", False)]),
+        "total_talos": len(talos),
+        "talos_today": len([t for t in talos if t.get("created_at", "") > today_start]),
+        "total_payment_amount": sum([p.get("amount", 0) for p in payments if p.get("status") == "approved"]),
+        "total_payments": len([p for p in payments if p.get("status") == "approved"])
+    }
+    
+    # Get all users for the user management table
+    user_list = []
+    for u in users:
+        user_list.append({
+            "user_id": u.get("user_id"),
+            "first_name": u.get("first_name"),
+            "last_name": u.get("last_name"),
+            "email": u.get("email"),
+            "age": u.get("age"),
+            "gender": u.get("gender"),
+            "country": u.get("country"),
+            "is_active": u.get("is_active", True),
+            "is_premium": u.get("is_premium", False),
+            "talos_count": u.get("talos_count", 0),
+            "created_at": u.get("created_at", ""),
+            "last_active": u.get("last_active", "")
+        })
+    
+    # Get all admins (for Super Admin view)
+    admins = []
+    for a in data.get("admins", []):
+        admins.append({
+            "user_id": a.get("user_id"),
+            "name": a.get("name"),
+            "role": a.get("role", "admin"),
+            "is_active": a.get("is_active", True),
+            "created_at": a.get("created_at", ""),
+            "created_by": a.get("created_by", "System"),
+            "last_login": a.get("last_login", "")
+        })
+    
+    # Get premium requests
+    premium_requests = []
+    for pr in data.get("premium_requests", []):
+        user_name = "Unknown"
+        for u in users:
+            if u.get("user_id") == pr.get("user_id"):
+                user_name = f"{u.get('first_name', '')} {u.get('last_name', '')}"
+                break
+        premium_requests.append({
+            "id": pr.get("id"),
+            "user_id": pr.get("user_id"),
+            "user_name": user_name,
+            "amount": pr.get("amount", 0),
+            "payment_proof_url": pr.get("payment_proof_url", ""),
+            "payment_method": pr.get("payment_method", "unknown"),
+            "created_at": pr.get("created_at", "")
+        })
+    
+    # Get payment history
+    payment_list = []
+    for p in payments:
+        payment_list.append({
+            "id": p.get("id"),
+            "user_id": p.get("user_id"),
+            "amount": p.get("amount", 0),
+            "payment_proof_url": p.get("payment_proof_url", ""),
+            "payment_method": p.get("payment_method", "unknown"),
+            "status": p.get("status", "pending"),
+            "processed_by": p.get("processed_by", ""),
+            "created_at": p.get("created_at", ""),
+            "processed_at": p.get("processed_at", "")
+        })
+    
+    return templates.TemplateResponse("admin.html", {
+        "request": request,
+        "admin": admin,
+        "is_super_admin": admin.get("role") == "super_admin",
+        "stats": stats,
+        "users": user_list,
+        "admins": admins,
+        "premium_requests": premium_requests,
+        "payments": payment_list
+    })
 
 
 # ===== ADMIN API ENDPOINTS =====
