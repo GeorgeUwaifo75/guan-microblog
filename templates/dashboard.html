@@ -722,29 +722,34 @@
             cursor: pointer;
         }
         
-        /* Enhanced Photo Grid Styles - 4:5 Aspect Ratio */
+        /* Enhanced Photo Grid Styles - 4:5 Aspect Ratio with Max Size 1080x1350 */
         .talo-photos {
             display: grid;
             gap: 8px;
             margin: 10px 0;
         }
         
-        /* 1 photo - full width, 4:5 aspect ratio */
+        /* 1 photo - full width, 4:5 aspect ratio, max-width 540px */
         .talo-photos.photo-count-1 {
             grid-template-columns: 1fr;
+            max-width: 540px;
         }
         
         .talo-photos.photo-count-1 .photo-item {
             aspect-ratio: 4 / 5;
+            max-width: 540px;
+            margin: 0 auto;
         }
         
-        /* 2 photos - side by side, each 4:5 aspect ratio */
+        /* 2 photos - side by side, each 4:5 aspect ratio, max-width 270px each */
         .talo-photos.photo-count-2 {
             grid-template-columns: 1fr 1fr;
+            max-width: 560px;
         }
         
         .talo-photos.photo-count-2 .photo-item {
             aspect-ratio: 4 / 5;
+            max-width: 270px;
         }
         
         /* 3 photos - first takes full width, next two side by side */
@@ -753,30 +758,36 @@
             grid-template-areas: 
                 "main main"
                 "sub1 sub2";
+            max-width: 560px;
         }
         
         .talo-photos.photo-count-3 .photo-item:first-child {
             grid-area: main;
             aspect-ratio: 4 / 5;
+            max-width: 560px;
         }
         
         .talo-photos.photo-count-3 .photo-item:nth-child(2) {
             grid-area: sub1;
             aspect-ratio: 4 / 5;
+            max-width: 270px;
         }
         
         .talo-photos.photo-count-3 .photo-item:nth-child(3) {
             grid-area: sub2;
             aspect-ratio: 4 / 5;
+            max-width: 270px;
         }
         
-        /* 4 photos - 2x2 grid, each 4:5 aspect ratio */
+        /* 4 photos - 2x2 grid, each 4:5 aspect ratio, max-width 270px each */
         .talo-photos.photo-count-4 {
             grid-template-columns: 1fr 1fr;
+            max-width: 560px;
         }
         
         .talo-photos.photo-count-4 .photo-item {
             aspect-ratio: 4 / 5;
+            max-width: 270px;
         }
         
         .photo-item {
@@ -785,6 +796,7 @@
             border-radius: 12px;
             background: #f0f0f0;
             cursor: pointer;
+            width: 100%;
         }
         
         .photo-item img {
@@ -1450,6 +1462,29 @@
             .flash-notification {
                 top: 105px;
             }
+            
+            /* Mobile photo adjustments */
+            .talo-photos.photo-count-1,
+            .talo-photos.photo-count-2,
+            .talo-photos.photo-count-3,
+            .talo-photos.photo-count-4 {
+                max-width: 100%;
+            }
+            
+            .talo-photos.photo-count-1 .photo-item {
+                max-width: 100%;
+            }
+            
+            .talo-photos.photo-count-2 .photo-item,
+            .talo-photos.photo-count-3 .photo-item:nth-child(2),
+            .talo-photos.photo-count-3 .photo-item:nth-child(3),
+            .talo-photos.photo-count-4 .photo-item {
+                max-width: 100%;
+            }
+            
+            .talo-photos.photo-count-3 .photo-item:first-child {
+                max-width: 100%;
+            }
         }
         
         @media (min-width: 769px) {
@@ -1617,7 +1652,7 @@
                         </div>
                         {% endif %}
 
-                        <!-- Enhanced Photo Display with 4:5 Aspect Ratio -->
+                        <!-- Enhanced Photo Display with 4:5 Aspect Ratio and Max Size 1080x1350 -->
                         {% if talo.photos and talo.photos|length > 0 %}
                         <div class="talo-photos photo-count-{{ talo.photos|length }}">
                             {% for photo in talo.photos %}
