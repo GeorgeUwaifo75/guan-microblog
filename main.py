@@ -1195,7 +1195,9 @@ async def update_profile(request: Request):
         raise HTTPException(status_code=401, detail="User not found")
     
     form = await request.form()
+    password_changed = False
     
+    # Update profile information
     if "first_name" in form:
         user["first_name"] = form["first_name"]
     if "last_name" in form:
@@ -1203,16 +1205,36 @@ async def update_profile(request: Request):
     if "bio" in form:
         user["bio"] = form["bio"]
     
+    # Update profile photo if provided
     if "profile_photo_url" in form:
         user["profile_photo"] = form["profile_photo_url"]
         if "profile_photo_path" in form:
             user["profile_photo_path"] = form["profile_photo_path"]
     
+    # Handle password change
+    current_password = form.get("current_password")
+    new_password = form.get("new_password")
+    
+    if current_password and new_password:
+        # Verify current password
+        if verify_password(current_password, user["password_hash"]):
+            # Update to new password
+            user["password_hash"] = hash_password(new_password)
+            password_changed = True
+            logger.info(f"Password changed for user: {user['user_id']}")
+        else:
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+    
+    # Save changes
     if user_index is not None:
         data["users"][user_index] = user
         await save_jsonbin_data(data)
     
-    return {"message": "Profile updated successfully"}
+    return {
+        "message": "Profile updated successfully" + (" Password changed. Please log in again." if password_changed else ""),
+        "password_changed": password_changed
+    }
+
 
 @app.get("/api/search_hashtag/{hashtag}")
 async def search_by_hashtag(hashtag: str, request: Request):

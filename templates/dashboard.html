@@ -1559,6 +1559,41 @@
                 font-size: 10px;
             }
         }
+
+
+/* Password change section styles */
+.form-control {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #cc0000;
+    box-shadow: 0 0 0 2px rgba(204, 0, 0, 0.1);
+}
+
+#passwordError, #passwordSuccess {
+    font-size: 12px;
+    margin-top: 5px;
+    padding: 5px 10px;
+    border-radius: 5px;
+}
+
+#passwordError {
+    background: #ffe0e0;
+    border-left: 3px solid #dc3545;
+}
+
+#passwordSuccess {
+    background: #e0ffe0;
+    border-left: 3px solid #28a745;
+}
+
     </style>
 </head>
 <body>
@@ -1828,6 +1863,31 @@
                     <label>Bio</label>
                     <textarea id="editBio" rows="3" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;" placeholder="Tell us about yourself...">{{ user.bio or '' }}</textarea>
                 </div>
+
+
+<!-- Password Change Section -->
+            <div style="border-top: 2px solid #ffcc00; margin: 15px 0; padding-top: 15px;">
+                <h4 style="color: #cc0000; margin-bottom: 10px;">🔐 Change Password</h4>
+                <div class="form-group">
+                    <label>Current Password</label>
+                    <input type="password" id="editCurrentPassword" class="form-control" placeholder="Enter current password" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;">
+                </div>
+                <div class="form-group">
+                    <label>New Password</label>
+                    <input type="password" id="editNewPassword" class="form-control" placeholder="Enter new password (min 6 characters)" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;">
+                    <small style="color: #666; font-size: 11px;">Password must be at least 6 characters</small>
+                </div>
+                <div class="form-group">
+                    <label>Confirm New Password</label>
+                    <input type="password" id="editConfirmPassword" class="form-control" placeholder="Confirm new password" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;">
+                </div>
+                <div id="passwordError" style="color: #dc3545; font-size: 12px; margin-top: 5px; display: none;"></div>
+                <div id="passwordSuccess" style="color: #28a745; font-size: 12px; margin-top: 5px; display: none;"></div>
+            </div>
+            
+
+
+
                 <button type="button" class="save-profile-btn" onclick="saveProfileChanges()">Save Changes</button>
             </form>
         </div>
@@ -2469,29 +2529,105 @@
             }
         }
         
-        async function saveProfileChanges() {
-            const formData = new FormData();
-            const photoFile = document.getElementById('editProfilePhoto').files[0];
-            if (photoFile) {
-                const uploadResult = await window.uploadProfilePhotoToFirebase(photoFile, loggedInUserId);
-                formData.append('profile_photo_url', uploadResult.url);
-                formData.append('profile_photo_path', uploadResult.path);
+       // ========== PROFILE EDIT FUNCTIONS with Password Change ==========
+async function saveProfileChanges() {
+    const formData = new FormData();
+    const photoFile = document.getElementById('editProfilePhoto').files[0];
+    
+    // Clear previous messages
+    const passwordError = document.getElementById('passwordError');
+    const passwordSuccess = document.getElementById('passwordSuccess');
+    if (passwordError) passwordError.style.display = 'none';
+    if (passwordSuccess) passwordSuccess.style.display = 'none';
+    
+    // Get password fields
+    const currentPassword = document.getElementById('editCurrentPassword')?.value || '';
+    const newPassword = document.getElementById('editNewPassword')?.value || '';
+    const confirmPassword = document.getElementById('editConfirmPassword')?.value || '';
+    
+    // Validate password if user wants to change it
+    if (newPassword || confirmPassword || currentPassword) {
+        // If any password field is filled, all must be filled
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            if (passwordError) {
+                passwordError.textContent = 'Please fill in all password fields to change your password';
+                passwordError.style.display = 'block';
             }
-            formData.append('first_name', document.getElementById('editFirstName').value);
-            formData.append('last_name', document.getElementById('editLastName').value);
-            formData.append('bio', document.getElementById('editBio').value);
-            try {
-                const response = await fetch('/api/update_profile', { method: 'POST', body: formData });
-                if (response.ok) {
-                    alert('Profile updated successfully!');
-                    location.reload();
-                } else {
-                    alert('Failed to update profile');
-                }
-            } catch (error) {
-                alert('Error updating profile');
-            }
+            return;
         }
+        
+        // Check password length
+        if (newPassword.length < 6) {
+            if (passwordError) {
+                passwordError.textContent = 'New password must be at least 6 characters';
+                passwordError.style.display = 'block';
+            }
+            return;
+        }
+        
+        // Check if passwords match
+        if (newPassword !== confirmPassword) {
+            if (passwordError) {
+                passwordError.textContent = 'New passwords do not match';
+                passwordError.style.display = 'block';
+            }
+            return;
+        }
+        
+        // Add password data to form
+        formData.append('current_password', currentPassword);
+        formData.append('new_password', newPassword);
+    }
+    
+    // Upload photo if selected
+    if (photoFile) {
+        try {
+            const uploadResult = await window.uploadProfilePhotoToFirebase(photoFile, loggedInUserId);
+            formData.append('profile_photo_url', uploadResult.url);
+            formData.append('profile_photo_path', uploadResult.path);
+        } catch (error) {
+            alert('Error uploading photo: ' + error.message);
+            return;
+        }
+    }
+    
+    // Add profile info
+    formData.append('first_name', document.getElementById('editFirstName').value);
+    formData.append('last_name', document.getElementById('editLastName').value);
+    formData.append('bio', document.getElementById('editBio').value);
+    
+    try {
+        const response = await fetch('/api/update_profile', { 
+            method: 'POST', 
+            body: formData 
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            if (result.password_changed) {
+                if (passwordSuccess) {
+                    passwordSuccess.textContent = result.message || 'Profile and password updated successfully!';
+                    passwordSuccess.style.display = 'block';
+                }
+                // Show success message and reload after delay
+                setTimeout(() => {
+                    alert('Profile updated successfully! Please log in again with your new password.');
+                    window.location.href = '/logout';
+                }, 2000);
+            } else {
+                alert(result.message || 'Profile updated successfully!');
+                location.reload();
+            }
+        } else {
+            alert(result.detail || 'Failed to update profile');
+        }
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        alert('Error updating profile. Please try again.');
+    }
+}
+
         
         // ========== FOLLOW FUNCTIONS ==========
         async function checkFollowStatus(profileUserId) {
