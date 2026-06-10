@@ -361,6 +361,16 @@ class CreateAdminRequest(BaseModel):
     password: str
     name: str
 
+
+class CreateAdminRequest(BaseModel):
+    admin_id: str
+    password: str
+    name: str
+
+class ToggleAdminStatusRequest(BaseModel):
+    admin_id: str
+    is_active: bool
+
 # ===== SEARCH SYSTEM =====
 async def search_all_posts(search_query: str, data: Dict) -> List[Dict]:
     """Search through all posts in the database"""
@@ -1264,10 +1274,14 @@ async def logout():
     response.delete_cookie("session_token")
     return response
 
+
+
+
 # ===== ADMIN API ENDPOINTS =====
 
 @app.post("/api/admin/create_admin")
 async def create_admin(request: Request, admin_data: CreateAdminRequest):
+    """Super Admin only - Create a new administrator"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -1280,9 +1294,11 @@ async def create_admin(request: Request, admin_data: CreateAdminRequest):
             admin = a
             break
     
+    # Only Super Admin can create new admins
     if not admin or admin.get("role") != "super_admin":
-        raise HTTPException(status_code=403, detail="Only Super Administrator can create new admins")
+        raise HTTPException(status_code=403, detail="Only Super Administrator can create new administrators")
     
+    # Check if admin already exists
     for a in data.get("admins", []):
         if a.get("user_id") == admin_data.admin_id:
             raise HTTPException(status_code=400, detail="Admin ID already exists")
@@ -1305,8 +1321,78 @@ async def create_admin(request: Request, admin_data: CreateAdminRequest):
     
     return {"message": f"Administrator {admin_data.admin_id} created successfully"}
 
+@app.post("/api/admin/deactivate_admin")
+async def deactivate_admin(request: Request, admin_data: ToggleAdminStatusRequest):
+    """Super Admin only - Activate/Deactivate an administrator"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    current_admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            current_admin = a
+            break
+    
+    # Only Super Admin can manage admins
+    if not current_admin or current_admin.get("role") != "super_admin":
+        raise HTTPException(status_code=403, detail="Only Super Administrator can manage administrators")
+    
+    # Cannot deactivate self
+    if admin_data.admin_id == current_admin["user_id"]:
+        raise HTTPException(status_code=400, detail="Cannot modify your own admin status")
+    
+    for admin in data.get("admins", []):
+        if admin["user_id"] == admin_data.admin_id:
+            # Cannot modify Super Admin
+            if admin.get("role") == "super_admin":
+                raise HTTPException(status_code=403, detail="Cannot modify Super Administrator")
+            admin["is_active"] = admin_data.is_active
+            await save_jsonbin_data(data)
+            return {"message": f"Administrator {'activated' if admin_data.is_active else 'deactivated'}"}
+    
+    raise HTTPException(status_code=404, detail="Administrator not found")
+
+@app.post("/api/admin/delete_admin/{admin_id}")
+async def delete_admin(admin_id: str, request: Request):
+    """Super Admin only - Permanently delete an administrator"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    current_admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            current_admin = a
+            break
+    
+    # Only Super Admin can delete admins
+    if not current_admin or current_admin.get("role") != "super_admin":
+        raise HTTPException(status_code=403, detail="Only Super Administrator can delete administrators")
+    
+    # Cannot delete self
+    if admin_id == current_admin["user_id"]:
+        raise HTTPException(status_code=400, detail="Cannot delete your own admin account")
+    
+    for i, admin in enumerate(data.get("admins", [])):
+        if admin["user_id"] == admin_id:
+            # Cannot delete Super Admin
+            if admin.get("role") == "super_admin":
+                raise HTTPException(status_code=403, detail="Cannot delete Super Administrator")
+            data["admins"].pop(i)
+            await save_jsonbin_data(data)
+            return {"message": f"Administrator {admin_id} deleted successfully"}
+    
+    raise HTTPException(status_code=404, detail="Administrator not found")
+
+
 @app.post("/api/admin/deactivate_user/{user_id}")
 async def deactivate_user(user_id: str, request: Request):
+    """Admin+ - Activate/Deactivate a user"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -1319,7 +1405,7 @@ async def deactivate_user(user_id: str, request: Request):
             admin = a
             break
     
-    if not admin:
+    if not admin or not admin.get("is_active", True):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     for user in data.get("users", []):
@@ -1329,6 +1415,563 @@ async def deactivate_user(user_id: str, request: Request):
             return {"message": f"User {'activated' if user['is_active'] else 'deactivated'}"}
     
     raise HTTPException(status_code=404, detail="User not found")
+
+@app.post("/api/admin/delete_user/{user_id}")
+async def delete_user(user_id: str, request: Request):
+    """Super Admin only - Permanently delete a user and all their data"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+    
+    # Only Super Admin can delete users
+    if not admin or admin.get("role") != "super_admin":
+        raise HTTPException(status_code=403, detail="Only Super Administrator can delete users")
+    
+    # Find and delete user
+    user_index = None
+    for i, user in enumerate(data.get("users", [])):
+        if user["user_id"] == user_id:
+            user_index = i
+            break
+    
+    if user_index is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Delete user's talos
+    data["talos"] = [t for t in data.get("talos", []) if t.get("user_id") != user_id]
+    
+    # Delete user's replies
+    data["replies"] = [r for r in data.get("replies", []) if r.get("user_id") != user_id]
+    
+    # Delete user's likes
+    data["likes"] = [l for l in data.get("likes", []) if l.get("user_id") != user_id]
+    
+    # Delete user's follows
+    data["follows"] = [f for f in data.get("follows", []) if f.get("follower_id") != user_id and f.get("following_id") != user_id]
+    
+    # Delete user's notifications
+    data["notifications"] = [n for n in data.get("notifications", []) if n.get("user_id") != user_id and n.get("from_user_id") != user_id]
+    
+    # Delete user's payments
+    data["payments"] = [p for p in data.get("payments", []) if p.get("user_id") != user_id]
+    
+    # Delete user's premium requests
+    data["premium_requests"] = [pr for pr in data.get("premium_requests", []) if pr.get("user_id") != user_id]
+    
+    # Delete the user
+    data["users"].pop(user_index)
+    
+    await save_jsonbin_data(data)
+    return {"message": f"User {user_id} and all associated data deleted successfully"}
+
+@app.post("/api/admin/activate_promotion/{promotion_id}")
+async def activate_promotion(promotion_id: str, request: Request):
+    """Admin+ - Activate a post promotion"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+    
+    if not admin or not admin.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    promotion = None
+    for p in data.get("promotions", []):
+        if p["id"] == promotion_id:
+            promotion = p
+            break
+    
+    if not promotion:
+        raise HTTPException(status_code=404, detail="Promotion not found")
+    
+    promotion["status"] = "activated"
+    promotion["activated_by"] = admin["user_id"]
+    promotion["activated_at"] = datetime.now().isoformat()
+    
+    # Mark the talo as promoted
+    for talo in data.get("talos", []):
+        if talo["id"] == promotion["talo_id"]:
+            talo["promoted"] = True
+            talo["promotion_level"] = promotion.get("amount", 0) // 100
+            talo["promoted_at"] = datetime.now().isoformat()
+            talo["promoted_by"] = admin["user_id"]
+            break
+    
+    await save_jsonbin_data(data)
+    return {"message": "Promotion activated successfully"}
+
+@app.post("/api/admin/deactivate_promotion/{promotion_id}")
+async def deactivate_promotion(promotion_id: str, request: Request):
+    """Admin+ - Deactivate a promoted post"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+    
+    if not admin or not admin.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    promotion = None
+    for p in data.get("promotions", []):
+        if p["id"] == promotion_id:
+            promotion = p
+            break
+    
+    if not promotion:
+        raise HTTPException(status_code=404, detail="Promotion not found")
+    
+    promotion["status"] = "deactivated"
+    promotion["deactivated_by"] = admin["user_id"]
+    promotion["deactivated_at"] = datetime.now().isoformat()
+    
+    # Remove promotion from talo
+    for talo in data.get("talos", []):
+        if talo["id"] == promotion["talo_id"]:
+            talo["promoted"] = False
+            talo["promotion_level"] = 0
+            break
+    
+    await save_jsonbin_data(data)
+    return {"message": "Promotion deactivated successfully"}
+
+@app.delete("/api/admin/delete_promotion/{promotion_id}")
+async def delete_promotion(promotion_id: str, request: Request):
+    """Super Admin only - Permanently delete a promotion request"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+    
+    # Only Super Admin can delete promotions
+    if not admin or admin.get("role") != "super_admin":
+        raise HTTPException(status_code=403, detail="Only Super Administrator can delete promotions")
+    
+    for i, promotion in enumerate(data.get("promotions", [])):
+        if promotion["id"] == promotion_id:
+            # Remove promotion flag from talo if present
+            for talo in data.get("talos", []):
+                if talo["id"] == promotion["talo_id"]:
+                    talo["promoted"] = False
+                    talo["promotion_level"] = 0
+                    break
+            data["promotions"].pop(i)
+            await save_jsonbin_data(data)
+            return {"message": "Promotion deleted successfully"}
+    
+    raise HTTPException(status_code=404, detail="Promotion not found")
+
+@app.get("/api/admin/get_promotion_requests")
+async def get_promotion_requests(request: Request):
+    """Admin+ - Get all promotion requests"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+    
+    if not admin or not admin.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    promotions = []
+    for p in data.get("promotions", []):
+        # Find user info
+        user_name = "Unknown"
+        talo_content = ""
+        for user in data.get("users", []):
+            if user["user_id"] == p["user_id"]:
+                user_name = f"{user.get('first_name', '')} {user.get('last_name', '')}"
+                break
+        for talo in data.get("talos", []):
+            if talo["id"] == p["talo_id"]:
+                talo_content = talo.get("content", "")[:100]
+                break
+        promotions.append({
+            "id": p["id"],
+            "user_id": p["user_id"],
+            "user_name": user_name,
+            "talo_id": p["talo_id"],
+            "talo_content": talo_content,
+            "amount": p.get("amount", 0),
+            "payment_method": p.get("payment_method", "unknown"),
+            "status": p.get("status", "pending"),
+            "created_at": p.get("created_at", "")
+        })
+    
+    return {"promotions": promotions}
+
+@app.post("/api/admin/process_premium_request/{request_id}")
+async def process_premium_request(request_id: str, request: Request):
+    """Admin+ - Approve or reject premium upgrade request"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+    
+    if not admin or not admin.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    body = await request.json()
+    action = body.get("action")
+    
+    if action not in ["approve", "reject"]:
+        raise HTTPException(status_code=400, detail="Invalid action")
+    
+    premium_request = None
+    request_index = None
+    for i, pr in enumerate(data.get("premium_requests", [])):
+        if pr.get("id") == request_id:
+            premium_request = pr
+            request_index = i
+            break
+    
+    if not premium_request:
+        raise HTTPException(status_code=404, detail="Premium request not found")
+    
+    if action == "approve":
+        # Update user to premium
+        for user in data.get("users", []):
+            if user["user_id"] == premium_request["user_id"]:
+                user["is_premium"] = True
+                user["premium_activated_at"] = datetime.now().isoformat()
+                user["premium_activated_by"] = admin["user_id"]
+                break
+        
+        # Add to payments
+        if "payments" not in data:
+            data["payments"] = []
+        data["payments"].append({
+            "id": str(uuid.uuid4()),
+            "user_id": premium_request["user_id"],
+            "amount": premium_request["amount"],
+            "payment_proof_url": premium_request.get("payment_proof_url", ""),
+            "payment_method": premium_request.get("payment_method", "unknown"),
+            "status": "approved",
+            "processed_by": admin["user_id"],
+            "created_at": premium_request.get("created_at", datetime.now().isoformat()),
+            "processed_at": datetime.now().isoformat()
+        })
+        
+        # Send notification to user
+        if "notifications" not in data:
+            data["notifications"] = []
+        data["notifications"].append({
+            "id": str(uuid.uuid4()),
+            "user_id": premium_request["user_id"],
+            "type": "premium_approved",
+            "message": f"Your premium upgrade request has been approved! You now have premium status.",
+            "read": False,
+            "created_at": datetime.now().isoformat()
+        })
+    
+    # Remove the request
+    data["premium_requests"].pop(request_index)
+    
+    await save_jsonbin_data(data)
+    return {"message": f"Premium request {action}d successfully"}
+
+@app.get("/api/admin/get_reports")
+async def get_admin_reports(request: Request):
+    """Admin+ - Get platform statistics and reports"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+    
+    if not admin or not admin.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    users = data.get("users", [])
+    talos = data.get("talos", [])
+    replies = data.get("replies", [])
+    payments = data.get("payments", [])
+    
+    now = datetime.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    week_ago = (now - timedelta(days=7)).isoformat()
+    month_ago = (now - timedelta(days=30)).isoformat()
+    
+    # User Reports
+    active_users = len([u for u in users if u.get("is_active", True)])
+    inactive_users = len([u for u in users if not u.get("is_active", True)])
+    premium_users = len([u for u in users if u.get("is_premium", False)])
+    male_users = len([u for u in users if u.get("gender") == "Male"])
+    female_users = len([u for u in users if u.get("gender") == "Female"])
+    daily_active = len([u for u in users if u.get("last_active", "") > today_start])
+    users_last_7_days = len([u for u in users if u.get("created_at", "") > week_ago])
+    users_last_30_days = len([u for u in users if u.get("created_at", "") > month_ago])
+    
+    # Users by country
+    users_by_country = {}
+    for u in users:
+        country = u.get("country", "Unknown")
+        users_by_country[country] = users_by_country.get(country, 0) + 1
+    
+    # Post Reports
+    total_talos = len(talos)
+    total_replies = len(replies)
+    talos_today = len([t for t in talos if t.get("created_at", "") > today_start])
+    replies_today = len([r for r in replies if r.get("created_at", "") > today_start])
+    talos_last_7_days = len([t for t in talos if t.get("created_at", "") > week_ago])
+    replies_last_7_days = len([r for r in replies if r.get("created_at", "") > week_ago])
+    total_likes = len(data.get("likes", []))
+    total_follows = len(data.get("follows", []))
+    
+    # Financial Reports
+    total_amount = sum([p.get("amount", 0) for p in payments if p.get("status") == "approved"])
+    total_payments = len([p for p in payments if p.get("status") == "approved"])
+    amount_last_7_days = sum([p.get("amount", 0) for p in payments if p.get("created_at", "") > week_ago and p.get("status") == "approved"])
+    payments_last_7_days = len([p for p in payments if p.get("created_at", "") > week_ago and p.get("status") == "approved"])
+    amount_last_30_days = sum([p.get("amount", 0) for p in payments if p.get("created_at", "") > month_ago and p.get("status") == "approved"])
+    payments_last_30_days = len([p for p in payments if p.get("created_at", "") > month_ago and p.get("status") == "approved"])
+    
+    # User list with details for admin view
+    user_list = []
+    for u in users:
+        user_list.append({
+            "user_id": u.get("user_id"),
+            "first_name": u.get("first_name"),
+            "last_name": u.get("last_name"),
+            "email": u.get("email"),
+            "age": u.get("age"),
+            "gender": u.get("gender"),
+            "country": u.get("country"),
+            "is_active": u.get("is_active", True),
+            "is_premium": u.get("is_premium", False),
+            "talos_count": u.get("talos_count", 0),
+            "created_at": u.get("created_at", ""),
+            "last_active": u.get("last_active", "")
+        })
+    
+    return {
+        "user_reports": {
+            "total_users": len(users),
+            "active_users": active_users,
+            "inactive_users": inactive_users,
+            "premium_users": premium_users,
+            "male_users": male_users,
+            "female_users": female_users,
+            "daily_active": daily_active,
+            "users_last_7_days": users_last_7_days,
+            "users_last_30_days": users_last_30_days,
+            "users_by_country": users_by_country
+        },
+        "post_reports": {
+            "total_talos": total_talos,
+            "total_replies": total_replies,
+            "talos_today": talos_today,
+            "replies_today": replies_today,
+            "talos_last_7_days": talos_last_7_days,
+            "replies_last_7_days": replies_last_7_days,
+            "total_likes": total_likes,
+            "total_follows": total_follows
+        },
+        "financial_reports": {
+            "total_amount": total_amount,
+            "total_payments": total_payments,
+            "amount_last_7_days": amount_last_7_days,
+            "payments_last_7_days": payments_last_7_days,
+            "amount_last_30_days": amount_last_30_days,
+            "payments_last_30_days": payments_last_30_days
+        },
+        "users": user_list,
+        "generated_at": now.isoformat()
+    }
+
+
+@app.get("/api/admin/get_users")
+async def get_admin_users(request: Request):
+    """Admin+ - Get all users with their details"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+    
+    if not admin or not admin.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    users = []
+    for u in data.get("users", []):
+        users.append({
+            "user_id": u.get("user_id"),
+            "first_name": u.get("first_name"),
+            "last_name": u.get("last_name"),
+            "email": u.get("email"),
+            "age": u.get("age"),
+            "gender": u.get("gender"),
+            "country": u.get("country"),
+            "is_active": u.get("is_active", True),
+            "is_premium": u.get("is_premium", False),
+            "talos_count": u.get("talos_count", 0),
+            "followers_count": u.get("followers_count", 0),
+            "following_count": u.get("following_count", 0),
+            "created_at": u.get("created_at", ""),
+            "last_active": u.get("last_active", "")
+        })
+    
+    return {"users": users}
+
+
+@app.get("/api/admin/get_admins")
+async def get_admin_list(request: Request):
+    """Super Admin only - Get all administrators"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    current_admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            current_admin = a
+            break
+    
+    if not current_admin or current_admin.get("role") != "super_admin":
+        raise HTTPException(status_code=403, detail="Super Admin access required")
+    
+    admins = []
+    for a in data.get("admins", []):
+        admins.append({
+            "user_id": a.get("user_id"),
+            "name": a.get("name"),
+            "role": a.get("role", "admin"),
+            "is_active": a.get("is_active", True),
+            "created_at": a.get("created_at", ""),
+            "created_by": a.get("created_by", "System"),
+            "last_login": a.get("last_login", "")
+        })
+    
+    return {"admins": admins}
+
+@app.get("/api/admin/get_payments")
+async def get_admin_payments(request: Request):
+    """Admin+ - Get all successful payments"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+    
+    if not admin or not admin.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    payments = []
+    for p in data.get("payments", []):
+        payments.append({
+            "id": p.get("id"),
+            "user_id": p.get("user_id"),
+            "amount": p.get("amount", 0),
+            "payment_proof_url": p.get("payment_proof_url", ""),
+            "payment_method": p.get("payment_method", "unknown"),
+            "status": p.get("status", "pending"),
+            "processed_by": p.get("processed_by", ""),
+            "created_at": p.get("created_at", ""),
+            "processed_at": p.get("processed_at", "")
+        })
+    
+    return {"payments": payments}
+
+@app.get("/api/admin/get_premium_requests")
+async def get_premium_requests(request: Request):
+    """Admin+ - Get all pending premium upgrade requests"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    admin = None
+    
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+    
+    if not admin or not admin.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    premium_requests = []
+    for pr in data.get("premium_requests", []):
+        # Get user name
+        user_name = "Unknown"
+        for u in data.get("users", []):
+            if u.get("user_id") == pr.get("user_id"):
+                user_name = f"{u.get('first_name', '')} {u.get('last_name', '')}"
+                break
+        
+        premium_requests.append({
+            "id": pr.get("id"),
+            "user_id": pr.get("user_id"),
+            "user_name": user_name,
+            "amount": pr.get("amount", 0),
+            "payment_proof_url": pr.get("payment_proof_url", ""),
+            "payment_method": pr.get("payment_method", "unknown"),
+            "created_at": pr.get("created_at", "")
+        })
+    
+    return {"premium_requests": premium_requests}
+
 
 @app.post("/api/promote_post")
 async def promote_post(request: Request, promotion: PromotionRequest):

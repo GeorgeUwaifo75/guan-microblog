@@ -573,8 +573,11 @@
         <p style="font-size: 11px; margin-top: 5px;">Freedom of expression is right but don't hurt others with yours.</p>
     </div>
 
+    <!-- Add this script to the existing admin.html - replace the existing script section -->
+
     <script>
         const isSuperAdmin = {{ is_super_admin|lower }};
+        const currentAdminId = '{{ admin.user_id }}';
         
         function showTab(tabName) {
             // Hide all tabs
@@ -591,9 +594,15 @@
             // Add active class to clicked button
             event.target.classList.add('active');
             
-            // Load reports if needed
+            // Load data if needed
             if (tabName === 'reports') {
                 loadReports();
+            }
+            if (tabName === 'promotions') {
+                loadPromotions();
+            }
+            if (tabName === 'premium') {
+                loadPremiumRequests();
             }
         }
         
@@ -674,6 +683,10 @@
         }
         
         async function deleteUser(userId) {
+            if (!isSuperAdmin) {
+                alert('Only Super Administrator can delete users');
+                return;
+            }
             if (confirm('⚠️ WARNING: This will permanently delete the user and all their data. Are you absolutely sure?')) {
                 const response = await fetch(`/api/admin/delete_user/${userId}`, { method: 'POST' });
                 if (response.ok) {
@@ -685,24 +698,42 @@
         }
         
         async function toggleAdminStatus(adminId, currentlyActive) {
+            if (!isSuperAdmin) {
+                alert('Only Super Administrator can manage admins');
+                return;
+            }
             const action = currentlyActive ? 'deactivate' : 'activate';
             if (confirm(`Are you sure you want to ${action} this administrator?`)) {
-                const response = await fetch(`/api/admin/deactivate_admin/${adminId}`, { method: 'POST' });
+                const response = await fetch('/api/admin/deactivate_admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ admin_id: adminId, is_active: !currentlyActive })
+                });
                 if (response.ok) {
                     location.reload();
                 } else {
-                    alert('Failed to update admin status');
+                    const error = await response.json();
+                    alert('Failed to update admin status: ' + (error.detail || 'Unknown error'));
                 }
             }
         }
         
         async function deleteAdmin(adminId) {
+            if (!isSuperAdmin) {
+                alert('Only Super Administrator can delete admins');
+                return;
+            }
+            if (adminId === currentAdminId) {
+                alert('You cannot delete your own admin account');
+                return;
+            }
             if (confirm(`⚠️ WARNING: This will permanently delete the administrator "${adminId}". Are you absolutely sure?`)) {
                 const response = await fetch(`/api/admin/delete_admin/${adminId}`, { method: 'POST' });
                 if (response.ok) {
                     location.reload();
                 } else {
-                    alert('Failed to delete administrator');
+                    const error = await response.json();
+                    alert('Failed to delete administrator: ' + (error.detail || 'Unknown error'));
                 }
             }
         }
@@ -726,77 +757,153 @@
             }
         }
         
-
-async function loadPromotions() {
-    const promotionsDiv = document.getElementById('promotionsList');
-    try {
-        const response = await fetch('/api/admin/get_promotion_requests');
-        const data = await response.json();
+        async function loadPromotions() {
+            const promotionsDiv = document.getElementById('promotionsList');
+            try {
+                const response = await fetch('/api/admin/get_promotion_requests');
+                const data = await response.json();
+                
+                if (data.promotions && data.promotions.length > 0) {
+                    promotionsDiv.innerHTML = `
+                        <div style="overflow-x: auto;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Post Preview</th>
+                                        <th>Amount</th>
+                                        <th>Payment Method</th>
+                                        <th>Status</th>
+                                        <th>Requested Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.promotions.map(p => `
+                                        <tr>
+                                            <td>${p.user_name} (@${p.user_id})</td>
+                                            <td>${p.talo_content || 'N/A'}</td>
+                                            <td>${p.payment_method === 'paystack' ? '₦' : '$'}${p.amount}</td>
+                                            <td>${p.payment_method.toUpperCase()}</td>
+                                            <td><span class="badge ${p.status === 'activated' ? 'badge-active' : p.status === 'pending' ? 'badge-pending' : 'badge-inactive'}">${p.status}</span></td>
+                                            <td>${new Date(p.created_at).toLocaleString()}</td>
+                                            <td>
+                                                ${p.status === 'pending' ? 
+                                                    `<button class="btn-sm btn-approve" onclick="activatePromotion('${p.id}')">Activate</button>
+                                                     ${isSuperAdmin ? `<button class="btn-sm btn-delete" onclick="deletePromotion('${p.id}')">Delete</button>` : ''}` :
+                                                    p.status === 'activated' ?
+                                                    `<button class="btn-sm btn-deactivate" onclick="deactivatePromotion('${p.id}')">Deactivate</button>
+                                                     ${isSuperAdmin ? `<button class="btn-sm btn-delete" onclick="deletePromotion('${p.id}')">Delete</button>` : ''}` :
+                                                    `${isSuperAdmin ? `<button class="btn-sm btn-delete" onclick="deletePromotion('${p.id}')">Delete</button>` : ''}`
+                                                }
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } else {
+                    promotionsDiv.innerHTML = '<p style="text-align: center; padding: 20px;">No promotion requests</p>';
+                }
+            } catch (error) {
+                console.error('Error loading promotions:', error);
+                promotionsDiv.innerHTML = '<p style="text-align: center; color: #dc3545;">Error loading promotion requests</p>';
+            }
+        }
         
-        if (data.promotions && data.promotions.length > 0) {
-            promotionsDiv.innerHTML = `
-                <div style="overflow-x: auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>User</th>
-                                <th>Post Preview</th>
-                                <th>Amount</th>
-                                <th>Payment Method</th>
-                                <th>Requested Date</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${data.promotions.map(p => `
-                                <tr>
-                                    <td>${p.user_name} (@${p.user_id})</td>
-                                    <td>${p.talo_content || 'N/A'}</td>
-                                    <td>${p.payment_method === 'paystack' ? '₦' : '$'}${p.amount}</td>
-                                    <td>${p.payment_method.toUpperCase()}</td>
-                                    <td>${new Date(p.created_at).toLocaleString()}</td>
-                                    <td>
-                                        <button class="btn-sm btn-approve" onclick="activatePromotion('${p.id}')">Activate Promotion</button>
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-        } else {
-            promotionsDiv.innerHTML = '<p style="text-align: center; padding: 20px;">No pending promotion requests</p>';
+        async function activatePromotion(promotionId) {
+            if (confirm('Activate this post promotion? The post will get higher visibility.')) {
+                const response = await fetch(`/api/admin/activate_promotion/${promotionId}`, { method: 'POST' });
+                if (response.ok) {
+                    alert('Promotion activated successfully!');
+                    loadPromotions();
+                } else {
+                    alert('Failed to activate promotion');
+                }
+            }
         }
-    } catch (error) {
-        console.error('Error loading promotions:', error);
-        promotionsDiv.innerHTML = '<p style="text-align: center; color: #dc3545;">Error loading promotion requests</p>';
-    }
-}
-
-async function activatePromotion(promotionId) {
-    if (confirm('Activate this post promotion? The post will get higher visibility.')) {
-        const response = await fetch(`/api/admin/activate_promotion/${promotionId}`, { method: 'POST' });
-        if (response.ok) {
-            alert('Promotion activated successfully!');
-            loadPromotions();
-        } else {
-            alert('Failed to activate promotion');
+        
+        async function deactivatePromotion(promotionId) {
+            if (confirm('Deactivate this promotion? The post will no longer be promoted.')) {
+                const response = await fetch(`/api/admin/deactivate_promotion/${promotionId}`, { method: 'POST' });
+                if (response.ok) {
+                    alert('Promotion deactivated successfully!');
+                    loadPromotions();
+                } else {
+                    alert('Failed to deactivate promotion');
+                }
+            }
         }
-    }
-}
-
-// Update showTab function to include promotions
-const originalShowTab = window.showTab;
-window.showTab = function(tabName) {
-    originalShowTab(tabName);
-    if (tabName === 'promotions') {
-        loadPromotions();
-    }
-}
-
-
-
+        
+        async function deletePromotion(promotionId) {
+            if (!isSuperAdmin) {
+                alert('Only Super Administrator can delete promotions');
+                return;
+            }
+            if (confirm('⚠️ WARNING: This will permanently delete this promotion request. Are you sure?')) {
+                const response = await fetch(`/api/admin/delete_promotion/${promotionId}`, { method: 'DELETE' });
+                if (response.ok) {
+                    alert('Promotion deleted successfully!');
+                    loadPromotions();
+                } else {
+                    alert('Failed to delete promotion');
+                }
+            }
+        }
+        
+        async function loadPremiumRequests() {
+            const container = document.getElementById('premiumRequestsList');
+            if (!container) return;
+            
+            try {
+                const response = await fetch('/api/admin/get_premium_requests');
+                const data = await response.json();
+                
+                if (data.premium_requests && data.premium_requests.length > 0) {
+                    container.innerHTML = `
+                        <div style="overflow-x: auto;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Amount</th>
+                                        <th>Payment Proof</th>
+                                        <th>Requested Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.premium_requests.map(req => `
+                                        <tr>
+                                            <td>${req.user_name} (@${req.user_id})</td>
+                                            <td>₦${req.amount}</td>
+                                            <td><a href="${req.payment_proof_url}" target="_blank">View Proof</a></td>
+                                            <td>${new Date(req.created_at).toLocaleString()}</td>
+                                            <td>
+                                                <button class="btn-sm btn-approve" onclick="processPremiumRequest('${req.id}', 'approve')">Approve</button>
+                                                <button class="btn-sm btn-reject" onclick="processPremiumRequest('${req.id}', 'reject')">Reject</button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = '<p style="text-align: center; padding: 20px;">No pending premium requests</p>';
+                }
+            } catch (error) {
+                console.error('Error loading premium requests:', error);
+                container.innerHTML = '<p style="text-align: center; color: #dc3545;">Error loading premium requests</p>';
+            }
+        }
+        
         function openCreateAdminModal() {
+            if (!isSuperAdmin) {
+                alert('Only Super Administrator can create new admins');
+                return;
+            }
             document.getElementById('createAdminModal').style.display = 'flex';
         }
         
@@ -813,6 +920,11 @@ window.showTab = function(tabName) {
             
             if (password !== confirmPassword) {
                 alert('Passwords do not match');
+                return;
+            }
+            
+            if (password.length < 6) {
+                alert('Password must be at least 6 characters');
                 return;
             }
             
@@ -842,6 +954,11 @@ window.showTab = function(tabName) {
                 closeCreateAdminModal();
             }
         }
+        
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadPremiumRequests();
+        });
     </script>
 </body>
 </html>
