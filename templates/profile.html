@@ -232,7 +232,7 @@
             right: 15px;
             background: #f0f0f0;
             border: none;
-            padding: 6px 14px;
+            padding: 8px 16px;
             border-radius: 20px;
             cursor: pointer;
             font-size: 13px;
@@ -246,29 +246,40 @@
         }
 
         /* Profile Edit Modal */
-        .modal-overlay {
+        #editProfileModal {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.85);
             z-index: 20000;
             display: none;
             justify-content: center;
             align-items: center;
         }
-        .modal-overlay.active {
+        #editProfileModal.show {
             display: flex;
         }
-        .modal-container {
+        .modal-box {
             background: white;
             border-radius: 20px;
             width: 90%;
             max-width: 500px;
-            max-height: 85vh;
+            max-height: 90vh;
             overflow-y: auto;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            animation: modalFadeIn 0.3s ease;
+        }
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
         }
         .modal-header {
             background: #cc0000;
@@ -295,18 +306,18 @@
         .modal-body {
             padding: 20px;
         }
-        .form-group {
+        .form-field {
             margin-bottom: 20px;
         }
-        .form-group label {
+        .form-field label {
             display: block;
             font-weight: bold;
             margin-bottom: 8px;
             font-size: 14px;
             color: #333;
         }
-        .form-group input,
-        .form-group textarea {
+        .form-field input,
+        .form-field textarea {
             width: 100%;
             padding: 12px;
             border: 1px solid #ddd;
@@ -314,8 +325,8 @@
             font-size: 14px;
             font-family: inherit;
         }
-        .form-group input:focus,
-        .form-group textarea:focus {
+        .form-field input:focus,
+        .form-field textarea:focus {
             outline: none;
             border-color: #cc0000;
         }
@@ -356,8 +367,8 @@
             background: #990000;
         }
 
-        /* User List Modal (for followers/following) */
-        .userlist-overlay {
+        /* User List Modal */
+        .userlist-modal {
             position: fixed;
             top: 0;
             left: 0;
@@ -369,7 +380,7 @@
             justify-content: center;
             align-items: center;
         }
-        .userlist-overlay.active {
+        .userlist-modal.show {
             display: flex;
         }
         .userlist-container {
@@ -477,7 +488,7 @@
             z-index: 300;
             display: none;
         }
-        .mobile-menu-overlay.active { display: block; }
+        .mobile-menu-overlay.show { display: block; }
         .mobile-menu {
             position: fixed;
             top: 0;
@@ -490,7 +501,7 @@
             overflow-y: auto;
             box-shadow: 2px 0 10px rgba(0,0,0,0.2);
         }
-        .mobile-menu.active { left: 0; }
+        .mobile-menu.show { left: 0; }
         .mobile-menu-header {
             background: #cc0000;
             color: white;
@@ -507,12 +518,11 @@
             cursor: pointer;
         }
         .mobile-menu-content { padding: 15px; }
-        .mobile-profile-card {
+        .mobile-profile {
             background: white;
             border-radius: 15px;
             padding: 20px;
             text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         .mobile-profile-photo {
             width: 80px;
@@ -638,14 +648,14 @@
     </div>
 
     <!-- Edit Profile Modal -->
-    <div id="editModal" class="modal-overlay">
-        <div class="modal-container">
+    <div id="editProfileModal">
+        <div class="modal-box">
             <div class="modal-header">
                 <h3>Edit Profile</h3>
                 <button class="modal-close" onclick="closeEditModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="form-group">
+                <div class="form-field">
                     <label>Profile Photo</label>
                     <img id="photoPreview" class="photo-preview" src="{{ profile_user.profile_photo or '/static/default-avatar.png' }}">
                     <label class="upload-btn">
@@ -653,25 +663,25 @@
                         <input type="file" id="photoInput" accept="image/*" style="display: none;">
                     </label>
                 </div>
-                <div class="form-group">
+                <div class="form-field">
                     <label>First Name</label>
                     <input type="text" id="firstName" value="{{ profile_user.first_name }}">
                 </div>
-                <div class="form-group">
+                <div class="form-field">
                     <label>Last Name</label>
                     <input type="text" id="lastName" value="{{ profile_user.last_name }}">
                 </div>
-                <div class="form-group">
+                <div class="form-field">
                     <label>Bio</label>
                     <textarea id="bio" rows="3" placeholder="Tell us about yourself...">{{ profile_user.bio or '' }}</textarea>
                 </div>
-                <button class="save-btn" onclick="saveProfile()">Save Changes</button>
+                <button class="save-btn" id="saveProfileBtn">Save Changes</button>
             </div>
         </div>
     </div>
 
     <!-- Followers Modal -->
-    <div id="followersModal" class="userlist-overlay">
+    <div id="followersModal" class="userlist-modal">
         <div class="userlist-container">
             <div class="userlist-header">
                 <h3>Followers</h3>
@@ -682,7 +692,7 @@
     </div>
 
     <!-- Following Modal -->
-    <div id="followingModal" class="userlist-overlay">
+    <div id="followingModal" class="userlist-modal">
         <div class="userlist-container">
             <div class="userlist-header">
                 <h3>Following</h3>
@@ -728,7 +738,7 @@
         const profileUserId = '{{ profile_user.user_id }}';
         const loggedInUserId = '{{ current_user.user_id if current_user else "" }}';
         
-        // Current profile data for editing
+        // Current profile data
         let currentData = {
             first_name: '{{ profile_user.first_name }}',
             last_name: '{{ profile_user.last_name }}',
@@ -739,8 +749,9 @@
         // ========== EDIT MODAL FUNCTIONS ==========
         function openEditModal() {
             console.log('Opening edit modal');
-            const modal = document.getElementById('editModal');
+            const modal = document.getElementById('editProfileModal');
             if (modal) {
+                // Populate form fields
                 document.getElementById('firstName').value = currentData.first_name;
                 document.getElementById('lastName').value = currentData.last_name;
                 document.getElementById('bio').value = currentData.bio;
@@ -748,16 +759,18 @@
                 if (preview && currentData.profile_photo) {
                     preview.src = currentData.profile_photo;
                 }
-                modal.classList.add('active');
+                // Show modal
+                modal.classList.add('show');
             } else {
-                alert('Error: Could not open edit form');
+                console.error('Modal not found!');
+                alert('Could not open edit form');
             }
         }
 
         function closeEditModal() {
-            const modal = document.getElementById('editModal');
+            const modal = document.getElementById('editProfileModal');
             if (modal) {
-                modal.classList.remove('active');
+                modal.classList.remove('show');
                 const fileInput = document.getElementById('photoInput');
                 if (fileInput) fileInput.value = '';
             }
@@ -841,7 +854,6 @@
                     btn.classList.remove('following');
                 }
             } catch (error) {
-                console.error('Error:', error);
                 alert('Failed to update follow status');
             }
         }
@@ -850,7 +862,7 @@
         async function showFollowersModal(userId) {
             const modal = document.getElementById('followersModal');
             const listContainer = document.getElementById('followersList');
-            modal.classList.add('active');
+            modal.classList.add('show');
             listContainer.innerHTML = '<div style="text-align: center; padding: 20px;">Loading...</div>';
             try {
                 const response = await fetch(`/api/get_followers/${userId}`);
@@ -869,7 +881,6 @@
                     `).join('');
                 }
             } catch (error) {
-                console.error('Error:', error);
                 listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Error loading followers</div>';
             }
         }
@@ -877,7 +888,7 @@
         async function showFollowingModal(userId) {
             const modal = document.getElementById('followingModal');
             const listContainer = document.getElementById('followingList');
-            modal.classList.add('active');
+            modal.classList.add('show');
             listContainer.innerHTML = '<div style="text-align: center; padding: 20px;">Loading...</div>';
             try {
                 const response = await fetch(`/api/get_following/${userId}`);
@@ -896,22 +907,16 @@
                     `).join('');
                 }
             } catch (error) {
-                console.error('Error:', error);
                 listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Error loading following list</div>';
             }
         }
         
         function closeFollowersModal() {
-            document.getElementById('followersModal').classList.remove('active');
+            document.getElementById('followersModal').classList.remove('show');
         }
         
         function closeFollowingModal() {
-            document.getElementById('followingModal').classList.remove('active');
-        }
-
-        // ========== HASHTAG/TRENDING FUNCTIONS ==========
-        function searchHashtag(hashtag) {
-            window.location.href = `/search?q=${encodeURIComponent(hashtag)}`;
+            document.getElementById('followingModal').classList.remove('show');
         }
 
         // ========== HELPER FUNCTIONS ==========
@@ -929,6 +934,10 @@
             window.location.href = `/profile/${userId}`;
         }
 
+        function searchHashtag(hashtag) {
+            window.location.href = `/search?q=${encodeURIComponent(hashtag)}`;
+        }
+
         function formatContentWithLinks(content) {
             content = content.replace(/@(\w+)/g, (match, username) => {
                 return `<span class="mention-link" onclick="event.stopPropagation(); viewProfile('${username}')">${match}</span>`;
@@ -943,20 +952,20 @@
         function toggleMobileMenu() {
             const overlay = document.getElementById('mobileMenuOverlay');
             const menu = document.getElementById('mobileMenu');
-            overlay.classList.toggle('active');
-            menu.classList.toggle('active');
-            if (menu.classList.contains('active')) populateMobileMenu();
+            overlay.classList.toggle('show');
+            menu.classList.toggle('show');
+            if (menu.classList.contains('show')) populateMobileMenu();
         }
         
         function closeMobileMenu() {
-            document.getElementById('mobileMenuOverlay').classList.remove('active');
-            document.getElementById('mobileMenu').classList.remove('active');
+            document.getElementById('mobileMenuOverlay').classList.remove('show');
+            document.getElementById('mobileMenu').classList.remove('show');
         }
         
         function populateMobileMenu() {
             const container = document.getElementById('mobileProfileCard');
             container.innerHTML = `
-                <div class="mobile-profile-card">
+                <div class="mobile-profile">
                     ${currentData.profile_photo ? 
                         `<img class="mobile-profile-photo" src="${currentData.profile_photo}" alt="Profile">` :
                         `<div class="mobile-profile-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto;">👤</div>`}
@@ -983,46 +992,43 @@
 
         // ========== INITIALIZATION ==========
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded - initializing page');
+            console.log('DOM loaded - initializing');
             
-            // Format time ago for all talos
+            // Format time
             document.querySelectorAll('.talo-time').forEach(el => {
                 if (el.dataset.time) el.textContent = formatTimeAgo(el.dataset.time);
             });
 
-            // Format content with clickable links
+            // Format content with links
             document.querySelectorAll('.talo-content').forEach(el => {
                 const original = el.innerHTML;
                 const formatted = formatContentWithLinks(original);
                 if (original !== formatted) el.innerHTML = formatted;
             });
 
-            // Set up edit button
+            // Edit button - DIRECT onclick handler
             const editBtn = document.getElementById('editProfileBtn');
             if (editBtn) {
                 editBtn.onclick = function(e) {
                     e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Edit button clicked!');
                     openEditModal();
                 };
+            } else {
+                console.log('Edit button not found on page');
             }
 
-            // Set up followers stat click
-            const followersStat = document.getElementById('followersStat');
-            if (followersStat) {
-                followersStat.onclick = function() {
-                    showFollowersModal(profileUserId);
+            // Save button
+            const saveBtn = document.getElementById('saveProfileBtn');
+            if (saveBtn) {
+                saveBtn.onclick = function(e) {
+                    e.preventDefault();
+                    saveProfile();
                 };
             }
 
-            // Set up following stat click
-            const followingStat = document.getElementById('followingStat');
-            if (followingStat) {
-                followingStat.onclick = function() {
-                    showFollowingModal(profileUserId);
-                };
-            }
-
-            // Set up photo input
+            // Photo input
             const photoInput = document.getElementById('photoInput');
             if (photoInput) {
                 photoInput.onchange = function() {
@@ -1030,7 +1036,23 @@
                 };
             }
 
-            // Set up follow button
+            // Followers stat click
+            const followersStat = document.getElementById('followersStat');
+            if (followersStat) {
+                followersStat.onclick = function() {
+                    showFollowersModal(profileUserId);
+                };
+            }
+
+            // Following stat click
+            const followingStat = document.getElementById('followingStat');
+            if (followingStat) {
+                followingStat.onclick = function() {
+                    showFollowingModal(profileUserId);
+                };
+            }
+
+            // Follow button
             const followBtn = document.getElementById('followBtn');
             if (followBtn) {
                 followBtn.onclick = toggleFollow;
@@ -1055,7 +1077,7 @@
 
         // Close modals when clicking outside
         window.onclick = function(e) {
-            const editModal = document.getElementById('editModal');
+            const editModal = document.getElementById('editProfileModal');
             const followersModal = document.getElementById('followersModal');
             const followingModal = document.getElementById('followingModal');
             
