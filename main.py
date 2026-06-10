@@ -1367,7 +1367,7 @@ async def check_new_posts_from_followed(request: Request):
 
 @app.post("/api/mark_posts_viewed")
 async def mark_posts_viewed(request: Request):
-    """Mark that user has viewed new posts"""
+    """Mark all posts as viewed by the current user"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -1375,7 +1375,6 @@ async def mark_posts_viewed(request: Request):
     body = await request.json()
     timestamp = body.get("timestamp", datetime.now().isoformat())
     
-    # Store in user record
     data = await get_jsonbin_data()
     for u in data.get("users", []):
         if u.get("session_token") == session_token:
@@ -1385,9 +1384,12 @@ async def mark_posts_viewed(request: Request):
     
     return {"success": True}
 
-@app.delete("/api/delete_notification/{notification_id}")
-async def delete_notification(notification_id: str, request: Request):
-    """Delete a notification permanently"""
+
+# ===== ACTIVITY NOTIFICATIONS ENDPOINTS (Likes, Replies, Follows) =====
+
+@app.get("/api/get_activity_notifications")
+async def get_activity_notifications(request: Request):
+    """Get activity notifications for the current user (likes, replies, follows)"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -1403,15 +1405,69 @@ async def delete_notification(notification_id: str, request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     
-    # Find and delete notification
+    # Get notifications for this user, exclude 'new_post' type (those are handled separately)
+    notifications = []
+    for notif in data.get("notifications", []):
+        if notif.get("user_id") == user["user_id"] and notif.get("type") != "new_post":
+            notifications.append(notif)
+    
+    # Sort by most recent first
+    notifications.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    
+    return {"notifications": notifications[:100]}
+
+
+@app.delete("/api/delete_activity_notification/{notification_id}")
+async def delete_activity_notification(notification_id: str, request: Request):
+    """Delete a specific activity notification"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
     notifications = data.get("notifications", [])
     for i, notif in enumerate(notifications):
         if notif.get("id") == notification_id and notif.get("user_id") == user["user_id"]:
             notifications.pop(i)
             await save_jsonbin_data(data)
-            return {"success": True, "message": "Notification deleted"}
+            return {"success": True}
     
     raise HTTPException(status_code=404, detail="Notification not found")
+
+@app.delete("/api/clear_all_activity_notifications")
+async def clear_all_activity_notifications(request: Request):
+    """Clear all activity notifications for the current user"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    notifications = data.get("notifications", [])
+    # Keep 'new_post' notifications for the unviewed posts counter, remove activity ones
+    data["notifications"] = [n for n in notifications if n.get("user_id") != user["user_id"] or n.get("type") == "new_post"]
+    await save_jsonbin_data(data)
+    
+    return {"success": True}
 
 @app.get("/api/check_new_notifications")
 async def check_new_notifications(request: Request):
@@ -1657,6 +1713,47 @@ async def get_latest_talo_timestamp(request: Request):
                 latest_timestamp = talo.get("created_at")
     
     return {"latest_timestamp": latest_timestamp}
+
+
+@app.get("/api/get_unviewed_posts_count")
+async def get_unviewed_posts_count(request: Request):
+    """Get count of unviewed posts from followed users (NOT activity notifications)"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        return {"count": 0}
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        return {"count": 0}
+    
+    last_viewed = request.headers.get("X-Last-Viewed", "")
+    if not last_viewed:
+        last_viewed = user.get("last_posts_viewed", "")
+    
+    # Get followed users
+    followed_users = set()
+    for follow in data.get("follows", []):
+        if follow.get("follower_id") == user["user_id"]:
+            followed_users.add(follow.get("following_id"))
+    
+    # Count ONLY posts from followed users that are newer than last viewed
+    # Exclude the user's own posts
+    new_posts_count = 0
+    for talo in data.get("talos", []):
+        if talo["user_id"] in followed_users and talo["user_id"] != user["user_id"]:
+            if not last_viewed or talo.get("created_at", "") > last_viewed:
+                new_posts_count += 1
+    
+    return {"count": new_posts_count}
+
+
 
 
 @app.get("/api/health")
