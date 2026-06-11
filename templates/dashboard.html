@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <title>Dashboard - GuAn</title>
     <style>
-        /* ... (all existing styles remain the same) ... */
         * {
             margin: 0;
             padding: 0;
@@ -45,6 +44,8 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            flex: 1;
+            min-width: 0;
         }
         
         .ram-icon {
@@ -56,17 +57,26 @@
             align-items: center;
             justify-content: center;
             font-size: 22px;
+            flex-shrink: 0;
+        }
+        
+        .logo-text {
+            flex: 1;
+            min-width: 0;
         }
         
         .logo-text h2 {
             font-size: 18px;
             color: #ffcc00;
+            white-space: nowrap;
         }
         
         .logo-text p {
             font-size: 9px;
             color: white;
             font-style: italic;
+            white-space: normal;
+            line-height: 1.2;
         }
         
         /* Right side icons container */
@@ -75,6 +85,7 @@
             gap: 15px;
             align-items: center;
             margin-left: auto;
+            flex-shrink: 0;
         }
         
         .icon-btn {
@@ -160,6 +171,27 @@
             .menu-icon-btn {
                 display: block;
                 flex-shrink: 0;
+            }
+            
+            /* Adjust logo text for mobile - show subtitle */
+            .logo-text p {
+                font-size: 8px;
+                max-width: 180px;
+            }
+            .logo-text h2 {
+                font-size: 16px;
+            }
+            .ram-icon {
+                width: 35px;
+                height: 35px;
+                font-size: 18px;
+            }
+            .right-icons {
+                gap: 10px;
+            }
+            .icon-btn, .menu-icon-btn {
+                font-size: 22px;
+                padding: 4px;
             }
         }
         
@@ -1468,14 +1500,6 @@
                 padding: 10px 12px;
             }
             
-            .logo-text h2 {
-                font-size: 16px;
-            }
-            
-            .logo-text p {
-                display: none;
-            }
-            
             .right-icons {
                 gap: 12px;
             }
@@ -2063,7 +2087,6 @@
         }
         
         // ========== FOCUS ON TEXTAREA FUNCTION ==========
-        // This function scrolls to the textarea and sets focus with cursor positioned inside
         function focusOnTextarea() {
             const scrollableContentEl = document.getElementById('scrollableContent');
             const createSection = document.getElementById('createTaloSection');
@@ -2079,7 +2102,7 @@
                 // Focus the textarea
                 textarea.focus();
                 
-                // Place cursor at the end of any existing text (or at beginning if empty)
+                // Place cursor at the end of any existing text
                 const currentValue = textarea.value;
                 textarea.setSelectionRange(currentValue.length, currentValue.length);
                 
@@ -2134,10 +2157,8 @@
             return div.innerHTML;
         }
         
-        // Highlight function for search results - uses yellow background
         function highlightSearchText(text, query) {
             if (!query || query.length < 1) return text;
-            // Escape regex special characters
             const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const regex = new RegExp(`(${escapedQuery})`, 'gi');
             return text.replace(regex, '<span class="search-highlight">$1</span>');
@@ -2341,7 +2362,7 @@
             location.reload();
         }
         
-        // ========== HASHTAG FUNCTIONS - NO HIGHLIGHT on timeline, just clickable ==========
+        // ========== HASHTAG FUNCTIONS ==========
         function formatHashtagLinks(content) {
             const hashtagRegex = /(#\w+)/g;
             return content.replace(hashtagRegex, match => {
