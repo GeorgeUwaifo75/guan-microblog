@@ -303,11 +303,13 @@
             color: #999;
         }
         
-        .highlight-text {
+        /* Highlight for search results - yellow background with red text */
+        .search-highlight {
             background: #ffcc00;
             color: #990000;
             padding: 0 2px;
             border-radius: 3px;
+            font-weight: 500;
         }
         
         .view-all-results {
@@ -2051,9 +2053,31 @@
             return div.innerHTML;
         }
         
-        function highlightText(text, query) {
-            const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-            return text.replace(regex, '<span class="highlight-text">$1</span>');
+        // Highlight function for search results - uses yellow background
+        function highlightSearchText(text, query) {
+            if (!query || query.length < 1) return text;
+            // Escape regex special characters
+            const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`(${escapedQuery})`, 'gi');
+            return text.replace(regex, '<span class="search-highlight">$1</span>');
+        }
+        
+        // Also highlight hashtags in search results (if they contain the query)
+        function highlightHashtagsAndQuery(text, query) {
+            if (!query || query.length < 1) return text;
+            let result = text;
+            
+            // First, highlight exact query match
+            const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const queryRegex = new RegExp(`(${escapedQuery})`, 'gi');
+            result = result.replace(queryRegex, '<span class="search-highlight">$1</span>');
+            
+            // Also highlight hashtags that contain the query (if query starts with # or not)
+            // This makes hashtag searches more visible
+            const hashtagRegex = new RegExp(`(#[${escapedQuery}\\w]*)`, 'gi');
+            // But only apply if the hashtag contains the query
+            // For simplicity, we'll let the main regex handle it since query likely contains #
+            return result;
         }
         
         async function performSearch(query) {
@@ -2084,6 +2108,16 @@
                     html += `<div class="search-result-section">
                         <div class="search-result-title">👥 USERS (${data.users.length})</div>`;
                     for (const user of data.users.slice(0, 5)) {
+                        // Highlight username if it matches query
+                        let displayName = `${escapeHtml(user.first_name)} ${escapeHtml(user.last_name)}`;
+                        let displayUsername = `@${escapeHtml(user.user_id)}`;
+                        if (query.toLowerCase() === user.user_id.toLowerCase() || 
+                            query.toLowerCase().replace('@', '') === user.user_id.toLowerCase()) {
+                            displayUsername = `<span class="search-highlight">${displayUsername}</span>`;
+                        }
+                        if (displayName.toLowerCase().includes(query.toLowerCase())) {
+                            displayName = highlightSearchText(displayName, query);
+                        }
                         html += `
                             <div class="search-result-item" onclick="viewProfile('${user.user_id}')">
                                 <div class="search-result-user">
@@ -2091,8 +2125,8 @@
                                         `<img class="search-result-avatar" src="${user.profile_photo}" alt="">` : 
                                         `<div class="search-result-avatar">👤</div>`}
                                     <div class="search-result-info">
-                                        <div class="search-result-name">${escapeHtml(user.first_name)} ${escapeHtml(user.last_name)}</div>
-                                        <div class="search-result-username">@${escapeHtml(user.user_id)}</div>
+                                        <div class="search-result-name">${displayName}</div>
+                                        <div class="search-result-username">${displayUsername}</div>
                                     </div>
                                 </div>
                             </div>`;
@@ -2104,13 +2138,15 @@
                     html += `<div class="search-result-section">
                         <div class="search-result-title">📝 POSTS (${data.posts.length})</div>`;
                     for (const post of data.posts.slice(0, 5)) {
-                        let contentPreview = post.content.substring(0, 80);
-                        if (post.content.length > 80) contentPreview += '...';
+                        let contentPreview = post.content.substring(0, 100);
+                        if (post.content.length > 100) contentPreview += '...';
+                        // Highlight the search query in the post content
+                        const highlightedContent = highlightSearchText(escapeHtml(contentPreview), query);
                         html += `
                             <div class="search-result-item" onclick="viewPost('${post.id}')">
                                 <div class="search-result-post">
                                     <strong>@${escapeHtml(post.user_id)}</strong><br>
-                                    ${highlightText(contentPreview, query)}
+                                    ${highlightedContent}
                                     <br><small>💎 ${post.likes} 💬 ${post.reply_count} 🔄 ${post.retalos}</small>
                                 </div>
                             </div>`;
@@ -2256,9 +2292,9 @@
             }, 300);
         }
         
-        // ========== HASHTAG FUNCTIONS - NO HIGHLIGHT, just clickable ==========
+        // ========== HASHTAG FUNCTIONS - NO HIGHLIGHT on timeline, just clickable ==========
         function formatHashtagLinks(content) {
-            // Replace hashtags with clickable spans that have normal text styling
+            // Replace hashtags with clickable spans that have normal text styling (no highlight)
             const hashtagRegex = /(#\w+)/g;
             return content.replace(hashtagRegex, match => {
                 return `<span class="hashtag-link" onclick="event.stopPropagation(); searchHashtag('${match}')">${match}</span>`;
@@ -3065,7 +3101,7 @@ async function saveProfileChanges() {
             updateCharCounter();
         }
         
-        // Apply hashtag links (no highlighting)
+        // Apply hashtag links (no highlighting on timeline)
         applyHashtagLinks();
         
         loadLastSeenTimestamp();
