@@ -890,6 +890,13 @@
             flex-direction: column;
             gap: 12px;
             z-index: 200;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        
+        .fab-container.hidden {
+            opacity: 0;
+            transform: translateX(20px);
+            pointer-events: none;
         }
         
         .new-post-btn {
@@ -1816,7 +1823,7 @@
     </div>
 
     <!-- Floating Action Buttons -->
-    <div class="fab-container">
+    <div class="fab-container" id="fabContainer">
         <div class="new-post-btn" onclick="scrollToTopAndHighlight()">
             <span>+</span>
         </div>
@@ -2009,6 +2016,12 @@
         let unreadNotifications = 0;
         let searchTimeout = null;
         
+        // FAB visibility control variables
+        let lastScrollTop = 0;
+        let fabContainer = null;
+        let createTaloSection = null;
+        let fabVisible = true;
+        
         const loggedInUserId = '{{ user.user_id }}';
         const MAX_CHARS = 250;
         
@@ -2042,6 +2055,52 @@
             document.getElementById('photoViewerModal').style.display = 'none';
         }
         
+        // ========== FAB VISIBILITY CONTROL ==========
+        function initFabVisibilityControl() {
+            fabContainer = document.getElementById('fabContainer');
+            createTaloSection = document.getElementById('createTaloSection');
+            
+            if (!fabContainer || !scrollableContent) return;
+            
+            scrollableContent.addEventListener('scroll', function() {
+                const scrollTop = scrollableContent.scrollTop;
+                const createTaloRect = createTaloSection ? createTaloSection.getBoundingClientRect() : null;
+                
+                // Get the position of the create talo section relative to the viewport
+                const scrollableRect = scrollableContent.getBoundingClientRect();
+                const createTaloBottom = createTaloRect ? createTaloRect.bottom - scrollableRect.top : 0;
+                
+                // Determine scroll direction and visibility
+                if (scrollTop > lastScrollTop) {
+                    // Scrolling down
+                    if (scrollTop > 150) {
+                        // Hide FAB when scrolled down past threshold
+                        if (fabVisible) {
+                            fabContainer.classList.add('hidden');
+                            fabVisible = false;
+                        }
+                    }
+                } else {
+                    // Scrolling up
+                    // Show FAB when scrolling up towards the top
+                    if (!fabVisible && scrollTop < 100) {
+                        fabContainer.classList.remove('hidden');
+                        fabVisible = true;
+                    }
+                }
+                
+                // Special: Show FAB if the create talo section becomes visible
+                if (createTaloRect && createTaloRect.top < scrollableRect.height && createTaloRect.bottom > 0) {
+                    if (!fabVisible) {
+                        fabContainer.classList.remove('hidden');
+                        fabVisible = true;
+                    }
+                }
+                
+                lastScrollTop = scrollTop;
+            });
+        }
+        
         // ========== SEARCH FUNCTIONALITY ==========
         const searchInput = document.getElementById('globalSearchInput');
         const searchDropdown = document.getElementById('searchResultsDropdown');
@@ -2060,24 +2119,6 @@
             const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const regex = new RegExp(`(${escapedQuery})`, 'gi');
             return text.replace(regex, '<span class="search-highlight">$1</span>');
-        }
-        
-        // Also highlight hashtags in search results (if they contain the query)
-        function highlightHashtagsAndQuery(text, query) {
-            if (!query || query.length < 1) return text;
-            let result = text;
-            
-            // First, highlight exact query match
-            const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const queryRegex = new RegExp(`(${escapedQuery})`, 'gi');
-            result = result.replace(queryRegex, '<span class="search-highlight">$1</span>');
-            
-            // Also highlight hashtags that contain the query (if query starts with # or not)
-            // This makes hashtag searches more visible
-            const hashtagRegex = new RegExp(`(#[${escapedQuery}\\w]*)`, 'gi');
-            // But only apply if the hashtag contains the query
-            // For simplicity, we'll let the main regex handle it since query likely contains #
-            return result;
         }
         
         async function performSearch(query) {
@@ -2289,6 +2330,12 @@
                 createSection.classList.add('highlight');
                 createSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 setTimeout(() => createSection.classList.remove('highlight'), 1000);
+                
+                // Show FAB when scrolling to top
+                if (fabContainer && fabVisible === false) {
+                    fabContainer.classList.remove('hidden');
+                    fabVisible = true;
+                }
             }, 300);
         }
         
@@ -3108,6 +3155,7 @@ async function saveProfileChanges() {
         setInterval(checkForNewTalos, 30000);
         initRealTimeNotifications();
         initPullToRefresh();
+        initFabVisibilityControl();
         
         const currentProfileUserId = '{{ user.user_id }}';
         if (currentProfileUserId !== loggedInUserId) {
