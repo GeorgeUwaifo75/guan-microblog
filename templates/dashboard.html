@@ -2052,6 +2052,7 @@
         let lastScrollTop = 0;
         let fabContainer = null;
         let fabVisible = true;
+        let scrollTimeout = null;
         
         const loggedInUserId = '{{ user.user_id }}';
         const MAX_CHARS = 250;
@@ -2118,7 +2119,7 @@
             }, 300);
         }
         
-        // ========== FAB VISIBILITY CONTROL ==========
+        // ========== FAB VISIBILITY CONTROL - Shows FAB when scrolling stops ==========
         function initFabVisibilityControl() {
             fabContainer = document.getElementById('fabContainer');
             
@@ -2127,23 +2128,33 @@
             scrollableContent.addEventListener('scroll', function() {
                 const scrollTop = scrollableContent.scrollTop;
                 
-                // Hide FAB when scrolling down past threshold
-                if (scrollTop > lastScrollTop && scrollTop > 80) {
-                    if (fabVisible) {
-                        fabContainer.classList.add('hidden');
-                        fabVisible = false;
-                    }
-                } 
-                // Show FAB when scrolling up near the top
-                else if (scrollTop < lastScrollTop && scrollTop < 100) {
+                // Clear existing timeout
+                if (scrollTimeout) {
+                    clearTimeout(scrollTimeout);
+                }
+                
+                // Hide FAB immediately when scrolling (any direction)
+                if (fabVisible) {
+                    fabContainer.classList.add('hidden');
+                    fabVisible = false;
+                }
+                
+                // Set timeout to show FAB when scrolling stops
+                scrollTimeout = setTimeout(function() {
                     if (!fabVisible) {
                         fabContainer.classList.remove('hidden');
                         fabVisible = true;
                     }
-                }
+                }, 150); // 150ms delay after scrolling stops
                 
                 lastScrollTop = scrollTop;
             });
+            
+            // Ensure FAB is visible initially
+            if (fabContainer && !fabVisible) {
+                fabContainer.classList.remove('hidden');
+                fabVisible = true;
+            }
         }
         
         // ========== SEARCH FUNCTIONALITY ==========
