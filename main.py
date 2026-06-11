@@ -19,6 +19,11 @@ from pathlib import Path
 import os
 import re
 
+# Add these imports at the top
+from functools import lru_cache
+import time
+from contextlib import asynccontextmanager
+
 # ===== BANNED WORDS CONFIGURATION =====
 BANNED_WORDS = {
     'kill', 'bomb', 'have sex', 'porn', 'cum', 'fuck', 'penis', 'dick', 'blow job',
@@ -82,6 +87,30 @@ API_KEY = 'admin_97375e28712d7627e7cea67c8c86d60d'
 PAYSTACK_PUBLIC_KEY = 'pk_live_2018244c913523ab0751249b240bc3e3448c3c19'
 SUPER_ADMIN_ID = "Adminxx01"
 SUPER_ADMIN_PASSWORD = "kijiXmart4140#"
+
+
+# Simple memory cache for API data
+class APICache:
+    def __init__(self, ttl_seconds=30):
+        self.cache = {}
+        self.ttl = ttl_seconds
+    
+    def get(self, key):
+        if key in self.cache:
+            data, timestamp = self.cache[key]
+            if time.time() - timestamp < self.ttl:
+                return data
+            del self.cache[key]
+        return None
+    
+    def set(self, key, data):
+        self.cache[key] = (data, time.time())
+    
+    def clear(self):
+        self.cache.clear()
+
+api_cache = APICache(ttl_seconds=30)  # Cache for 30 seconds
+
 
 # ===== WA_GUAN ACCOUNT CONFIGURATION =====
 WA_GUAN_USER_ID = "wa_guan"
@@ -225,16 +254,24 @@ Get started by following interesting accounts and sharing your first talo.
         logger.warning("Could not verify/create wa_guan account. Will retry on next request.")
 
 # Also update the get_jsonbin_data function to be more resilient
-async def get_jsonbin_data() -> Dict:
-    """Fetch data from jsonbinbro API with retry logic"""
-    max_retries = 3
-    retry_delay = 2
+async def get_jsonbin_data(force_refresh=False) -> Dict:
+    """Fetch data from jsonbinbro API with retry logic and caching"""
+    
+    # Check cache first
+    if not force_refresh:
+        cached_data = api_cache.get("jsonbin_data")
+        if cached_data:
+            logger.info("Returning cached API data")
+            return cached_data
+    
+    max_retries = 2  # Reduced from 3 for faster failure
+    retry_delay = 1  # Reduced from 2 seconds
     
     for attempt in range(max_retries):
         try:
             url = f"{API_BASE}/bins/{BIN_ID}?api_key={API_KEY}"
             
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=10.0) as client:  # Reduced timeout to 10s
                 response = await client.get(url)
                 
                 if response.status_code == 200:
@@ -250,16 +287,22 @@ async def get_jsonbin_data() -> Dict:
                             for col in collections:
                                 if col not in data_content:
                                     data_content[col] = []
+                            # Cache the successful response
+                            api_cache.set("jsonbin_data", data_content)
                             return data_content
                         else:
-                            return {
+                            default_data = {
                                 "users": [], "talos": [], "replies": [], "admins": [],
                                 "likes": [], "dislikes": [], "retalos": [], "follows": [],
                                 "blocks": [], "payments": [], "notifications": [], "adverts": [],
                                 "premium_requests": [], "promotions": []
                             }
+                            api_cache.set("jsonbin_data", default_data)
+                            return default_data
                     else:
+                        api_cache.set("jsonbin_data", result)
                         return result
+                        
                 elif response.status_code == 404:
                     logger.warning("Bin not found, creating initial data structure")
                     initial_data = {
@@ -269,12 +312,18 @@ async def get_jsonbin_data() -> Dict:
                         "premium_requests": [], "promotions": []
                     }
                     await save_jsonbin_data(initial_data)
+                    api_cache.set("jsonbin_data", initial_data)
                     return initial_data
                 else:
                     if attempt < max_retries - 1:
-                        logger.warning(f"API returned {response.status_code}, retrying in {retry_delay}s...")
+                        logger.warning(f"API returned {response.status_code}, retrying...")
                         await asyncio.sleep(retry_delay)
                         continue
+                    # Return cached data if available instead of failing
+                    cached = api_cache.get("jsonbin_data")
+                    if cached:
+                        logger.warning("Using cached data due to API error")
+                        return cached
                     raise HTTPException(status_code=503, detail=f"API error: Status {response.status_code}")
                     
         except httpx.TimeoutException:
@@ -282,6 +331,11 @@ async def get_jsonbin_data() -> Dict:
             if attempt < max_retries - 1:
                 await asyncio.sleep(retry_delay)
                 continue
+            # Return cached data if available
+            cached = api_cache.get("jsonbin_data")
+            if cached:
+                logger.warning("Using cached data due to timeout")
+                return cached
             raise HTTPException(status_code=503, detail="API timeout - Please try again")
             
         except Exception as e:
@@ -289,9 +343,20 @@ async def get_jsonbin_data() -> Dict:
             if attempt < max_retries - 1:
                 await asyncio.sleep(retry_delay)
                 continue
+            # Return cached data if available
+            cached = api_cache.get("jsonbin_data")
+            if cached:
+                logger.warning("Using cached data due to error")
+                return cached
             raise HTTPException(status_code=503, detail=f"Unable to access API: {str(e)}")
     
+    # Fallback to cached data
+    cached = api_cache.get("jsonbin_data")
+    if cached:
+        logger.warning("Using cached data as final fallback")
+        return cached
     raise HTTPException(status_code=503, detail="Unable to access API after multiple attempts")
+
 
 async def save_jsonbin_data(data: Dict) -> bool:
     """Save data to jsonbinbro API"""
@@ -2709,7 +2774,17 @@ async def get_unviewed_posts_count(request: Request):
     
     return {"count": new_posts_count}
 
-
+@app.post("/api/refresh_cache")
+async def refresh_cache(request: Request):
+    """Force refresh the API cache"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # Clear cache and force refresh
+    api_cache.clear()
+    await get_jsonbin_data(force_refresh=True)
+    return {"success": True}
 
 
 @app.get("/api/health")

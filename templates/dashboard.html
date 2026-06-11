@@ -3369,6 +3369,17 @@ async function createNewPostHtml(content, photos, taloId) {
             }
         }
         
+
+	// Add periodic cache refresh (every 2 minutes)
+	setInterval(async () => {
+   	 try {
+        	await fetch('/api/refresh_cache', { method: 'POST' });
+    		} catch(e) {
+        	console.log('Cache refresh failed');
+    		}
+	}, 120000);
+
+
         // ========== INITIALIZATION ==========
         document.querySelectorAll('.talo-time').forEach(el => {
             if (el.dataset.time) el.textContent = formatTimeAgo(el.dataset.time);

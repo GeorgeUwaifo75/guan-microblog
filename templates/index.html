@@ -308,73 +308,195 @@
     </div>
 
     <script>
-        function openModal(type) {
-            if (type === 'login') {
-                document.getElementById('loginModal').style.display = 'flex';
-            } else if (type === 'signup') {
-                document.getElementById('signupModal').style.display = 'flex';
+    let isLoggingIn = false;
+    let isSigningUp = false;
+    
+    function openModal(type) {
+        if (type === 'login') {
+            document.getElementById('loginModal').style.display = 'flex';
+            // Reset login form and loading state
+            document.getElementById('loginForm').reset();
+            const loginBtn = document.querySelector('#loginForm button[type="submit"]');
+            if (loginBtn) {
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = 'Login';
+            }
+        } else if (type === 'signup') {
+            document.getElementById('signupModal').style.display = 'flex';
+            // Reset signup form and loading state
+            document.getElementById('signupForm').reset();
+            const signupBtn = document.querySelector('#signupForm button[type="submit"]');
+            if (signupBtn) {
+                signupBtn.disabled = false;
+                signupBtn.innerHTML = 'Sign Up';
             }
         }
-        
-        function closeModal(type) {
-            if (type === 'login') {
-                document.getElementById('loginModal').style.display = 'none';
-            } else if (type === 'signup') {
-                document.getElementById('signupModal').style.display = 'none';
-            }
+    }
+    
+    function closeModal(type) {
+        if (type === 'login') {
+            document.getElementById('loginModal').style.display = 'none';
+        } else if (type === 'signup') {
+            document.getElementById('signupModal').style.display = 'none';
         }
+    }
+    
+    // Helper function to show loading state
+    function setButtonLoading(button, isLoading, originalText) {
+        if (isLoading) {
+            button.disabled = true;
+            button.innerHTML = '<span class="loading-spinner" style="display: inline-block; width: 16px; height: 16px; border: 2px solid #fff; border-top: 2px solid #cc0000; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span> Loading...';
+        } else {
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    }
+    
+    // Add spinner animation style
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #fff;
+            border-top: 2px solid #cc0000;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+    `;
+    document.head.appendChild(style);
+    
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
         
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        if (isLoggingIn) return;
+        isLoggingIn = true;
+        
+        const loginBtn = e.target.querySelector('button[type="submit"]');
+        const originalText = loginBtn.innerHTML;
+        setButtonLoading(loginBtn, true, originalText);
+        
+        const user_id = document.getElementById('login_user_id').value;
+        const password = document.getElementById('login_password').value;
+        
+        try {
+            // Add timeout to fetch
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+            
             const response = await fetch('/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    user_id: document.getElementById('login_user_id').value,
-                    password: document.getElementById('login_password').value
-                })
+                body: JSON.stringify({ user_id, password }),
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             
             if (response.ok) {
                 window.location.href = '/dashboard';
             } else {
-                const error = await response.json();
-                alert('Login failed: ' + (error.detail || 'Invalid credentials'));
+                let errorMsg = 'Login failed';
+                try {
+                    const error = await response.json();
+                    errorMsg = error.detail || errorMsg;
+                } catch(e) {}
+                alert('Login failed: ' + errorMsg);
+                setButtonLoading(loginBtn, false, originalText);
+                isLoggingIn = false;
             }
-        });
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                alert('Request timed out. Please check your connection and try again.');
+            } else {
+                alert('Network error. Please check your connection and try again.');
+            }
+            setButtonLoading(loginBtn, false, originalText);
+            isLoggingIn = false;
+        }
+    });
+    
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
         
-        document.getElementById('signupForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        if (isSigningUp) return;
+        isSigningUp = true;
+        
+        const signupBtn = e.target.querySelector('button[type="submit"]');
+        const originalText = signupBtn.innerHTML;
+        setButtonLoading(signupBtn, true, originalText);
+        
+        const age = parseInt(document.getElementById('age').value);
+        if (age < 18) {
+            alert('You must be 18 or older to sign up');
+            setButtonLoading(signupBtn, false, originalText);
+            isSigningUp = false;
+            return;
+        }
+        
+        const signupData = {
+            email: document.getElementById('email').value,
+            user_id: document.getElementById('user_id').value,
+            first_name: document.getElementById('first_name').value,
+            last_name: document.getElementById('last_name').value,
+            password: document.getElementById('password').value,
+            gender: document.getElementById('gender').value,
+            age: age,
+            country: document.getElementById('country').value
+        };
+        
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+            
             const response = await fetch('/api/signup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    email: document.getElementById('email').value,
-                    user_id: document.getElementById('user_id').value,
-                    first_name: document.getElementById('first_name').value,
-                    last_name: document.getElementById('last_name').value,
-                    password: document.getElementById('password').value,
-                    gender: document.getElementById('gender').value,
-                    age: parseInt(document.getElementById('age').value),
-                    country: document.getElementById('country').value
-                })
+                body: JSON.stringify(signupData),
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             
             if (response.ok) {
                 alert('Account created successfully! Please login.');
                 closeModal('signup');
                 openModal('login');
+                setButtonLoading(signupBtn, false, originalText);
+                isSigningUp = false;
             } else {
-                const error = await response.json();
-                alert('Signup failed: ' + (error.detail || 'Unknown error'));
+                let errorMsg = 'Signup failed';
+                try {
+                    const error = await response.json();
+                    errorMsg = error.detail || errorMsg;
+                } catch(e) {}
+                alert('Signup failed: ' + errorMsg);
+                setButtonLoading(signupBtn, false, originalText);
+                isSigningUp = false;
             }
-        });
-        
-        window.onclick = function(event) {
-            if (event.target.classList.contains('modal')) {
-                event.target.style.display = 'none';
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                alert('Request timed out. Please check your connection and try again.');
+            } else {
+                alert('Network error. Please check your connection and try again.');
             }
+            setButtonLoading(signupBtn, false, originalText);
+            isSigningUp = false;
         }
-    </script>
+    });
+    
+    window.onclick = function(event) {
+        if (event.target.classList.contains('modal')) {
+            event.target.style.display = 'none';
+        }
+    }
+</script>
+
 </body>
 </html>
