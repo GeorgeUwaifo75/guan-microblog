@@ -86,6 +86,7 @@
             padding: 5px;
         }
         
+        /* Menu icon button styling - hidden on desktop */
         .menu-icon-btn {
             background: none;
             border: none;
@@ -126,6 +127,9 @@
             max-width: 500px;
             margin: 0;
             position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         
         /* For desktop - right aligned */
@@ -135,18 +139,26 @@
                 margin-right: 0;
                 max-width: 400px;
             }
+            /* Hide menu icon on desktop */
+            .menu-icon-btn {
+                display: none !important;
+            }
         }
         
-        /* For mobile - centered */
+        /* For mobile - hamburger on left of search */
         @media (max-width: 768px) {
             .search-bar-container {
-                background: #efe8e2;  //New
+                background: #efe8e2;
                 top: 56px;
-                padding: 10px 10px; // 8px 12px;
+                padding: 10px 12px;
             }
             .search-wrapper {
-                margin: 0 auto;
+                margin: 0;
                 max-width: 100%;
+            }
+            .menu-icon-btn {
+                display: block;
+                flex-shrink: 0;
             }
         }
         
@@ -159,6 +171,7 @@
             padding: 8px 16px;
             border: 1px solid #d4c8bc;
             transition: all 0.3s ease;
+            flex: 1;
         }
         
         .search-input-group:focus-within {
@@ -592,7 +605,7 @@
         }
         
         .create-talo {
-            margin-top: 15px;  
+            margin-top: 16px;  
            
             background: white;
             border-radius: 15px;
@@ -715,14 +728,15 @@
             line-height: 1.4;
         }
         
-        .hashtag-highlight {
-            background: #ffcc00;
-            color: #990000;
-            font-weight: bold;
-            padding: 0 4px;
-            border-radius: 4px;
-            display: inline-block;
+        /* Hashtags - NO HIGHLIGHT, normal text color only */
+        .hashtag-link {
+            color: inherit;
+            text-decoration: none;
             cursor: pointer;
+        }
+        
+        .hashtag-link:hover {
+            text-decoration: underline;
         }
         
         /* Enhanced Photo Grid Styles - 4:5 Aspect Ratio with Max Size 1080x1350 */
@@ -1615,22 +1629,22 @@
                 <p>Freedom of expression is right but don't hurt others with yours.</p>
             </div>
         </div>
-       <div class="right-icons">
-    	<button class="menu-icon-btn" onclick="toggleMobileMenu()" id="menuIconBtn">☰</button>
-   	 <button class="icon-btn" onclick="toggleActivityPanel()" id="activityBellBtn">
-        🔔 
-        <span id="activityBadge" class="notification-badge" style="display: none;">0</span>
-    	</button>
-    	<button class="icon-btn" onclick="markAllPostsAsViewed()" id="homeBtnHeader" title="Mark all posts as viewed">
-        🏠
-    	</button>
-    		<a href="/logout"><button class="icon-btn">🚪</button></a>
-	</div>
+        <div class="right-icons">
+            <button class="icon-btn" onclick="toggleActivityPanel()" id="activityBellBtn">
+                🔔 
+                <span id="activityBadge" class="notification-badge" style="display: none;">0</span>
+            </button>
+            <button class="icon-btn" onclick="markAllPostsAsViewed()" id="homeBtnHeader" title="Mark all posts as viewed">
+                🏠
+            </button>
+            <a href="/logout"><button class="icon-btn">🚪</button></a>
+        </div>
     </div>
 
-    <!-- Fixed Search Bar -->
+    <!-- Fixed Search Bar - with hamburger menu button on left for mobile -->
     <div class="search-bar-container">
         <div class="search-wrapper">
+            <button class="menu-icon-btn" onclick="toggleMobileMenu()" id="menuIconBtn">☰</button>
             <div class="search-input-group">
                 <span class="search-icon">🔍</span>
                 <input type="text" class="search-input" id="globalSearchInput" placeholder="Search posts, hashtags, or @username..." autocomplete="off">
@@ -2242,20 +2256,21 @@
             }, 300);
         }
         
-        // ========== HASHTAG FUNCTIONS ==========
-        function highlightHashtagsInContent(content) {
+        // ========== HASHTAG FUNCTIONS - NO HIGHLIGHT, just clickable ==========
+        function formatHashtagLinks(content) {
+            // Replace hashtags with clickable spans that have normal text styling
             const hashtagRegex = /(#\w+)/g;
             return content.replace(hashtagRegex, match => {
-                return `<span class="hashtag-highlight" onclick="event.stopPropagation(); searchHashtag('${match}')" style="cursor: pointer;">${match}</span>`;
+                return `<span class="hashtag-link" onclick="event.stopPropagation(); searchHashtag('${match}')">${match}</span>`;
             });
         }
         
-        function applyHashtagHighlighting() {
+        function applyHashtagLinks() {
             document.querySelectorAll('.talo-content').forEach(contentDiv => {
                 const originalContent = contentDiv.innerText;
-                const highlightedContent = highlightHashtagsInContent(originalContent);
-                if (originalContent !== highlightedContent) {
-                    contentDiv.innerHTML = highlightedContent;
+                const formattedContent = formatHashtagLinks(originalContent);
+                if (originalContent !== formattedContent) {
+                    contentDiv.innerHTML = formattedContent;
                 }
             });
         }
@@ -3050,7 +3065,9 @@ async function saveProfileChanges() {
             updateCharCounter();
         }
         
-        applyHashtagHighlighting();
+        // Apply hashtag links (no highlighting)
+        applyHashtagLinks();
+        
         loadLastSeenTimestamp();
         setInterval(checkForNewTalos, 30000);
         initRealTimeNotifications();
