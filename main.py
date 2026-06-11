@@ -609,8 +609,8 @@ async def dashboard(request: Request):
     
     talos = data.get("talos", [])
     
-    # NEW: Separate promoted posts from regular posts
-    promoted_talos = []
+    # Get all promoted posts
+    all_promoted_talos = []
     regular_talos = []
     
     for talo in talos:
@@ -622,24 +622,42 @@ async def dashboard(request: Request):
                 break
         talo["reply_count"] = len([r for r in data.get("replies", []) if r.get("parent_talo_id") == talo["id"]])
         
-        # Check if post is promoted
         if talo.get("promoted", False):
-            promoted_talos.append(talo)
+            all_promoted_talos.append(talo)
         else:
-            # For regular posts, only show from followed users OR all if user has no follows
+            # For regular posts, only show from followed users
             if followed_user_ids and talo["user_id"] in followed_user_ids:
                 regular_talos.append(talo)
             elif not followed_user_ids or len(followed_user_ids) <= 1:  # Only self
                 regular_talos.append(talo)
     
-    # Sort promoted posts by promotion level (higher level first) then by date
-    promoted_talos.sort(key=lambda x: (x.get("promotion_level", 0), x.get("created_at", "")), reverse=True)
-    
     # Sort regular posts by date (newest first)
     regular_talos.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     
-    # Combine: Promoted posts first, then regular posts
-    personal_talos = promoted_talos + regular_talos
+    # ===== PROBABILISTIC PROMOTED POSTS (25% chance to show each) =====
+    import random
+    selected_promoted_talos = []
+    
+    if all_promoted_talos:
+        # Sort promoted posts by promotion level (higher level first)
+        all_promoted_talos.sort(key=lambda x: (x.get("promotion_level", 0), x.get("created_at", "")), reverse=True)
+        
+        # Each promoted post has a 25% chance of being shown
+        for promoted_talo in all_promoted_talos:
+            # 25% probability (1 in 4 chance)
+            if random.random() < 0.25:  # 25% chance
+                selected_promoted_talos.append(promoted_talo)
+        
+        # Also ensure at least one promoted post is shown if any exist (optional)
+        # Uncomment the line below if you want at least 1 promoted post guaranteed
+        # if not selected_promoted_talos and all_promoted_talos:
+        #     selected_promoted_talos.append(all_promoted_talos[0])
+    
+    # Combine: Selected promoted posts first, then regular posts
+    personal_talos = selected_promoted_talos + regular_talos
+    
+    # Store which promoted posts were shown in session for consistency? (optional)
+    # This ensures the same promoted posts appear until next refresh
     
     # Global trending - based on ALL posts in the platform
     all_talos = data.get("talos", [])
@@ -659,14 +677,20 @@ async def dashboard(request: Request):
     notifications = [n for n in data.get("notifications", []) if n.get("user_id") == user["user_id"]]
     unread_notifications = len([n for n in notifications if not n.get("read", False)])
     
+    # Pass the probability info to the template for display
+    promoted_shown_count = len(selected_promoted_talos)
+    promoted_total_count = len(all_promoted_talos)
+    
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "user": user,
-        "talos": personal_talos[:100],  # Show more posts now
+        "talos": personal_talos[:100],
         "trending": trending,
         "active_users": active_users,
         "unread_notifications": unread_notifications,
-        "paystack_public_key": PAYSTACK_PUBLIC_KEY
+        "paystack_public_key": PAYSTACK_PUBLIC_KEY,
+        "promoted_shown_count": promoted_shown_count,
+        "promoted_total_count": promoted_total_count
     })
 
 @app.get("/api/get_promoted_posts")
