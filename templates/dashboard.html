@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <title>Dashboard - GuAn</title>
     <style>
+        /* ... (all existing styles remain the same) ... */
         * {
             margin: 0;
             padding: 0;
@@ -629,6 +630,13 @@
             font-size: 16px;
             resize: none;
             font-family: inherit;
+        }
+        
+        /* Focus state for textarea */
+        .create-talo textarea:focus {
+            outline: none;
+            border-color: #cc0000;
+            box-shadow: 0 0 0 3px rgba(204, 0, 0, 0.1);
         }
         
         .char-counter {
@@ -1824,7 +1832,7 @@
 
     <!-- Floating Action Buttons -->
     <div class="fab-container" id="fabContainer">
-        <div class="new-post-btn" onclick="scrollToTopAndHighlight()">
+        <div class="new-post-btn" onclick="focusOnTextarea()">
             <span>+</span>
         </div>
         <div class="home-btn" onclick="refreshTimeline()" id="homeBtn">
@@ -2019,7 +2027,6 @@
         // FAB visibility control variables
         let lastScrollTop = 0;
         let fabContainer = null;
-        let createTaloSection = null;
         let fabVisible = true;
         
         const loggedInUserId = '{{ user.user_id }}';
@@ -2055,42 +2062,57 @@
             document.getElementById('photoViewerModal').style.display = 'none';
         }
         
+        // ========== FOCUS ON TEXTAREA FUNCTION ==========
+        // This function scrolls to the textarea and sets focus with cursor positioned inside
+        function focusOnTextarea() {
+            const scrollableContentEl = document.getElementById('scrollableContent');
+            const createSection = document.getElementById('createTaloSection');
+            const textarea = document.getElementById('taloContent');
+            
+            if (!createSection || !textarea) return;
+            
+            // Scroll the create talo section into view smoothly
+            createSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Small delay to ensure scroll completes before focusing
+            setTimeout(() => {
+                // Focus the textarea
+                textarea.focus();
+                
+                // Place cursor at the end of any existing text (or at beginning if empty)
+                const currentValue = textarea.value;
+                textarea.setSelectionRange(currentValue.length, currentValue.length);
+                
+                // Add highlight effect to draw attention
+                createSection.classList.add('highlight');
+                setTimeout(() => createSection.classList.remove('highlight'), 1000);
+                
+                // Show FAB if it was hidden
+                if (fabContainer && !fabVisible) {
+                    fabContainer.classList.remove('hidden');
+                    fabVisible = true;
+                }
+            }, 300);
+        }
+        
         // ========== FAB VISIBILITY CONTROL ==========
         function initFabVisibilityControl() {
             fabContainer = document.getElementById('fabContainer');
-            createTaloSection = document.getElementById('createTaloSection');
             
             if (!fabContainer || !scrollableContent) return;
             
             scrollableContent.addEventListener('scroll', function() {
                 const scrollTop = scrollableContent.scrollTop;
-                const createTaloRect = createTaloSection ? createTaloSection.getBoundingClientRect() : null;
                 
-                // Get the position of the create talo section relative to the viewport
-                const scrollableRect = scrollableContent.getBoundingClientRect();
-                const createTaloBottom = createTaloRect ? createTaloRect.bottom - scrollableRect.top : 0;
-                
-                // Determine scroll direction and visibility
-                if (scrollTop > lastScrollTop) {
-                    // Scrolling down
-                    if (scrollTop > 150) {
-                        // Hide FAB when scrolled down past threshold
-                        if (fabVisible) {
-                            fabContainer.classList.add('hidden');
-                            fabVisible = false;
-                        }
+                // Hide FAB when scrolling down past threshold
+                if (scrollTop > lastScrollTop && scrollTop > 80) {
+                    if (fabVisible) {
+                        fabContainer.classList.add('hidden');
+                        fabVisible = false;
                     }
-                } else {
-                    // Scrolling up
-                    // Show FAB when scrolling up towards the top
-                    if (!fabVisible && scrollTop < 100) {
-                        fabContainer.classList.remove('hidden');
-                        fabVisible = true;
-                    }
-                }
-                
-                // Special: Show FAB if the create talo section becomes visible
-                if (createTaloRect && createTaloRect.top < scrollableRect.height && createTaloRect.bottom > 0) {
+                } 
+                // Show FAB when scrolling up near the top
+                else if (scrollTop < lastScrollTop && scrollTop < 100) {
                     if (!fabVisible) {
                         fabContainer.classList.remove('hidden');
                         fabVisible = true;
@@ -2149,7 +2171,6 @@
                     html += `<div class="search-result-section">
                         <div class="search-result-title">👥 USERS (${data.users.length})</div>`;
                     for (const user of data.users.slice(0, 5)) {
-                        // Highlight username if it matches query
                         let displayName = `${escapeHtml(user.first_name)} ${escapeHtml(user.last_name)}`;
                         let displayUsername = `@${escapeHtml(user.user_id)}`;
                         if (query.toLowerCase() === user.user_id.toLowerCase() || 
@@ -2181,7 +2202,6 @@
                     for (const post of data.posts.slice(0, 5)) {
                         let contentPreview = post.content.substring(0, 100);
                         if (post.content.length > 100) contentPreview += '...';
-                        // Highlight the search query in the post content
                         const highlightedContent = highlightSearchText(escapeHtml(contentPreview), query);
                         html += `
                             <div class="search-result-item" onclick="viewPost('${post.id}')">
@@ -2321,27 +2341,8 @@
             location.reload();
         }
         
-        function scrollToTopAndHighlight() {
-            if (scrollableContent) {
-                scrollableContent.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-            setTimeout(() => {
-                const createSection = document.getElementById('createTaloSection');
-                createSection.classList.add('highlight');
-                createSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                setTimeout(() => createSection.classList.remove('highlight'), 1000);
-                
-                // Show FAB when scrolling to top
-                if (fabContainer && fabVisible === false) {
-                    fabContainer.classList.remove('hidden');
-                    fabVisible = true;
-                }
-            }, 300);
-        }
-        
         // ========== HASHTAG FUNCTIONS - NO HIGHLIGHT on timeline, just clickable ==========
         function formatHashtagLinks(content) {
-            // Replace hashtags with clickable spans that have normal text styling (no highlight)
             const hashtagRegex = /(#\w+)/g;
             return content.replace(hashtagRegex, match => {
                 return `<span class="hashtag-link" onclick="event.stopPropagation(); searchHashtag('${match}')">${match}</span>`;
@@ -2630,105 +2631,93 @@
             }
         }
         
-       // ========== PROFILE EDIT FUNCTIONS with Password Change ==========
-async function saveProfileChanges() {
-    const formData = new FormData();
-    const photoFile = document.getElementById('editProfilePhoto').files[0];
-    
-    // Clear previous messages
-    const passwordError = document.getElementById('passwordError');
-    const passwordSuccess = document.getElementById('passwordSuccess');
-    if (passwordError) passwordError.style.display = 'none';
-    if (passwordSuccess) passwordSuccess.style.display = 'none';
-    
-    // Get password fields
-    const currentPassword = document.getElementById('editCurrentPassword')?.value || '';
-    const newPassword = document.getElementById('editNewPassword')?.value || '';
-    const confirmPassword = document.getElementById('editConfirmPassword')?.value || '';
-    
-    // Validate password if user wants to change it
-    if (newPassword || confirmPassword || currentPassword) {
-        // If any password field is filled, all must be filled
-        if (!currentPassword || !newPassword || !confirmPassword) {
-            if (passwordError) {
-                passwordError.textContent = 'Please fill in all password fields to change your password';
-                passwordError.style.display = 'block';
-            }
-            return;
-        }
-        
-        // Check password length
-        if (newPassword.length < 6) {
-            if (passwordError) {
-                passwordError.textContent = 'New password must be at least 6 characters';
-                passwordError.style.display = 'block';
-            }
-            return;
-        }
-        
-        // Check if passwords match
-        if (newPassword !== confirmPassword) {
-            if (passwordError) {
-                passwordError.textContent = 'New passwords do not match';
-                passwordError.style.display = 'block';
-            }
-            return;
-        }
-        
-        // Add password data to form
-        formData.append('current_password', currentPassword);
-        formData.append('new_password', newPassword);
-    }
-    
-    // Upload photo if selected
-    if (photoFile) {
-        try {
-            const uploadResult = await window.uploadProfilePhotoToFirebase(photoFile, loggedInUserId);
-            formData.append('profile_photo_url', uploadResult.url);
-            formData.append('profile_photo_path', uploadResult.path);
-        } catch (error) {
-            alert('Error uploading photo: ' + error.message);
-            return;
-        }
-    }
-    
-    // Add profile info
-    formData.append('first_name', document.getElementById('editFirstName').value);
-    formData.append('last_name', document.getElementById('editLastName').value);
-    formData.append('bio', document.getElementById('editBio').value);
-    
-    try {
-        const response = await fetch('/api/update_profile', { 
-            method: 'POST', 
-            body: formData 
-        });
-        
-        const result = await response.json();
-        
-        if (response.ok) {
-            if (result.password_changed) {
-                if (passwordSuccess) {
-                    passwordSuccess.textContent = result.message || 'Profile and password updated successfully!';
-                    passwordSuccess.style.display = 'block';
+        async function saveProfileChanges() {
+            const formData = new FormData();
+            const photoFile = document.getElementById('editProfilePhoto').files[0];
+            
+            const passwordError = document.getElementById('passwordError');
+            const passwordSuccess = document.getElementById('passwordSuccess');
+            if (passwordError) passwordError.style.display = 'none';
+            if (passwordSuccess) passwordSuccess.style.display = 'none';
+            
+            const currentPassword = document.getElementById('editCurrentPassword')?.value || '';
+            const newPassword = document.getElementById('editNewPassword')?.value || '';
+            const confirmPassword = document.getElementById('editConfirmPassword')?.value || '';
+            
+            if (newPassword || confirmPassword || currentPassword) {
+                if (!currentPassword || !newPassword || !confirmPassword) {
+                    if (passwordError) {
+                        passwordError.textContent = 'Please fill in all password fields to change your password';
+                        passwordError.style.display = 'block';
+                    }
+                    return;
                 }
-                // Show success message and reload after delay
-                setTimeout(() => {
-                    alert('Profile updated successfully! Please log in again with your new password.');
-                    window.location.href = '/logout';
-                }, 2000);
-            } else {
-                alert(result.message || 'Profile updated successfully!');
-                location.reload();
+                
+                if (newPassword.length < 6) {
+                    if (passwordError) {
+                        passwordError.textContent = 'New password must be at least 6 characters';
+                        passwordError.style.display = 'block';
+                    }
+                    return;
+                }
+                
+                if (newPassword !== confirmPassword) {
+                    if (passwordError) {
+                        passwordError.textContent = 'New passwords do not match';
+                        passwordError.style.display = 'block';
+                    }
+                    return;
+                }
+                
+                formData.append('current_password', currentPassword);
+                formData.append('new_password', newPassword);
             }
-        } else {
-            alert(result.detail || 'Failed to update profile');
+            
+            if (photoFile) {
+                try {
+                    const uploadResult = await window.uploadProfilePhotoToFirebase(photoFile, loggedInUserId);
+                    formData.append('profile_photo_url', uploadResult.url);
+                    formData.append('profile_photo_path', uploadResult.path);
+                } catch (error) {
+                    alert('Error uploading photo: ' + error.message);
+                    return;
+                }
+            }
+            
+            formData.append('first_name', document.getElementById('editFirstName').value);
+            formData.append('last_name', document.getElementById('editLastName').value);
+            formData.append('bio', document.getElementById('editBio').value);
+            
+            try {
+                const response = await fetch('/api/update_profile', { 
+                    method: 'POST', 
+                    body: formData 
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    if (result.password_changed) {
+                        if (passwordSuccess) {
+                            passwordSuccess.textContent = result.message || 'Profile and password updated successfully!';
+                            passwordSuccess.style.display = 'block';
+                        }
+                        setTimeout(() => {
+                            alert('Profile updated successfully! Please log in again with your new password.');
+                            window.location.href = '/logout';
+                        }, 2000);
+                    } else {
+                        alert(result.message || 'Profile updated successfully!');
+                        location.reload();
+                    }
+                } else {
+                    alert(result.detail || 'Failed to update profile');
+                }
+            } catch (error) {
+                console.error('Error updating profile:', error);
+                alert('Error updating profile. Please try again.');
+            }
         }
-    } catch (error) {
-        console.error('Error updating profile:', error);
-        alert('Error updating profile. Please try again.');
-    }
-}
-
         
         // ========== FOLLOW FUNCTIONS ==========
         async function checkFollowStatus(profileUserId) {
@@ -3148,7 +3137,6 @@ async function saveProfileChanges() {
             updateCharCounter();
         }
         
-        // Apply hashtag links (no highlighting on timeline)
         applyHashtagLinks();
         
         loadLastSeenTimestamp();
@@ -3172,17 +3160,12 @@ async function saveProfileChanges() {
     </script>
 
 <script>
-// ========== CORRECTED NOTIFICATION SYSTEM ==========
-// This counts ONLY unviewed POSTS from followed users
-// Activity notifications (likes/replies/follows) are separate and don't affect the counter
-
+// ========== NOTIFICATION SYSTEM ==========
 let unviewedPostsCount = 0;
 let lastViewedTimestamp = localStorage.getItem('lastViewedPostsTimestamp') || null;
 let followedUserIds = new Set();
 let notificationSound = null;
-let activityPollInterval = null;
 
-// Initialize notification sound
 function initNotificationSound() {
     try {
         notificationSound = {
@@ -3212,7 +3195,6 @@ function playNotificationBeep() {
     }
 }
 
-// Load followed users
 async function loadFollowedUsers() {
     try {
         const response = await fetch('/api/get_followed_users');
@@ -3226,7 +3208,6 @@ async function loadFollowedUsers() {
     }
 }
 
-// Get count of UNVIEWED POSTS from followed users (NOT activity notifications)
 async function fetchUnviewedPostsCount() {
     try {
         await loadFollowedUsers();
@@ -3246,7 +3227,6 @@ async function fetchUnviewedPostsCount() {
             homeIndicator.classList.remove('gray');
             homeIndicator.style.background = '#28a745';
             
-            // Play sound only when new posts arrive (count increased)
             if (unviewedPostsCount > oldCount && oldCount > 0) {
                 playNotificationBeep();
                 const bellBtn = document.getElementById('activityBellBtn');
@@ -3276,7 +3256,6 @@ async function fetchUnviewedPostsCount() {
     }
 }
 
-// Mark all posts as viewed (called when user clicks Home button)
 async function markAllPostsAsViewed() {
     if (isRefreshing) return;
     isRefreshing = true;
@@ -3293,7 +3272,6 @@ async function markAllPostsAsViewed() {
         });
         
         if (response.ok) {
-            // Reset counter immediately
             unviewedPostsCount = 0;
             const badge = document.getElementById('activityBadge');
             const homeIndicator = document.getElementById('homeIndicator');
@@ -3301,8 +3279,6 @@ async function markAllPostsAsViewed() {
             badge.textContent = '0';
             homeIndicator.classList.add('gray');
             homeIndicator.style.background = '#888';
-            
-            // Reload the page to show all posts as viewed
             location.reload();
         }
     } catch (error) {
@@ -3312,14 +3288,10 @@ async function markAllPostsAsViewed() {
     }
 }
 
-// Periodic check for new posts
 async function checkForNewPosts() {
     if (isRefreshing) return;
     await fetchUnviewedPostsCount();
 }
-
-// ========== ACTIVITY NOTIFICATIONS PANEL (Likes, Replies, Follows) ==========
-// These are separate and don't affect the counter badge
 
 async function loadActivityNotifications() {
     try {
@@ -3348,25 +3320,16 @@ async function loadActivityNotifications() {
     }
 }
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
 async function viewActivityNotification(notificationId, type, relatedTaloId) {
     try {
-        // Delete the notification
         await fetch(`/api/delete_activity_notification/${notificationId}`, { method: 'DELETE' });
         
-        // Remove from UI
         const notifItem = document.querySelector(`.notification-item[data-notif-id="${notificationId}"]`);
         if (notifItem) {
             notifItem.classList.add('deleting');
             setTimeout(() => notifItem.remove(), 300);
         }
         
-        // Navigate
         if (type === 'follow') {
             const match = document.querySelector(`.notification-item[data-notif-id="${notificationId}"] small`)?.textContent;
             const usernameMatch = match?.match(/@(\w+)/);
@@ -3394,15 +3357,6 @@ async function deleteActivityNotification(notificationId) {
     }
 }
 
-async function clearAllActivityNotifications() {
-    try {
-        await fetch('/api/clear_all_activity_notifications', { method: 'DELETE' });
-        document.getElementById('notificationsList').innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No activity notifications</div>';
-    } catch (error) {
-        console.error('Error clearing notifications:', error);
-    }
-}
-
 function toggleActivityPanel() {
     const panel = document.getElementById('notificationsPanel');
     const isVisible = panel.classList.contains('show');
@@ -3415,7 +3369,6 @@ function toggleActivityPanel() {
     }
 }
 
-// Close panel when clicking outside
 document.addEventListener('click', function(e) {
     const panel = document.getElementById('notificationsPanel');
     const bellBtn = document.getElementById('activityBellBtn');
@@ -3426,7 +3379,6 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// Initialize swipe-to-delete
 function initSwipeToDelete() {
     const notificationItems = document.querySelectorAll('.notification-item');
     let touchStartX = 0;
@@ -3464,21 +3416,16 @@ function initSwipeToDelete() {
     });
 }
 
-// Override the existing refreshTimeline function to use markAllPostsAsViewed
 const originalRefreshTimeline = window.refreshTimeline;
 window.refreshTimeline = markAllPostsAsViewed;
 
-// Initialize the notification system
 async function initNotificationSystem() {
     initNotificationSound();
     await loadFollowedUsers();
     await fetchUnviewedPostsCount();
-    
-    // Check for new posts every 30 seconds
     setInterval(checkForNewPosts, 30000);
 }
 
-// Update the home button click handler
 document.addEventListener('DOMContentLoaded', function() {
     const homeBtn = document.getElementById('homeBtn');
     if (homeBtn) {
@@ -3486,11 +3433,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Start the notification system
 initNotificationSystem();
-
 </script>
-
 
 </body>
 </html>
