@@ -12,11 +12,16 @@
             box-sizing: border-box;
         }
 
+        /* Make body full height for flex layout */
+        html, body {
+            height: 100%;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: #f5f5f5;
-            min-height: 100vh;
-            padding-bottom: 20px;
+            display: flex;
+            flex-direction: column;
         }
 
         /* Header styles - matching dashboard */
@@ -79,10 +84,16 @@
             padding: 5px;
         }
 
+        /* Scrollable content area */
+        .scrollable-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
         .container {
             max-width: 800px;
-            margin: 20px auto;
-            padding: 0 20px;
+            margin: 0 auto;
         }
 
         .back-btn {
@@ -276,6 +287,23 @@
             color: #ffcc00;
         }
 
+        .reply-btn {
+            background: none;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .reply-btn:hover {
+            color: #cc0000;
+        }
+
         /* Reply Form */
         .reply-form {
             background: white;
@@ -359,6 +387,7 @@
         /* Replies Section */
         .replies-section {
             margin-top: 20px;
+            margin-bottom: 20px;
         }
 
         .replies-title {
@@ -500,18 +529,44 @@
             margin-left: 8px;
         }
 
+        /* Fixed Footer - matching dashboard */
         .footer {
             background: #cc0000;
             color: white;
             text-align: center;
-            padding: 15px;
-            margin-top: 30px;
-            font-size: 12px;
+            padding: 10px 15px;
+            font-size: 11px;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+        }
+
+        .footer p {
+            margin: 0;
+        }
+
+        /* Flash notification */
+        .flash-notification {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            z-index: 2000;
+            font-size: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
 
         @media (max-width: 768px) {
-            .container {
-                padding: 0 12px;
+            .scrollable-content {
+                padding: 12px;
+                margin-bottom: 50px;
             }
             
             .post-photos.photo-count-1,
@@ -528,16 +583,33 @@
                 max-width: 100%;
             }
             
-            .reply-content {
-                margin-left: 0;
+            .footer {
+                padding: 8px 12px;
+                font-size: 10px;
             }
-            
-            .reply-stats {
-                margin-left: 0;
+
+            .logo-text p {
+                font-size: 8px;
+                max-width: 180px;
             }
-            
-            .reply-image {
-                margin-left: 0;
+
+            .logo-text h2 {
+                font-size: 16px;
+            }
+
+            .ram-icon {
+                width: 35px;
+                height: 35px;
+                font-size: 18px;
+            }
+
+            .right-icons {
+                gap: 10px;
+            }
+
+            .icon-btn {
+                font-size: 22px;
+                padding: 4px;
             }
         }
     </style>
@@ -558,115 +630,119 @@
         </div>
     </div>
 
-    <div class="container">
-        <a href="/dashboard" class="back-btn">← Back to Dashboard</a>
-        
-        <!-- Main Post - matching dashboard talo-card style -->
-        <div class="post-card" data-talo-id="{{ talo.id }}">
-            <div class="post-header">
-                {% if talo.user_photo %}
-                <img class="post-user-photo" src="{{ talo.user_photo }}" alt="">
-                {% else %}
-                <div class="post-user-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center;">👤</div>
-                {% endif %}
-                <div class="post-user-info">
-                    <a href="/profile/{{ talo.user_id }}" style="text-decoration: none; color: inherit;">
-                        <span class="post-user-name">{{ talo.user_name }}</span>
-                        <span class="post-user-id">@{{ talo.user_id }}</span>
-                        {% if talo.promoted %}
-                        <span class="promoted-badge">⭐ Promoted</span>
-                        {% endif %}
-                    </a>
-                    <div class="post-time" data-time="{{ talo.created_at }}"></div>
-                </div>
-            </div>
-            <div class="post-content" id="postContent">{{ talo.content }}</div>
-
-            <!-- Enhanced Photo Display with 4:5 Aspect Ratio -->
-            {% if talo.photos and talo.photos|length > 0 %}
-            <div class="post-photos photo-count-{{ talo.photos|length }}">
-                {% for photo in talo.photos %}
-                    {% if loop.index <= 4 %}
-                    <div class="photo-item" onclick="event.stopPropagation(); viewPhoto('{{ photo.url }}')">
-                        <img src="{{ photo.url }}" alt="Photo">
-                        {% if loop.index == 4 and talo.photos|length > 4 %}
-                        <div class="photo-overlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold;">+{{ talo.photos|length - 4 }}</div>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                {% endfor %}
-            </div>
-            {% endif %}
+    <!-- Scrollable Main Content -->
+    <div class="scrollable-content">
+        <div class="container">
+            <a href="/dashboard" class="back-btn">← Back to Dashboard</a>
             
-            <div class="post-stats">
-                <button class="stat-btn like-btn" data-id="{{ talo.id }}">💎 <span class="like-count">{{ talo.likes }}</span></button>
-                <button class="stat-btn dislike-btn" data-id="{{ talo.id }}">👎 <span class="dislike-count">{{ talo.dislikes }}</span></button>
-                <button class="stat-btn retalo-btn" data-id="{{ talo.id }}" data-user-id="{{ talo.user_id }}" data-content="{{ talo.content }}" 
-                   data-photos='{{ talo.photos|tojson }}'>
-                     🔄 <span class="retalo-count">{{ talo.retalos }}</span>
-                </button>
-                <a href="/post/{{ talo.id }}" class="reply-btn" style="background: none; border: none; display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 16px; color: #666; text-decoration: none;">💬 <span>{{ talo.reply_count }}</span></a>
-            </div>
-        </div>
-
-        <!-- Reply Form -->
-        <div class="reply-form">
-            <textarea id="replyContent" class="reply-textarea" rows="3" placeholder="Write your reply... (max 250 characters)" maxlength="250"></textarea>
-            <div class="reply-actions">
-                <div class="photo-upload">
-                    <label class="photo-label">
-                        📷 Attach Photo
-                        <input type="file" id="replyPhoto" class="photo-input" accept="image/*" onchange="previewReplyPhoto(this)">
-                    </label>
-                    <div id="replyPhotoPreview" class="selected-photo"></div>
-                </div>
-                <button type="button" class="submit-btn" id="replySubmitBtn" onclick="submitReplyWithFirebase()">Post Reply</button>
-            </div>
-        </div>
-
-        <!-- Replies Section -->
-        <div class="replies-section">
-            <h3 class="replies-title">Replies ({{ replies|length }})</h3>
-            <div id="repliesContainer">
-                {% if replies %}
-                    {% for reply in replies %}
-                    <div class="reply-card" id="reply-{{ reply.id }}">
-                        <div class="reply-header">
-                            {% if reply.user_photo %}
-                            <img class="reply-avatar" src="{{ reply.user_photo }}" alt="">
-                            {% else %}
-                            <div class="reply-avatar" style="background: #ddd; display: flex; align-items: center; justify-content: center;">👤</div>
+            <!-- Main Post - matching dashboard talo-card style -->
+            <div class="post-card" data-talo-id="{{ talo.id }}">
+                <div class="post-header">
+                    {% if talo.user_photo %}
+                    <img class="post-user-photo" src="{{ talo.user_photo }}" alt="">
+                    {% else %}
+                    <div class="post-user-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center;">👤</div>
+                    {% endif %}
+                    <div class="post-user-info">
+                        <a href="/profile/{{ talo.user_id }}" style="text-decoration: none; color: inherit;">
+                            <span class="post-user-name">{{ talo.user_name }}</span>
+                            <span class="post-user-id">@{{ talo.user_id }}</span>
+                            {% if talo.promoted %}
+                            <span class="promoted-badge">⭐ Promoted</span>
                             {% endif %}
-                            <div class="reply-user-info">
-                                <a href="/profile/{{ reply.user_id }}" style="text-decoration: none; color: inherit;">
-                                    <span class="reply-user-name">{{ reply.user_name }}</span>
-                                    <span class="reply-user-id">@{{ reply.user_id }}</span>
-                                </a>
-                                <div class="reply-time" data-time="{{ reply.created_at }}"></div>
+                        </a>
+                        <div class="post-time" data-time="{{ talo.created_at }}"></div>
+                    </div>
+                </div>
+                <div class="post-content" id="postContent">{{ talo.content }}</div>
+
+                <!-- Enhanced Photo Display with 4:5 Aspect Ratio -->
+                {% if talo.photos and talo.photos|length > 0 %}
+                <div class="post-photos photo-count-{{ talo.photos|length }}">
+                    {% for photo in talo.photos %}
+                        {% if loop.index <= 4 %}
+                        <div class="photo-item" onclick="event.stopPropagation(); viewPhoto('{{ photo.url }}')">
+                            <img src="{{ photo.url }}" alt="Photo">
+                            {% if loop.index == 4 and talo.photos|length > 4 %}
+                            <div class="photo-overlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold;">+{{ talo.photos|length - 4 }}</div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <div class="post-stats">
+                    <button class="stat-btn like-btn" data-id="{{ talo.id }}">💎 <span class="like-count">{{ talo.likes }}</span></button>
+                    <button class="stat-btn dislike-btn" data-id="{{ talo.id }}">👎 <span class="dislike-count">{{ talo.dislikes }}</span></button>
+                    <button class="stat-btn retalo-btn" data-id="{{ talo.id }}" data-user-id="{{ talo.user_id }}" data-content="{{ talo.content }}" 
+                       data-photos='{{ talo.photos|tojson }}'>
+                         🔄 <span class="retalo-count">{{ talo.retalos }}</span>
+                    </button>
+                    <a href="/post/{{ talo.id }}" class="reply-btn">💬 <span>{{ talo.reply_count }}</span></a>
+                </div>
+            </div>
+
+            <!-- Reply Form -->
+            <div class="reply-form">
+                <textarea id="replyContent" class="reply-textarea" rows="3" placeholder="Write your reply... (max 250 characters)" maxlength="250"></textarea>
+                <div class="reply-actions">
+                    <div class="photo-upload">
+                        <label class="photo-label">
+                            📷 Attach Photo
+                            <input type="file" id="replyPhoto" class="photo-input" accept="image/*" onchange="previewReplyPhoto(this)">
+                        </label>
+                        <div id="replyPhotoPreview" class="selected-photo"></div>
+                    </div>
+                    <button type="button" class="submit-btn" id="replySubmitBtn" onclick="submitReplyWithFirebase()">Post Reply</button>
+                </div>
+            </div>
+
+            <!-- Replies Section -->
+            <div class="replies-section">
+                <h3 class="replies-title">Replies ({{ replies|length }})</h3>
+                <div id="repliesContainer">
+                    {% if replies %}
+                        {% for reply in replies %}
+                        <div class="reply-card" id="reply-{{ reply.id }}">
+                            <div class="reply-header">
+                                {% if reply.user_photo %}
+                                <img class="reply-avatar" src="{{ reply.user_photo }}" alt="">
+                                {% else %}
+                                <div class="reply-avatar" style="background: #ddd; display: flex; align-items: center; justify-content: center;">👤</div>
+                                {% endif %}
+                                <div class="reply-user-info">
+                                    <a href="/profile/{{ reply.user_id }}" style="text-decoration: none; color: inherit;">
+                                        <span class="reply-user-name">{{ reply.user_name }}</span>
+                                        <span class="reply-user-id">@{{ reply.user_id }}</span>
+                                    </a>
+                                    <div class="reply-time" data-time="{{ reply.created_at }}"></div>
+                                </div>
+                            </div>
+                            <div class="reply-content">{{ reply.content }}</div>
+                            {% if reply.photos %}
+                                {% for photo in reply.photos %}
+                                    <img src="{{ photo.url }}" class="reply-image" alt="Reply image">
+                                {% endfor %}
+                            {% endif %}
+                            <div class="reply-stats">
+                                <button class="reply-like-btn" onclick="likeReply('{{ reply.id }}', this)">
+                                    ❤️ <span class="like-count">{{ reply.likes }}</span>
+                                </button>
                             </div>
                         </div>
-                        <div class="reply-content">{{ reply.content }}</div>
-                        {% if reply.photos %}
-                            {% for photo in reply.photos %}
-                                <img src="{{ photo.url }}" class="reply-image" alt="Reply image">
-                            {% endfor %}
-                        {% endif %}
-                        <div class="reply-stats">
-                            <button class="reply-like-btn" onclick="likeReply('{{ reply.id }}', this)">
-                                ❤️ <span class="like-count">{{ reply.likes }}</span>
-                            </button>
+                        {% endfor %}
+                    {% else %}
+                        <div class="no-replies">
+                            No replies yet. Be the first to reply!
                         </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="no-replies">
-                        No replies yet. Be the first to reply!
-                    </div>
-                {% endif %}
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- Fixed Footer -->
     <div class="footer">
         <p>&copy; 2026 GuAn Microblogging Platform. All rights reserved.</p>
     </div>
@@ -842,7 +918,6 @@
             if (existing) existing.remove();
             const notification = document.createElement('div');
             notification.className = 'flash-notification';
-            notification.style.cssText = 'position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: #28a745; color: white; padding: 10px 20px; border-radius: 30px; z-index: 2000; font-size: 14px;';
             notification.innerHTML = message;
             document.body.appendChild(notification);
             setTimeout(() => notification.remove(), 2500);
