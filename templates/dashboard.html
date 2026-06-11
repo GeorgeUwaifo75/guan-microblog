@@ -1652,6 +1652,53 @@
     border-left: 3px solid #28a745;
 }
 
+/* Promoted Posts Banner */
+.promoted-header {
+    background: linear-gradient(135deg, #ffcc00 0%, #ffaa00 100%);
+    color: #990000;
+    padding: 8px 15px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.promoted-badge-large {
+    background: #cc0000;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    margin-left: 8px;
+}
+
+.promoted-separator {
+    text-align: center;
+    margin: 20px 0;
+    position: relative;
+}
+
+.promoted-separator:before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: #ddd;
+}
+
+.promoted-separator span {
+    background: #f5f5f5;
+    padding: 0 15px;
+    position: relative;
+    color: #999;
+    font-size: 12px;
+}
+
     </style>
 </head>
 <body>
@@ -1770,81 +1817,94 @@
                         <p id="progressText" style="font-size: 12px; color: #666; margin-top: 5px;">Uploading...</p>
                     </div>
                 </div>
+<div id="talosFeed">
+    {% set has_shown_promoted_separator = false %}
+    {% for talo in talos %}
+    <div class="talo-card" data-talo-id="{{ talo.id }}">
+        {% if talo.promoted and not has_shown_promoted_separator %}
+            {% set has_shown_promoted_separator = true %}
+            <div class="promoted-header">
+                ⭐ PROMOTED CONTENT <span class="promoted-badge-large">Advertisement</span>
+            </div>
+        {% endif %}
+        <div class="talo-header">
+            {% if talo.user_photo %}
+            <img class="talo-user-photo" src="{{ talo.user_photo }}" alt="">
+            {% else %}
+            <div class="talo-user-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center;">👤</div>
+            {% endif %}
+            <div class="talo-user-info">
+                <a href="/profile/{{ talo.user_id }}" style="text-decoration: none; color: inherit;">
+                    <span class="talo-user-name">{{ talo.user_name }}</span>
+                    <span class="talo-user-id">@{{ talo.user_id }}</span>
+                    {% if talo.promoted %}
+                    <span class="promoted-badge">⭐ Promoted</span>
+                    {% endif %}
+                </a>
+                <div class="talo-time" data-time="{{ talo.created_at }}"></div>
+            </div>
+            {% if talo.user_id == user.user_id and not talo.promoted %}
+            <button class="promote-btn" onclick="openPromotionModal('{{ talo.id }}')">🔊</button>
+            {% endif %}
+        </div>
+        <div class="talo-content" id="taloContent_{{ talo.id }}">{{ talo.content }}</div>
 
-                <div id="talosFeed">
-                    {% for talo in talos %}
-                    <div class="talo-card" data-talo-id="{{ talo.id }}">
-                        <div class="talo-header">
-                            {% if talo.user_photo %}
-                            <img class="talo-user-photo" src="{{ talo.user_photo }}" alt="">
-                            {% else %}
-                            <div class="talo-user-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center;">👤</div>
-                            {% endif %}
-                            <div class="talo-user-info">
-                                <a href="/profile/{{ talo.user_id }}" style="text-decoration: none; color: inherit;">
-                                    <span class="talo-user-name">{{ talo.user_name }}</span>
-                                    <span class="talo-user-id">@{{ talo.user_id }}</span>
-                                    {% if talo.promoted %}
-                                    <span class="promoted-badge">⭐ Promoted</span>
-                                    {% endif %}
-                                </a>
-                                <div class="talo-time" data-time="{{ talo.created_at }}"></div>
-                            </div>
-                            {% if talo.user_id == user.user_id and not talo.promoted %}
-                            <button class="promote-btn" onclick="openPromotionModal('{{ talo.id }}')">🔊</button>
-                            {% endif %}
-                        </div>
-                        <div class="talo-content" id="taloContent_{{ talo.id }}">{{ talo.content }}</div>
+        {% if talo.is_retalo %}
+        <div class="repost-info">
+            <span>🔄 Reposted from @{{ talo.original_user_id }}</span>
+        </div>
+        <div class="original-post-preview">
+            <div style="font-weight: 500; margin-bottom: 5px;">Original post:</div>
+            <div>{{ talo.content[:150] }}{% if talo.content|length > 150 %}...{% endif %}</div>
+        </div>
+        {% endif %}
 
-                        {% if talo.is_retalo %}
-                        <div class="repost-info">
-                            <span>🔄 Reposted from @{{ talo.original_user_id }}</span>
-                        </div>
-                        <div class="original-post-preview">
-                            <div style="font-weight: 500; margin-bottom: 5px;">Original post:</div>
-                            <div>{{ talo.content[:150] }}{% if talo.content|length > 150 %}...{% endif %}</div>
-                        </div>
-                        {% endif %}
-
-                        <!-- Enhanced Photo Display with 4:5 Aspect Ratio and Max Size 1080x1350 -->
-                        {% if talo.photos and talo.photos|length > 0 %}
-                        <div class="talo-photos photo-count-{{ talo.photos|length }}">
-                            {% for photo in talo.photos %}
-                                {% if loop.index <= 4 %}
-                                <div class="photo-item" onclick="event.stopPropagation(); viewPhoto('{{ photo.url }}')">
-                                    <img src="{{ photo.url }}" alt="Photo">
-                                    {% if loop.index == 4 and talo.photos|length > 4 %}
-                                    <div class="photo-overlay">+{{ talo.photos|length - 4 }}</div>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                        
-                        {% if talo.original_talo %}
-                        <div class="retalo-original">
-                            <small>🔄 Reposted from @{{ talo.original_user_id }}</small>
-                            <div>{{ talo.original_content }}</div>
-                        </div>
-                        {% endif %}
-                        
-                        <div class="talo-stats">
-                            <button class="stat-btn like-btn" data-id="{{ talo.id }}">💎 <span class="like-count">{{ talo.likes }}</span></button>
-                            <button class="stat-btn dislike-btn" data-id="{{ talo.id }}">👎 <span class="dislike-count">{{ talo.dislikes }}</span></button>
-                            <button class="stat-btn retalo-btn" data-id="{{ talo.id }}" data-user-id="{{ talo.user_id }}" data-content="{{ talo.content }}" 
-                               data-photos='{{ talo.photos|tojson }}'>
-                                 🔄 <span class="retalo-count">{{ talo.retalos }}</span>
-                              </button>
-                            <a href="/post/{{ talo.id }}" class="reply-btn">💬 <span>{{ talo.reply_count }}</span></a>
-                        </div>
-                    </div>
-                    {% else %}
-                    <div style="text-align: center; padding: 40px; background: white; border-radius: 15px;">
-                        <p>No talos yet. Be the first to post!</p>
-                    </div>
-                    {% endfor %}
+        <!-- Enhanced Photo Display with 4:5 Aspect Ratio and Max Size 1080x1350 -->
+        {% if talo.photos and talo.photos|length > 0 %}
+        <div class="talo-photos photo-count-{{ talo.photos|length }}">
+            {% for photo in talo.photos %}
+                {% if loop.index <= 4 %}
+                <div class="photo-item" onclick="event.stopPropagation(); viewPhoto('{{ photo.url }}')">
+                    <img src="{{ photo.url }}" alt="Photo">
+                    {% if loop.index == 4 and talo.photos|length > 4 %}
+                    <div class="photo-overlay">+{{ talo.photos|length - 4 }}</div>
+                    {% endif %}
                 </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        {% if talo.original_talo %}
+        <div class="retalo-original">
+            <small>🔄 Reposted from @{{ talo.original_user_id }}</small>
+            <div>{{ talo.original_content }}</div>
+        </div>
+        {% endif %}
+        
+        <div class="talo-stats">
+            <button class="stat-btn like-btn" data-id="{{ talo.id }}">💎 <span class="like-count">{{ talo.likes }}</span></button>
+            <button class="stat-btn dislike-btn" data-id="{{ talo.id }}">👎 <span class="dislike-count">{{ talo.dislikes }}</span></button>
+            <button class="stat-btn retalo-btn" data-id="{{ talo.id }}" data-user-id="{{ talo.user_id }}" data-content="{{ talo.content }}" 
+               data-photos='{{ talo.photos|tojson }}'>
+                 🔄 <span class="retalo-count">{{ talo.retalos }}</span>
+              </button>
+            <a href="/post/{{ talo.id }}" class="reply-btn">💬 <span>{{ talo.reply_count }}</span></a>
+        </div>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 40px; background: white; border-radius: 15px;">
+        <p>No talos yet. Be the first to post!</p>
+    </div>
+    {% endfor %}
+    
+    {% if talos|selectattr("promoted")|list|length > 0 %}
+    <div class="promoted-separator">
+        <span>End of promoted content</span>
+    </div>
+    {% endif %}
+</div>
+
             </div>
         </div>
     </div>

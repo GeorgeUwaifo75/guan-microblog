@@ -608,37 +608,50 @@ async def dashboard(request: Request):
     followed_user_ids.add(user["user_id"])
     
     talos = data.get("talos", [])
-    personal_talos = []
+    
+    # NEW: Separate promoted posts from regular posts
+    promoted_talos = []
+    regular_talos = []
     
     for talo in talos:
-        if talo["user_id"] in followed_user_ids:
-            for u in data.get("users", []):
-                if u["user_id"] == talo["user_id"]:
-                    talo["user_name"] = f"{u['first_name']} {u['last_name']}"
-                    talo["user_photo"] = u.get("profile_photo")
-                    break
-            talo["reply_count"] = len([r for r in data.get("replies", []) if r.get("parent_talo_id") == talo["id"]])
-            personal_talos.append(talo)
+        # Add user info to each talo
+        for u in data.get("users", []):
+            if u["user_id"] == talo["user_id"]:
+                talo["user_name"] = f"{u['first_name']} {u['last_name']}"
+                talo["user_photo"] = u.get("profile_photo")
+                break
+        talo["reply_count"] = len([r for r in data.get("replies", []) if r.get("parent_talo_id") == talo["id"]])
+        
+        # Check if post is promoted
+        if talo.get("promoted", False):
+            promoted_talos.append(talo)
+        else:
+            # For regular posts, only show from followed users OR all if user has no follows
+            if followed_user_ids and talo["user_id"] in followed_user_ids:
+                regular_talos.append(talo)
+            elif not followed_user_ids or len(followed_user_ids) <= 1:  # Only self
+                regular_talos.append(talo)
     
-    personal_talos.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    # Sort promoted posts by promotion level (higher level first) then by date
+    promoted_talos.sort(key=lambda x: (x.get("promotion_level", 0), x.get("created_at", "")), reverse=True)
     
-    # Original trending system - based on word frequency in visible posts
-   
-    # Global trending - based on ALL posts in the platform, not just followed users
-    # Global trending - based on ALL posts in the platform, not just followed users
+    # Sort regular posts by date (newest first)
+    regular_talos.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    
+    # Combine: Promoted posts first, then regular posts
+    personal_talos = promoted_talos + regular_talos
+    
+    # Global trending - based on ALL posts in the platform
     all_talos = data.get("talos", [])
     global_words = []
     for talo in all_talos:
-        # Extract hashtags from content
         content = talo.get("content", "")
-        # Split and find words starting with #
         for word in content.split():
             if word.startswith("#") and len(word) > 1:
                 global_words.append(word)
     word_count = {}
     for word in global_words:
         word_count[word] = word_count.get(word, 0) + 1
-    # Sort by count (most frequent first) and take top 10
     trending = sorted(word_count.items(), key=lambda x: x[1], reverse=True)[:10]
     
     active_users = len([u for u in data.get("users", []) if u.get("last_active", "") > (datetime.now() - timedelta(days=1)).isoformat()])
@@ -649,12 +662,47 @@ async def dashboard(request: Request):
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "user": user,
-        "talos": personal_talos[:50],
+        "talos": personal_talos[:100],  # Show more posts now
         "trending": trending,
         "active_users": active_users,
         "unread_notifications": unread_notifications,
         "paystack_public_key": PAYSTACK_PUBLIC_KEY
     })
+
+@app.get("/api/get_promoted_posts")
+async def get_promoted_posts(request: Request):
+    """Get all promoted posts for global visibility"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    promoted_posts = []
+    for talo in data.get("talos", []):
+        if talo.get("promoted", False):
+            # Add user info
+            for u in data.get("users", []):
+                if u["user_id"] == talo["user_id"]:
+                    talo["user_name"] = f"{u['first_name']} {u['last_name']}"
+                    talo["user_photo"] = u.get("profile_photo")
+                    break
+            talo["reply_count"] = len([r for r in data.get("replies", []) if r.get("parent_talo_id") == talo["id"]])
+            promoted_posts.append(talo)
+    
+    # Sort by promotion level (higher first) and then by date
+    promoted_posts.sort(key=lambda x: (x.get("promotion_level", 0), x.get("created_at", "")), reverse=True)
+    
+    return {"promoted_posts": promoted_posts}
 
 # ===== SEARCH ENDPOINTS =====
 @app.get("/api/search")
