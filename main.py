@@ -623,13 +623,22 @@ async def dashboard(request: Request):
     personal_talos.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     
     # Original trending system - based on word frequency in visible posts
-    words = []
-    for talo in personal_talos:
-        words.extend(talo.get("content", "").split())
+   
+    # Global trending - based on ALL posts in the platform, not just followed users
+    # Global trending - based on ALL posts in the platform, not just followed users
+    all_talos = data.get("talos", [])
+    global_words = []
+    for talo in all_talos:
+        # Extract hashtags from content
+        content = talo.get("content", "")
+        # Split and find words starting with #
+        for word in content.split():
+            if word.startswith("#") and len(word) > 1:
+                global_words.append(word)
     word_count = {}
-    for word in words:
-        if word.startswith("#"):
-            word_count[word] = word_count.get(word, 0) + 1
+    for word in global_words:
+        word_count[word] = word_count.get(word, 0) + 1
+    # Sort by count (most frequent first) and take top 10
     trending = sorted(word_count.items(), key=lambda x: x[1], reverse=True)[:10]
     
     active_users = len([u for u in data.get("users", []) if u.get("last_active", "") > (datetime.now() - timedelta(days=1)).isoformat()])

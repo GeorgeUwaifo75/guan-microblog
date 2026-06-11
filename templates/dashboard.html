@@ -2175,6 +2175,54 @@
             return text.replace(regex, '<span class="search-highlight">$1</span>');
         }
         
+
+async function createNewPostHtml(content, photos, taloId) {
+    const now = new Date();
+    const isoTime = now.toISOString();
+    
+    let photosHtml = '';
+    if (photos && photos.length > 0) {
+        const photoCount = photos.length;
+        photosHtml = `<div class="talo-photos photo-count-${photoCount}">`;
+        for (let i = 0; i < Math.min(photoCount, 4); i++) {
+            photosHtml += `<div class="photo-item" onclick="event.stopPropagation(); viewPhoto('${photos[i].url}')">
+                <img src="${photos[i].url}" alt="Photo">
+                ${i === 3 && photoCount > 4 ? `<div class="photo-overlay">+${photoCount - 4}</div>` : ''}
+            </div>`;
+        }
+        photosHtml += `</div>`;
+    }
+    
+    return `
+        <div class="talo-card" data-talo-id="${taloId}">
+            <div class="talo-header">
+                ${userData.profile_photo ? 
+                    `<img class="talo-user-photo" src="${userData.profile_photo}" alt="">` : 
+                    `<div class="talo-user-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center;">👤</div>`}
+                <div class="talo-user-info">
+                    <a href="/profile/${userData.user_id}" style="text-decoration: none; color: inherit;">
+                        <span class="talo-user-name">${userData.first_name} ${userData.last_name}</span>
+                        <span class="talo-user-id">@${userData.user_id}</span>
+                    </a>
+                    <div class="talo-time" data-time="${isoTime}"></div>
+                </div>
+            </div>
+            <div class="talo-content" id="taloContent_${taloId}">${escapeHtml(content)}</div>
+            ${photosHtml}
+            <div class="talo-stats">
+                <button class="stat-btn like-btn" data-id="${taloId}">💎 <span class="like-count">0</span></button>
+                <button class="stat-btn dislike-btn" data-id="${taloId}">👎 <span class="dislike-count">0</span></button>
+                <button class="stat-btn retalo-btn" data-id="${taloId}" data-user-id="${userData.user_id}" data-content="${escapeHtml(content)}" data-photos='${JSON.stringify(photos)}'>
+                    🔄 <span class="retalo-count">0</span>
+                </button>
+                <a href="/post/${taloId}" class="reply-btn">💬 <span>0</span></a>
+            </div>
+        </div>
+    `;
+}
+
+
+
         async function performSearch(query) {
             if (!query || query.length < 1) {
                 searchDropdown.classList.remove('show');
@@ -2320,7 +2368,8 @@
             const date = new Date(dateStr);
             const now = new Date();
             const diff = Math.floor((now - date) / 1000);
-            if (diff < 60) return `${diff}s`;
+            if (diff < 5) return 'just now';
+    	    if (diff < 60) return `${diff}s`;
             if (diff < 3600) return `${Math.floor(diff / 60)}m`;
             if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
             return date.toLocaleDateString();
@@ -2571,59 +2620,85 @@
         }
         
         async function createTaloWithFirebase() {
-            const content = document.getElementById('taloContent').value;
-            if (!content.trim()) {
-                alert('Please enter some content');
-                return;
-            }
-            if (content.length > MAX_CHARS) {
-                alert(`Content cannot exceed ${MAX_CHARS} characters`);
-                return;
-            }
-            const submitBtn = document.getElementById('submitTaloBtn');
-            const progressDiv = document.getElementById('uploadProgress');
-            const progressBar = document.getElementById('progressBar');
-            const progressText = document.getElementById('progressText');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Uploading...';
-            progressDiv.style.display = 'block';
-            try {
-                const photoUrls = [];
-                for (let i = 0; i < photoFiles.length; i++) {
-                    progressBar.style.width = `${((i + 1) / (photoFiles.length + 1)) * 100}%`;
-                    progressText.textContent = `Uploading photo ${i + 1}/${photoFiles.length}...`;
-                    const file = photoFiles[i];
-                    const fileExt = file.name.split('.').pop();
-                    const fileName = `${loggedInUserId}/${Date.now()}/${i}_${Date.now()}.${fileExt}`;
-                    const storageRef = window.firebaseRef(window.firebaseStorage, `talos/${fileName}`);
-                    const snapshot = await window.uploadBytes(storageRef, file);
-                    const downloadURL = await window.getDownloadURL(snapshot.ref);
-                    photoUrls.push({ url: downloadURL, path: `talos/${fileName}`, type: file.type });
-                }
-                progressBar.style.width = '100%';
-                progressText.textContent = 'Creating post...';
-                const response = await fetch('/api/create_talo', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ content: content, photos: photoUrls })
-                });
-                if (response.ok) {
-                    latestTaloTimestamp = new Date().toISOString();
-                    localStorage.setItem('lastSeenTimestamp', latestTaloTimestamp);
-                    location.reload();
-                } else {
-                    const error = await response.json();
-                    alert('Failed to create post: ' + (error.detail || 'Unknown error'));
-                }
-            } catch (error) {
-                alert('Failed to create post. Please try again.');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Talo →';
-                progressDiv.style.display = 'none';
-                progressBar.style.width = '0%';
-            }
+    const content = document.getElementById('taloContent').value;
+    if (!content.trim()) {
+        alert('Please enter some content');
+        return;
+    }
+    if (content.length > MAX_CHARS) {
+        alert(`Content cannot exceed ${MAX_CHARS} characters`);
+        return;
+    }
+    const submitBtn = document.getElementById('submitTaloBtn');
+    const progressDiv = document.getElementById('uploadProgress');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Uploading...';
+    progressDiv.style.display = 'block';
+    try {
+        const photoUrls = [];
+        for (let i = 0; i < photoFiles.length; i++) {
+            progressBar.style.width = `${((i + 1) / (photoFiles.length + 1)) * 100}%`;
+            progressText.textContent = `Uploading photo ${i + 1}/${photoFiles.length}...`;
+            const file = photoFiles[i];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${loggedInUserId}/${Date.now()}/${i}_${Date.now()}.${fileExt}`;
+            const storageRef = window.firebaseRef(window.firebaseStorage, `talos/${fileName}`);
+            const snapshot = await window.uploadBytes(storageRef, file);
+            const downloadURL = await window.getDownloadURL(snapshot.ref);
+            photoUrls.push({ url: downloadURL, path: `talos/${fileName}`, type: file.type });
         }
+        progressBar.style.width = '100%';
+        progressText.textContent = 'Creating post...';
+        const response = await fetch('/api/create_talo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: content, photos: photoUrls })
+        });
+        if (response.ok) {
+            const data = await response.json();
+            latestTaloTimestamp = new Date().toISOString();
+            localStorage.setItem('lastSeenTimestamp', latestTaloTimestamp);
+            
+            // Instead of full reload, add the new post to the top of the feed
+            // Get the current user info
+            const newPostHtml = await createNewPostHtml(content, photoUrls, data.talo_id);
+            const feedDiv = document.getElementById('talosFeed');
+            // Insert at top
+            feedDiv.insertAdjacentHTML('afterbegin', newPostHtml);
+            // Format the time for the new post
+            const newPost = feedDiv.firstElementChild;
+            const timeElement = newPost.querySelector('.talo-time');
+            if (timeElement && timeElement.dataset.time) {
+                timeElement.textContent = formatTimeAgo(timeElement.dataset.time);
+            }
+            // Apply hashtag links to the new post
+            const contentDiv = newPost.querySelector('.talo-content');
+            if (contentDiv) {
+                contentDiv.innerHTML = formatHashtagLinks(contentDiv.innerText);
+            }
+            // Clear the form
+            document.getElementById('taloContent').value = '';
+            photoFiles = [];
+            document.getElementById('photoPreview').innerHTML = '';
+            updateCharCounter();
+            
+            showFlashNotification('Post created successfully!', 'success');
+        } else {
+            const error = await response.json();
+            alert('Failed to create post: ' + (error.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Failed to create post. Please try again.');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Talo →';
+        progressDiv.style.display = 'none';
+        progressBar.style.width = '0%';
+    }
+}
+
         
         function updateCharCounter() {
             const textarea = document.getElementById('taloContent');
