@@ -1734,7 +1734,7 @@
                                 <div class="talo-time" data-time="{{ talo.created_at }}"></div>
                             </div>
                             {% if talo.user_id == user.user_id and not talo.promoted %}
-                            <button class="promote-btn" onclick="openPromotionModal('{{ talo.id }}')">🔊 Promote</button>
+                            <button class="promote-btn" onclick="openPromotionModal('{{ talo.id }}')">🔊</button>
                             {% endif %}
                         </div>
                         <div class="talo-content" id="taloContent_{{ talo.id }}">{{ talo.content }}</div>
