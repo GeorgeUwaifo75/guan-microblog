@@ -672,12 +672,30 @@ async def dashboard(request: Request):
             followed_user_ids.add(follow.get("following_id"))
     followed_user_ids.add(user["user_id"])
     
-    talos = data.get("talos", [])
+    # Get user's last viewed timestamp
+    last_viewed_str = user.get("last_posts_viewed", "")
+    last_viewed = None
+    if last_viewed_str:
+        try:
+            # Parse to datetime and make it offset-naive (remove timezone if present)
+            dt = datetime.fromisoformat(last_viewed_str.replace('Z', '+00:00'))
+            if dt.tzinfo is not None:
+                # Convert to offset-naive by removing timezone info
+                dt = dt.replace(tzinfo=None)
+            last_viewed = dt
+        except Exception as e:
+            logger.warning(f"Could not parse last_viewed: {last_viewed_str}, error: {e}")
+            last_viewed = None
+
+        
     
+    talos = data.get("talos", [])
+
     # Get all promoted posts
     all_promoted_talos = []
     regular_talos = []
     
+    # First, collect all posts that should be visible (including new ones with is_new flag)
     for talo in talos:
         # Add user info to each talo
         for u in data.get("users", []):
@@ -687,11 +705,38 @@ async def dashboard(request: Request):
                 break
         talo["reply_count"] = len([r for r in data.get("replies", []) if r.get("parent_talo_id") == talo["id"]])
         
+        # Check if this post is newer than last viewed (for indicator only)
+        talo_created = None
+        if last_viewed and talo.get("created_at"):
+            try:
+                # Parse created_at and make it offset-naive
+                dt = datetime.fromisoformat(talo.get("created_at").replace('Z', '+00:00'))
+                if dt.tzinfo is not None:
+                    dt = dt.replace(tzinfo=None)
+                talo_created = dt
+            except Exception as e:
+                logger.warning(f"Could not parse created_at: {talo.get('created_at')}, error: {e}")
+                pass
+        
+        # Safe comparison - for indicator only, not for filtering
+        is_new_post = False
+        if last_viewed and talo_created:
+            try:
+                is_new_post = talo_created > last_viewed
+            except TypeError:
+                is_new_post = str(talo_created) > str(last_viewed)
+        
+        # Mark if new (for indicator badge)
+        if is_new_post:
+            talo["is_new"] = True
+        
         if talo.get("promoted", False):
+            # For promoted posts, always include
             all_promoted_talos.append(talo)
         else:
             # For regular posts, only show from followed users
             if followed_user_ids and talo["user_id"] in followed_user_ids:
+                # ALWAYS include posts from followed users - show them all
                 regular_talos.append(talo)
             elif not followed_user_ids or len(followed_user_ids) <= 1:  # Only self
                 regular_talos.append(talo)
@@ -699,6 +744,11 @@ async def dashboard(request: Request):
     # Sort regular posts by date (newest first)
     regular_talos.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     
+    # Count new posts for the indicator badge
+    new_posts_count = 0
+    for talo in talos:
+        if talo.get("is_new", False):
+            new_posts_count += 1
     # ===== PROBABILISTIC PROMOTED POSTS (25% chance to show each) =====
     import random
     selected_promoted_talos = []
@@ -755,7 +805,8 @@ async def dashboard(request: Request):
         "unread_notifications": unread_notifications,
         "paystack_public_key": PAYSTACK_PUBLIC_KEY,
         "promoted_shown_count": promoted_shown_count,
-        "promoted_total_count": promoted_total_count
+        "promoted_total_count": promoted_total_count,
+        "new_posts_count": new_posts_count
     })
 
 @app.get("/api/get_promoted_posts")
@@ -2490,6 +2541,42 @@ async def clear_all_activity_notifications(request: Request):
     
     return {"success": True}
 
+@app.get("/api/get_new_notifications_since")
+async def get_new_notifications_since(request: Request):
+    """Return notifications created after the given 'since' ISO timestamp.
+    Used by the frontend to detect genuinely new (just-arrived) notifications
+    and increment the badge count without double-counting existing unread ones."""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        return {"notifications": [], "count": 0}
+
+    data = await get_jsonbin_data()
+    user = None
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+
+    if not user:
+        return {"notifications": [], "count": 0}
+
+    since = request.headers.get("X-Since", "")
+
+    new_notifs = []
+    for notif in data.get("notifications", []):
+        if (
+            notif.get("user_id") == user["user_id"]
+            and notif.get("type") != "new_post"
+            and not notif.get("read", False)
+        ):
+            created = notif.get("created_at", "")
+            if not since or created >= since:
+                new_notifs.append(notif)
+
+    new_notifs.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    return {"notifications": new_notifs, "count": len(new_notifs)}
+
+
 @app.get("/api/check_new_notifications")
 async def check_new_notifications(request: Request):
     """Check for new notifications since last check"""
@@ -2532,11 +2619,9 @@ async def check_new_notifications(request: Request):
     
     return {"has_new": new_count > 0, "count": new_count}
 
-# Update the notification creation in like, follow, and reply endpoints to only notify followed users
-# Modify the create_reply endpoint:
-
-@app.post("/api/create_reply/{parent_talo_id}")
-async def create_reply(request: Request, parent_talo_id: str):
+@app.post("/api/mark_notification_read/{notification_id}")
+async def mark_notification_read(notification_id: str, request: Request):
+    """Mark a single notification as read"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -2552,154 +2637,15 @@ async def create_reply(request: Request, parent_talo_id: str):
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     
-    parent_talo = None
-    talo_owner_id = None
-    for t in data.get("talos", []):
-        if t["id"] == parent_talo_id:
-            parent_talo = t
-            talo_owner_id = t["user_id"]
-            break
+    for notif in data.get("notifications", []):
+        if notif.get("id") == notification_id and notif.get("user_id") == user["user_id"]:
+            notif["read"] = True
+            await save_jsonbin_data(data)
+            return {"success": True}
     
-    if not parent_talo:
-        raise HTTPException(status_code=404, detail="Parent post not found")
-    
-    body = await request.json()
-    content = body.get("content", "")
-    photo = body.get("photo")
-    
-    if contains_banned_words(content):
-        raise HTTPException(status_code=400, detail="Your reply contains inappropriate language. Please review and try again.")
-    
-    if not content or len(content) > 250:
-        raise HTTPException(status_code=400, detail="Reply must be between 1 and 250 characters")
-    
-    reply = {
-        "id": str(uuid.uuid4()),
-        "parent_talo_id": parent_talo_id,
-        "user_id": user["user_id"],
-        "content": content,
-        "photos": [photo] if photo else [],
-        "likes": 0,
-        "created_at": datetime.now().isoformat()
-    }
-    
-    if "replies" not in data:
-        data["replies"] = []
-    data["replies"].append(reply)
-    
-    parent_talo["reply_count"] = len([r for r in data["replies"] if r.get("parent_talo_id") == parent_talo_id])
-    
-    # Only send notification if talo owner follows the replier
-    if talo_owner_id != user["user_id"]:
-        # Check if talo owner follows the replier
-        follows_replier = False
-        for follow in data.get("follows", []):
-            if follow.get("follower_id") == talo_owner_id and follow.get("following_id") == user["user_id"]:
-                follows_replier = True
-                break
-        
-        if follows_replier:
-            if "notifications" not in data:
-                data["notifications"] = []
-            
-            notification = {
-                "id": str(uuid.uuid4()),
-                "user_id": talo_owner_id,
-                "type": "reply",
-                "message": f"@{user['user_id']} replied to your post: {content[:50]}...",
-                "related_talo_id": parent_talo_id,
-                "reply_id": reply["id"],
-                "from_user_id": user["user_id"],
-                "read": False,
-                "created_at": datetime.now().isoformat()
-            }
-            data["notifications"].append(notification)
-    
-    await save_jsonbin_data(data)
-    
-    return {"message": "Reply created successfully", "reply_id": reply["id"]}
+    raise HTTPException(status_code=404, detail="Notification not found")
 
-# Similarly update like_talo endpoint:
 
-@app.post("/api/like/{talo_id}")
-async def like_talo(talo_id: str, request: Request):
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    user = None
-    
-    for u in data.get("users", []):
-        if u.get("session_token") == session_token:
-            user = u
-            break
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    talo_owner_id = None
-    for talo in data["talos"]:
-        if talo["id"] == talo_id:
-            talo_owner_id = talo["user_id"]
-            break
-    
-    if "likes" not in data:
-        data["likes"] = []
-    
-    like_index = None
-    for i, like in enumerate(data["likes"]):
-        if like.get("talo_id") == talo_id and like.get("user_id") == user["user_id"]:
-            like_index = i
-            break
-    
-    if like_index is not None:
-        data["likes"].pop(like_index)
-        for talo in data["talos"]:
-            if talo["id"] == talo_id:
-                talo["likes"] -= 1
-                await save_jsonbin_data(data)
-                return {"liked": False, "count": talo["likes"]}
-    else:
-        data["likes"].append({
-            "talo_id": talo_id,
-            "user_id": user["user_id"],
-            "created_at": datetime.now().isoformat()
-        })
-        
-        for talo in data["talos"]:
-            if talo["id"] == talo_id:
-                talo["likes"] += 1
-                
-                # Only send notification if talo owner follows the liker
-                if talo_owner_id and talo_owner_id != user["user_id"]:
-                    follows_liker = False
-                    for follow in data.get("follows", []):
-                        if follow.get("follower_id") == talo_owner_id and follow.get("following_id") == user["user_id"]:
-                            follows_liker = True
-                            break
-                    
-                    if follows_liker:
-                        if "notifications" not in data:
-                            data["notifications"] = []
-                        
-                        notification = {
-                            "id": str(uuid.uuid4()),
-                            "user_id": talo_owner_id,
-                            "type": "like",
-                            "message": f"@{user['user_id']} liked your talo",
-                            "related_talo_id": talo_id,
-                            "from_user_id": user["user_id"],
-                            "read": False,
-                            "created_at": datetime.now().isoformat()
-                        }
-                        data["notifications"].append(notification)
-                
-                await save_jsonbin_data(data)
-                return {"liked": True, "count": talo["likes"]}
-    
-    await save_jsonbin_data(data)
-    return {"liked": False, "count": 0}
 
 # Add endpoint to get latest talo timestamp
 @app.get("/api/get_latest_talo_timestamp")
