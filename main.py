@@ -677,9 +677,16 @@ async def dashboard(request: Request):
     last_viewed = None
     if last_viewed_str:
         try:
-            last_viewed = datetime.fromisoformat(last_viewed_str)
-        except:
-            pass
+            # Parse to datetime and make it offset-naive (remove timezone if present)
+            dt = datetime.fromisoformat(last_viewed_str.replace('Z', '+00:00'))
+            if dt.tzinfo is not None:
+                # Convert to offset-naive by removing timezone info
+                dt = dt.replace(tzinfo=None)
+            last_viewed = dt
+        except Exception as e:
+            logger.warning(f"Could not parse last_viewed: {last_viewed_str}, error: {e}")
+            last_viewed = None
+
         
     
     talos = data.get("talos", [])
@@ -701,12 +708,24 @@ async def dashboard(request: Request):
         talo_created = None
         if last_viewed and talo.get("created_at"):
             try:
-                talo_created = datetime.fromisoformat(talo.get("created_at"))
-            except:
+                # Parse created_at and make it offset-naive
+                dt = datetime.fromisoformat(talo.get("created_at").replace('Z', '+00:00'))
+                if dt.tzinfo is not None:
+                    dt = dt.replace(tzinfo=None)
+                talo_created = dt
+            except Exception as e:
+                logger.warning(f"Could not parse created_at: {talo.get('created_at')}, error: {e}")
                 pass
         
-        is_new_post = last_viewed and talo_created and talo_created > last_viewed
-        
+        # Safe comparison - both are now offset-naive or both None
+        is_new_post = False
+        if last_viewed and talo_created:
+            try:
+                is_new_post = talo_created > last_viewed
+            except TypeError:
+                # Fallback to string comparison if datetime comparison fails
+                is_new_post = str(talo_created) > str(last_viewed)
+                
         if talo.get("promoted", False):
             # For promoted posts, always include (but mark as new if applicable)
             if is_new_post:
