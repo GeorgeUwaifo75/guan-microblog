@@ -640,7 +640,7 @@
         }
         
         .create-talo {
-            margin-top: 14.5px;  
+            margin-top: 13.3px;  
            
             background: white;
             border-radius: 15px;
@@ -1788,7 +1788,14 @@
     font-size: 13px;
     border: 1px dashed #ccc;
 }
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+}
     </style>
+<base target="_blank">
 </head>
 <body>
     <!-- Pull to Refresh Indicator -->
@@ -2347,6 +2354,12 @@ async function createNewPostHtml(content, photos, taloId) {
         photosHtml += `</div>`;
     }
     
+    // Escape content for HTML
+    const escapedContent = escapeHtml(content);
+    const escapedUserId = escapeHtml(userData.user_id);
+    const escapedFirstName = escapeHtml(userData.first_name);
+    const escapedLastName = escapeHtml(userData.last_name);
+    
     return `
         <div class="talo-card" data-talo-id="${taloId}">
             <div class="talo-header">
@@ -2354,27 +2367,26 @@ async function createNewPostHtml(content, photos, taloId) {
                     `<img class="talo-user-photo" src="${userData.profile_photo}" alt="">` : 
                     `<div class="talo-user-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center;">👤</div>`}
                 <div class="talo-user-info">
-                    <a href="/profile/${userData.user_id}" style="text-decoration: none; color: inherit;">
-                        <span class="talo-user-name">${userData.first_name} ${userData.last_name}</span>
-                        <span class="talo-user-id">@${userData.user_id}</span>
+                    <a href="/profile/${escapedUserId}" style="text-decoration: none; color: inherit;">
+                        <span class="talo-user-name">${escapedFirstName} ${escapedLastName}</span>
+                        <span class="talo-user-id">@${escapedUserId}</span>
                     </a>
                     <div class="talo-time" data-time="${isoTime}"></div>
                 </div>
             </div>
-            <div class="talo-content" id="taloContent_${taloId}">${escapeHtml(content)}</div>
+            <div class="talo-content" id="taloContent_${taloId}">${escapedContent}</div>
             ${photosHtml}
             <div class="talo-stats">
                 <button class="stat-btn like-btn" data-id="${taloId}">💎 <span class="like-count">0</span></button>
                 <button class="stat-btn dislike-btn" data-id="${taloId}">👎 <span class="dislike-count">0</span></button>
-                <button class="stat-btn retalo-btn" data-id="${taloId}" data-user-id="${userData.user_id}" data-content="${escapeHtml(content)}" data-photos='${JSON.stringify(photos)}'>
+                <button class="stat-btn retalo-btn" data-id="${taloId}" data-user-id="${escapedUserId}" data-content="${escapedContent.replace(/"/g, '&quot;')}" data-photos='${JSON.stringify(photos)}'>
                     🔄 <span class="retalo-count">0</span>
                 </button>
-                <a href="/post/${taloId}" class="reply-btn">💬 <span>0</span></a>
+                <a href="/post/${taloId}" class="reply-btn" onclick="saveScrollPosition()">💬 <span>0</span></a>
             </div>
         </div>
     `;
 }
-
 
 
         async function performSearch(query) {
@@ -2672,7 +2684,7 @@ async function createNewPostHtml(content, photos, taloId) {
             if (existing) existing.remove();
             const notification = document.createElement('div');
             notification.className = `flash-notification ${type}`;
-            let icon = type === 'success' ? '✅' : '❌';
+            let icon = type === 'success' ? '✅' : type === 'info' ? 'ℹ️' : '❌';
             notification.innerHTML = `<span class="flash-notification-icon">${icon}</span><span class="flash-notification-message">${message}</span>`;
             document.body.appendChild(notification);
             setTimeout(() => notification.classList.add('show'), 10);
@@ -2851,6 +2863,19 @@ async function createNewPostHtml(content, photos, taloId) {
         progressDiv.style.display = 'none';
         progressBar.style.width = '0%';
     }
+
+
+// After inserting the new post, attach scroll saving event
+const newPost = feedDiv.firstElementChild;
+const replyLink = newPost.querySelector('.reply-btn');
+if (replyLink) {
+    replyLink.addEventListener('click', (e) => {
+        saveScrollPosition();
+    });
+}
+
+
+
 }
 
         
@@ -3332,43 +3357,61 @@ async function createNewPostHtml(content, photos, taloId) {
             });
         }
         
+
+
+setInterval(async () => {
+    try {
+        await fetch('/api/refresh_cache', { method: 'POST' });
+    } catch(e) {
+        console.log('Cache refresh failed');
+    }
+}, 120000);
+
         // ========== REAL-TIME NOTIFICATIONS ==========
+       
+/*
         let notificationPollInterval = null;
         let lastNotificationCheck = localStorage.getItem('lastNotificationCheck') || new Date().toISOString();
         
+     
         function initRealTimeNotifications() {
-            if (notificationPollInterval) clearInterval(notificationPollInterval);
-            notificationPollInterval = setInterval(checkForNewNotifications, 10000);
-            document.addEventListener('visibilitychange', () => {
-                if (!document.hidden) checkForNewNotifications();
-            });
-        }
-        
+   	 if (notificationPollInterval) clearInterval(notificationPollInterval);
+  	  notificationPollInterval = setInterval(checkForNewNotifications, 10000);
+  	  document.addEventListener('visibilitychange', () => {
+  	      if (!document.hidden) checkForNewNotifications();
+ 	   });
+	}
+*/
+
+
+    /*    
         async function checkForNewNotifications() {
-            try {
-                const response = await fetch('/api/check_new_notifications', {
-                    headers: { 'X-Last-Checked': lastNotificationCheck }
-                });
-                const data = await response.json();
-                if (data.has_new) {
-                    const badge = document.getElementById('notificationCount');
-                    const currentCount = parseInt(badge.textContent) || 0;
-                    const newCount = currentCount + data.count;
-                    if (newCount > 0) {
-                        badge.style.display = 'inline-block';
-                        badge.textContent = newCount;
-                    }
-                    const notifBtn = document.querySelector('.icon-btn');
-                    if (notifBtn) {
-                        notifBtn.style.animation = 'pulse 0.5s ease-in-out 3';
-                        setTimeout(() => { notifBtn.style.animation = ''; }, 1500);
-                    }
+    try {
+        const response = await fetch('/api/check_new_notifications', {
+            headers: { 'X-Last-Checked': lastNotificationCheck || new Date().toISOString() }
+        });
+        const data = await response.json();
+        if (data.has_new) {
+            const badge = document.getElementById('activityBadge');
+            if (badge) {
+                const currentCount = parseInt(badge.textContent) || 0;
+                const newCount = currentCount + data.count;
+                if (newCount > 0) {
+                    badge.style.display = 'inline-block';
+                    badge.textContent = newCount > 99 ? '99+' : newCount;
                 }
-            } catch (error) {
-                console.error('Error checking notifications:', error);
+            }
+            const bellBtn = document.getElementById('activityBellBtn');
+            if (bellBtn) {
+                bellBtn.style.animation = 'pulse 0.5s ease-in-out 3';
+                setTimeout(() => { if(bellBtn) bellBtn.style.animation = ''; }, 1500);
             }
         }
-        
+    } catch (error) {
+        console.error('Error checking notifications:', error);
+    }
+}
+*/
 
 	// Add periodic cache refresh (every 2 minutes)
 	setInterval(async () => {
@@ -3413,7 +3456,7 @@ async function createNewPostHtml(content, photos, taloId) {
         
         loadLastSeenTimestamp();
         setInterval(checkForNewTalos, 30000);
-        initRealTimeNotifications();
+        //initRealTimeNotifications();
         initPullToRefresh();
         initFabVisibilityControl();
         
@@ -3429,60 +3472,141 @@ async function createNewPostHtml(content, photos, taloId) {
             if (event.target === document.getElementById('followersModal')) closeFollowersModal();
             if (event.target === document.getElementById('followingModal')) closeFollowingModal();
         };
+
+
+// Initialize scroll position restoration and saving - call AFTER functions are defined
+// The functions are defined at the bottom of the file, so we need to wait
+setTimeout(function() {
+    if (typeof restoreScrollPosition === 'function') {
+        restoreScrollPosition();
+    }
+    if (typeof setupScrollSaving === 'function') {
+        setupScrollSaving();
+    }
+}, 100);
+
+// Also set up observer for dynamically loaded content (for new posts)
+const observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(mutation) {
+        if (mutation.addedNodes.length) {
+            // Re-setup scroll saving for new elements
+            document.querySelectorAll('.talo-card').forEach(card => {
+                // Remove existing listener to avoid duplicates
+                card.removeEventListener('click', saveScrollPosition);
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('.like-btn') || 
+                        e.target.closest('.dislike-btn') || 
+                        e.target.closest('.retalo-btn') || 
+                        e.target.closest('.reply-btn') ||
+                        e.target.closest('.promote-btn') ||
+                        e.target.closest('.hashtag-link') ||
+                        e.target.closest('.photo-item')) {
+                        return;
+                    }
+                    saveScrollPosition();
+                });
+            });
+            
+            document.querySelectorAll('.reply-btn').forEach(btn => {
+                btn.removeEventListener('click', saveScrollPosition);
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    saveScrollPosition();
+                });
+            });
+        }
+    });
+});
+
+// Start observing
+observer.observe(document.getElementById('talosFeed'), { childList: true, subtree: true });
+
+
+
+
     </script>
 
 <script>
-// ========== NOTIFICATION SYSTEM ==========
-let unviewedPostsCount = 0;
+// ========== FIXED NOTIFICATION SYSTEM ==========
+
+// Variables
+let unviewedPostsCount = {{ new_posts_count|default(0) }};
 let lastViewedTimestamp = localStorage.getItem('lastViewedPostsTimestamp') || null;
-let followedUserIds = new Set();
-let notificationSound = null;
+let notificationInterval = null;
+let activityInterval = null;
+let isNotificationPanelOpen = false;
+let pendingBadgeUpdate = null;
 
-function initNotificationSound() {
-    try {
-        notificationSound = {
-            play: function() {
-                try {
-                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    const oscillator = audioContext.createOscillator();
-                    const gainNode = audioContext.createGain();
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioContext.destination);
-                    oscillator.frequency.value = 880;
-                    gainNode.gain.value = 0.1;
-                    oscillator.start();
-                    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.3);
-                    oscillator.stop(audioContext.currentTime + 0.3);
-                } catch(e) {}
+// Persist last notification timestamp in localStorage
+const NOTIF_TS_KEY = 'guan_lastNotifTimestamp';
+let lastNotifTimestamp = localStorage.getItem(NOTIF_TS_KEY) || null;
+
+// In-memory badge count - this is the SOURCE OF TRUTH for the UI
+let activityBadgeCount = 0;
+
+// Update home indicator (green dot on home button) - for unviewed posts
+function updateHomeIndicator(hasNewPosts) {
+    const homeIndicator = document.getElementById('homeIndicator');
+    if (homeIndicator) {
+        if (hasNewPosts) {
+            homeIndicator.classList.remove('gray');
+            homeIndicator.style.background = '#28a745';
+        } else {
+            homeIndicator.classList.add('gray');
+            homeIndicator.style.background = '#888';
+        }
+    }
+}
+
+// Update bell badge - for ACTIVITY notifications (likes, replies, follows)
+function updateBellBadge(count) {
+    activityBadgeCount = Math.max(0, count);
+    const badge = document.getElementById('activityBadge');
+    if (badge) {
+        if (activityBadgeCount > 0) {
+            badge.style.display = 'inline-block';
+            badge.textContent = activityBadgeCount > 99 ? '99+' : activityBadgeCount;
+            // Animate bell icon
+            const bellBtn = document.getElementById('activityBellBtn');
+            if (bellBtn && !bellBtn.hasAttribute('data-animated')) {
+                bellBtn.setAttribute('data-animated', 'true');
+                bellBtn.style.animation = 'pulse 0.5s ease-in-out 3';
+                setTimeout(() => { 
+                    if(bellBtn) {
+                        bellBtn.style.animation = '';
+                        bellBtn.removeAttribute('data-animated');
+                    }
+                }, 1500);
             }
-        };
-    } catch(e) {
-        console.log('Notification sound not supported');
+        } else {
+            badge.style.display = 'none';
+            badge.textContent = '0';
+        }
     }
 }
 
-function playNotificationBeep() {
-    if (notificationSound) {
-        notificationSound.play();
-    }
-}
-
-async function loadFollowedUsers() {
+// Fetch total unread notification count from server (used for initial load only)
+async function fetchUnreadNotificationCount() {
     try {
-        const response = await fetch('/api/get_followed_users');
+        const response = await fetch('/api/get_activity_notifications');
         const data = await response.json();
-        followedUserIds.clear();
-        data.followed_users.forEach(id => followedUserIds.add(id));
-        return followedUserIds;
+        
+        if (data.notifications) {
+            const unreadCount = data.notifications.filter(n => !n.read).length;
+            return unreadCount;
+        }
+        return 0;
     } catch (error) {
-        console.error('Error loading followed users:', error);
-        return followedUserIds;
+        console.error('Error fetching unread count:', error);
+        return 0;
     }
 }
 
+// Fetch unviewed posts count (for home indicator)
 async function fetchUnviewedPostsCount() {
+    if (isRefreshing) return;
+    
     try {
-        await loadFollowedUsers();
         const response = await fetch('/api/get_unviewed_posts_count', {
             headers: { 'X-Last-Viewed': lastViewedTimestamp || '' }
         });
@@ -3490,44 +3614,64 @@ async function fetchUnviewedPostsCount() {
         
         const oldCount = unviewedPostsCount;
         unviewedPostsCount = data.count;
-        const badge = document.getElementById('activityBadge');
-        const homeIndicator = document.getElementById('homeIndicator');
         
-        if (unviewedPostsCount > 0) {
-            badge.style.display = 'inline-block';
-            badge.textContent = unviewedPostsCount > 99 ? '99+' : unviewedPostsCount;
-            homeIndicator.classList.remove('gray');
-            homeIndicator.style.background = '#28a745';
-            
-            if (unviewedPostsCount > oldCount && oldCount > 0) {
-                playNotificationBeep();
-                const bellBtn = document.getElementById('activityBellBtn');
-                if (bellBtn) {
-                    bellBtn.style.animation = 'pulse 0.5s ease-in-out 3';
-                    setTimeout(() => { bellBtn.style.animation = ''; }, 1500);
-                }
-            } else if (unviewedPostsCount > 0 && oldCount === 0) {
-                playNotificationBeep();
-                const bellBtn = document.getElementById('activityBellBtn');
-                if (bellBtn) {
-                    bellBtn.style.animation = 'pulse 0.5s ease-in-out 3';
-                    setTimeout(() => { bellBtn.style.animation = ''; }, 1500);
-                }
-            }
-        } else {
-            badge.style.display = 'none';
-            badge.textContent = '0';
-            homeIndicator.classList.add('gray');
-            homeIndicator.style.background = '#888';
+        updateHomeIndicator(unviewedPostsCount > 0);
+        
+        if (unviewedPostsCount > oldCount && unviewedPostsCount > 0) {
+            showFlashNotification(`📱 ${unviewedPostsCount - oldCount} new post${(unviewedPostsCount - oldCount) !== 1 ? 's' : ''} available! Tap home to refresh.`, 'info');
         }
-        
-        return data.count;
     } catch (error) {
         console.error('Error fetching unviewed posts count:', error);
+    }
+}
+
+// Check for NEW notifications since last check (for badge updates)
+// FIXED: No longer calls fetchUnreadNotificationCount() which was causing the race condition
+async function fetchActivityCount() {
+    // Don't check for new notifications while panel is open
+    if (isNotificationPanelOpen) return 0;
+    
+    try {
+        const headers = {};
+        if (lastNotifTimestamp) headers['X-Since'] = lastNotifTimestamp;
+
+        const response = await fetch('/api/get_new_notifications_since', { headers });
+        const data = await response.json();
+
+        const newCount = data.count || 0;
+
+        if (newCount > 0 && data.notifications && data.notifications.length > 0) {
+            // Update timestamp to the latest notification we've processed
+            const latestTs = data.notifications[0].created_at;
+            if (!lastNotifTimestamp || latestTs > lastNotifTimestamp) {
+                lastNotifTimestamp = latestTs;
+                localStorage.setItem(NOTIF_TS_KEY, lastNotifTimestamp);
+            }
+
+            // INCREMENT the badge by the new count, don't reset it
+            const currentCount = activityBadgeCount;
+            const totalCount = currentCount + newCount;
+            updateBellBadge(totalCount);
+
+            // Show flash notification
+            const typeLabels = data.notifications.map(n =>
+                n.type === 'retalo' ? '🔄 Repost' :
+                n.type === 'like'   ? '💎 Like'   :
+                n.type === 'follow' ? '👥 Follow'  : '💬 Reply'
+            );
+            const uniqueTypes = [...new Set(typeLabels)];
+            const label = uniqueTypes.length === 1 ? uniqueTypes[0] : newCount + ' new notification' + (newCount > 1 ? 's' : '');
+            showFlashNotification('🔔 ' + label, 'info');
+        }
+
+        return newCount;
+    } catch (error) {
+        console.error('Error fetching activity count:', error);
         return 0;
     }
 }
 
+// Manual refresh when user taps home icon
 async function markAllPostsAsViewed() {
     if (isRefreshing) return;
     isRefreshing = true;
@@ -3535,6 +3679,12 @@ async function markAllPostsAsViewed() {
     const now = new Date().toISOString();
     lastViewedTimestamp = now;
     localStorage.setItem('lastViewedPostsTimestamp', now);
+    
+    const homeBtn = document.getElementById('homeBtn');
+    const originalText = homeBtn ? homeBtn.innerHTML : '';
+    if (homeBtn) {
+        homeBtn.innerHTML = '<span class="loading-spinner" style="width: 18px; height: 18px;"></span>';
+    }
     
     try {
         const response = await fetch('/api/mark_posts_viewed', {
@@ -3545,102 +3695,210 @@ async function markAllPostsAsViewed() {
         
         if (response.ok) {
             unviewedPostsCount = 0;
-            const badge = document.getElementById('activityBadge');
-            const homeIndicator = document.getElementById('homeIndicator');
-            badge.style.display = 'none';
-            badge.textContent = '0';
-            homeIndicator.classList.add('gray');
-            homeIndicator.style.background = '#888';
+            updateHomeIndicator(false);
             location.reload();
+        } else {
+            if (homeBtn) homeBtn.innerHTML = originalText;
+            isRefreshing = false;
+            showFlashNotification('Failed to refresh. Please try again.', 'error');
         }
     } catch (error) {
         console.error('Error marking posts as viewed:', error);
-    } finally {
+        if (homeBtn) homeBtn.innerHTML = originalText;
         isRefreshing = false;
+        showFlashNotification('Network error. Please try again.', 'error');
     }
 }
 
-async function checkForNewPosts() {
-    if (isRefreshing) return;
-    await fetchUnviewedPostsCount();
-}
+// ========== ACTIVITY NOTIFICATIONS PANEL ==========
 
-async function loadActivityNotifications() {
+// Toggle activity panel - called by bell icon
+window.toggleActivityPanel = function() {
+    const panel = document.getElementById('notificationsPanel');
+    if (!panel) return;
+    
+    const isVisible = panel.classList.contains('show');
+    
+    if (!isVisible) {
+        // Panel is opening
+        isNotificationPanelOpen = true;
+        
+        // Load notifications first, then show panel
+        loadActivityNotifications().then(() => {
+            panel.classList.add('show');
+            // Clear badge immediately when user opens panel
+            updateBellBadge(0);
+            // Mark all as read in background
+            markAllActivityRead();
+        });
+    } else {
+        // Panel is closing
+        panel.classList.remove('show');
+        isNotificationPanelOpen = false;
+        
+        // After closing, sync with server to get accurate count
+        // This handles any notifications that arrived while panel was open
+        setTimeout(() => {
+            syncBadgeWithServer();
+        }, 500);
+    }
+};
+
+// NEW: Sync badge with server after panel closes
+async function syncBadgeWithServer() {
+    if (isNotificationPanelOpen) return; // Don't sync if panel reopened
+    
     try {
         const response = await fetch('/api/get_activity_notifications');
         const data = await response.json();
-        const notificationsList = document.getElementById('notificationsList');
+        
+        if (data.notifications) {
+            const unreadCount = data.notifications.filter(n => !n.read).length;
+            updateBellBadge(unreadCount);
+        }
+    } catch (error) {
+        console.error('Error syncing badge:', error);
+    }
+}
+
+// Mark all activity notifications as read
+async function markAllActivityRead() {
+    try {
+        // First, get current notifications
+        const response = await fetch('/api/get_activity_notifications');
+        const data = await response.json();
         
         if (data.notifications && data.notifications.length > 0) {
-            notificationsList.innerHTML = data.notifications.map(notif => `
-                <div class="notification-item" data-notif-id="${notif.id}" data-related-id="${notif.related_talo_id || ''}" data-type="${notif.type}">
+            const unreadNotifs = data.notifications.filter(n => !n.read);
+            
+            // Mark ALL unread notifications as read in parallel (faster)
+            const markPromises = unreadNotifs.map(notif => 
+                fetch(`/api/mark_notification_read/${notif.id}`, { method: 'POST' })
+                    .catch(e => console.log('Mark read error:', e))
+            );
+            
+            await Promise.all(markPromises);
+            
+            // Update timestamp to the most recent notification
+            const newestTs = data.notifications[0].created_at;
+            if (!lastNotifTimestamp || newestTs > lastNotifTimestamp) {
+                lastNotifTimestamp = newestTs;
+                localStorage.setItem(NOTIF_TS_KEY, lastNotifTimestamp);
+            }
+            
+            // Also clear the server-side new_post notifications
+            await fetch('/api/clear_all_activity_notifications', { method: 'DELETE' })
+                .catch(e => console.log('Clear all error:', e));
+        }
+    } catch (error) {
+        console.error('Error marking all as read:', error);
+    }
+}
+
+// Load activity notifications into the panel
+async function loadActivityNotifications() {
+    const notificationsList = document.getElementById('notificationsList');
+    if (!notificationsList) return;
+    
+    try {
+        const response = await fetch('/api/get_activity_notifications');
+        const data = await response.json();
+        
+        if (data.notifications && data.notifications.length > 0) {
+            // Split into new (unread) and already-seen (read)
+            const unread = data.notifications.filter(n => !n.read);
+            const read   = data.notifications.filter(n =>  n.read);
+
+            const renderItem = (notif) => `
+                <div class="notification-item ${notif.read ? '' : 'unread'}" data-notif-id="${notif.id}" data-related-id="${notif.related_talo_id || ''}" data-type="${notif.type}">
                     <div style="flex: 1;" onclick="viewActivityNotification('${notif.id}', '${notif.type}', '${notif.related_talo_id || ''}')">
-                        <strong>${notif.type === 'retalo' ? '🔄 Repost' : notif.type === 'like' ? '💎 Like' : notif.type === 'follow' ? '👥 Follow' : '💬 Reply'}</strong><br>
+                        <span style="display:flex;align-items:center;gap:6px;">
+                            <strong>${notif.type === 'retalo' ? '🔄 Repost' : notif.type === 'like' ? '💎 Like' : notif.type === 'follow' ? '👥 Follow' : '💬 Reply'}</strong>
+                            ${!notif.read ? '<span style="background:#e63946;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;letter-spacing:.5px;">NEW</span>' : ''}
+                        </span>
                         <small>${escapeHtml(notif.message)}</small><br>
                         <small style="color: #999;">${formatTimeAgo(notif.created_at)}</small>
                     </div>
                     <button class="delete-notification-btn" onclick="event.stopPropagation(); deleteActivityNotification('${notif.id}')">✖</button>
-                </div>
-            `).join('');
-            initSwipeToDelete();
+                </div>`;
+
+            let html = '';
+            if (unread.length > 0) {
+                html += `<div style="padding:6px 12px;font-size:11px;font-weight:700;color:#e63946;letter-spacing:.5px;border-bottom:1px solid rgba(230,57,70,.2);">NEW (${unread.length})</div>`;
+                html += unread.map(renderItem).join('');
+            }
+            if (read.length > 0) {
+                if (unread.length > 0) {
+                    html += `<div style="padding:6px 12px;font-size:11px;font-weight:700;color:#999;letter-spacing:.5px;border-bottom:1px solid #eee;">EARLIER</div>`;
+                }
+                html += read.map(renderItem).join('');
+            }
+            notificationsList.innerHTML = html;
         } else {
             notificationsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No activity notifications</div>';
         }
     } catch (error) {
         console.error('Error loading activity notifications:', error);
-        document.getElementById('notificationsList').innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">Error loading notifications</div>';
+        notificationsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">Error loading notifications</div>';
     }
 }
 
-async function viewActivityNotification(notificationId, type, relatedTaloId) {
-    try {
-        await fetch(`/api/delete_activity_notification/${notificationId}`, { method: 'DELETE' });
-        
-        const notifItem = document.querySelector(`.notification-item[data-notif-id="${notificationId}"]`);
-        if (notifItem) {
-            notifItem.classList.add('deleting');
-            setTimeout(() => notifItem.remove(), 300);
+// View activity notification - mark as read and navigate
+window.viewActivityNotification = async function(notificationId, type, relatedTaloId) {
+    // Find the notification element and extract username BEFORE removing it
+    const notifItem = document.querySelector(`.notification-item[data-notif-id="${notificationId}"]`);
+    let usernameMatch = null;
+    if (notifItem && type === 'follow') {
+        const smallText = notifItem.querySelector('small');
+        if (smallText) {
+            usernameMatch = smallText.textContent.match(/@(\w+)/);
         }
-        
-        if (type === 'follow') {
-            const match = document.querySelector(`.notification-item[data-notif-id="${notificationId}"] small`)?.textContent;
-            const usernameMatch = match?.match(/@(\w+)/);
-            if (usernameMatch) {
-                window.location.href = `/profile/${usernameMatch[1]}`;
-            }
-        } else if (relatedTaloId) {
-            window.location.href = `/post/${relatedTaloId}`;
-        }
-    } catch (error) {
-        console.error('Error viewing notification:', error);
     }
-}
+    
+    // Mark as read on server
+    await fetch(`/api/mark_notification_read/${notificationId}`, { method: 'POST' }).catch(e => console.log(e));
+    
+    // Remove from UI with animation
+    if (notifItem) {
+        notifItem.classList.add('deleting');
+        setTimeout(() => {
+            notifItem.remove();
+            // Recalculate badge from remaining unread in panel
+            const remainingUnread = document.querySelectorAll('.notification-item.unread');
+            updateBellBadge(remainingUnread.length);
+        }, 300);
+    }
+    
+    // Navigate
+    if (type === 'follow' && usernameMatch) {
+        window.location.href = `/profile/${usernameMatch[1]}`;
+    } else if (relatedTaloId) {
+        window.location.href = `/post/${relatedTaloId}`;
+    }
+};
 
+// Delete activity notification
 async function deleteActivityNotification(notificationId) {
     try {
-        await fetch(`/api/delete_activity_notification/${notificationId}`, { method: 'DELETE' });
-        const notifItem = document.querySelector(`.notification-item[data-notif-id="${notificationId}"]`);
-        if (notifItem) {
-            notifItem.classList.add('deleting');
-            setTimeout(() => notifItem.remove(), 300);
+        const response = await fetch(`/api/delete_activity_notification/${notificationId}`, { method: 'DELETE' });
+        if (response.ok) {
+            const notifItem = document.querySelector(`.notification-item[data-notif-id="${notificationId}"]`);
+            if (notifItem) {
+                notifItem.classList.add('deleting');
+                setTimeout(() => {
+                    notifItem.remove();
+                    // Recalculate badge
+                    const remainingUnread = document.querySelectorAll('.notification-item.unread');
+                    updateBellBadge(remainingUnread.length);
+                }, 300);
+            }
         }
     } catch (error) {
         console.error('Error deleting notification:', error);
     }
 }
 
-function toggleActivityPanel() {
-    const panel = document.getElementById('notificationsPanel');
-    const isVisible = panel.classList.contains('show');
-    
-    if (!isVisible) {
-        loadActivityNotifications();
-        panel.classList.add('show');
-    } else {
-        panel.classList.remove('show');
-    }
-}
-
+// Close panel when clicking outside
 document.addEventListener('click', function(e) {
     const panel = document.getElementById('notificationsPanel');
     const bellBtn = document.getElementById('activityBellBtn');
@@ -3648,65 +3906,158 @@ document.addEventListener('click', function(e) {
         !panel.contains(e.target) && 
         bellBtn && !bellBtn.contains(e.target)) {
         panel.classList.remove('show');
+        isNotificationPanelOpen = false;
+        
+        // Sync badge after closing
+        setTimeout(() => {
+            syncBadgeWithServer();
+        }, 500);
     }
 });
 
-function initSwipeToDelete() {
-    const notificationItems = document.querySelectorAll('.notification-item');
-    let touchStartX = 0;
-    let currentItem = null;
-    
-    notificationItems.forEach(item => {
-        item.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
-            currentItem = item;
-        });
-        
-        item.addEventListener('touchmove', (e) => {
-            if (!currentItem) return;
-            const touchX = e.touches[0].clientX;
-            const diff = touchStartX - touchX;
-            if (diff > 50) {
-                e.preventDefault();
-                currentItem.classList.add('swiping');
+// Initialize all notification systems
+async function initNotificationSystem() {
+    // Initial UI updates
+    updateHomeIndicator(unviewedPostsCount > 0);
+
+    // Fetch current total unread count for badge (initial load only)
+    const initialCount = await fetchUnreadNotificationCount();
+    updateBellBadge(initialCount);
+
+    // Seed lastNotifTimestamp from the NEWEST notification (read or unread)
+    // so next poll only finds genuinely new arrivals
+    try {
+        const seedResp = await fetch('/api/get_activity_notifications');
+        const seedData = await seedResp.json();
+        if (seedData.notifications && seedData.notifications.length > 0) {
+            const newestTs = seedData.notifications[0].created_at;
+            if (!lastNotifTimestamp || newestTs > lastNotifTimestamp) {
+                lastNotifTimestamp = newestTs;
+                localStorage.setItem(NOTIF_TS_KEY, lastNotifTimestamp);
             }
-        });
-        
-        item.addEventListener('touchend', (e) => {
-            if (!currentItem) return;
-            const touchX = e.changedTouches[0].clientX;
-            const diff = touchStartX - touchX;
-            if (diff > 100) {
-                const notifId = currentItem.dataset.notifId;
-                if (notifId) {
-                    deleteActivityNotification(notifId);
-                }
+        }
+    } catch (e) {
+        console.error('Error seeding notification timestamp:', e);
+    }
+
+    // Clear any existing intervals
+    if (notificationInterval) clearInterval(notificationInterval);
+    if (activityInterval) clearInterval(activityInterval);
+
+    // Check for new posts every 30 seconds
+    notificationInterval = setInterval(fetchUnviewedPostsCount, 30000);
+
+    // Check for new activity notifications every 15 seconds
+    activityInterval = setInterval(fetchActivityCount, 15000);
+
+    // Check when page becomes visible again
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            fetchUnviewedPostsCount();
+            if (!isNotificationPanelOpen) {
+                fetchActivityCount();
             }
-            currentItem.classList.remove('swiping');
-            currentItem = null;
-        });
+        }
     });
 }
 
-const originalRefreshTimeline = window.refreshTimeline;
+// Override refreshTimeline
 window.refreshTimeline = markAllPostsAsViewed;
 
-async function initNotificationSystem() {
-    initNotificationSound();
-    await loadFollowedUsers();
-    await fetchUnviewedPostsCount();
-    setInterval(checkForNewPosts, 30000);
-}
-
+// Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     const homeBtn = document.getElementById('homeBtn');
     if (homeBtn) {
         homeBtn.onclick = markAllPostsAsViewed;
     }
+    
+    initNotificationSystem();
 });
 
-initNotificationSystem();
+
 </script>
+
+<script>
+// ========== SCROLL POSITION SAVING ==========
+// Save scroll position before leaving the page
+function saveScrollPosition() {
+    const scrollableContent = document.getElementById('scrollableContent');
+    if (scrollableContent) {
+        const scrollPosition = scrollableContent.scrollTop;
+        sessionStorage.setItem('dashboardScrollPosition', scrollPosition);
+        sessionStorage.setItem('dashboardScrollTimestamp', Date.now().toString());
+    }
+}
+
+// Restore scroll position when returning to dashboard
+function restoreScrollPosition() {
+    const savedPosition = sessionStorage.getItem('dashboardScrollPosition');
+    const savedTimestamp = sessionStorage.getItem('dashboardScrollTimestamp');
+    const currentTime = Date.now();
+    
+    // Only restore if the saved position is less than 30 seconds old
+    if (savedPosition && savedTimestamp && (currentTime - parseInt(savedTimestamp)) < 30000) {
+        const scrollableContent = document.getElementById('scrollableContent');
+        if (scrollableContent) {
+            // Small delay to ensure content is loaded
+            setTimeout(() => {
+                scrollableContent.scrollTop = parseInt(savedPosition);
+                // Clear after restoring to prevent restoring on subsequent refreshes
+                sessionStorage.removeItem('dashboardScrollPosition');
+                sessionStorage.removeItem('dashboardScrollTimestamp');
+            }, 100);
+        }
+    }
+}
+
+// Save scroll position when clicking on any link that goes to post page
+function setupScrollSaving() {
+    // Save when clicking on a post card (to view post)
+    document.querySelectorAll('.talo-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+            // Don't save if clicking on interactive elements inside
+            if (e.target.closest('.like-btn') || 
+                e.target.closest('.dislike-btn') || 
+                e.target.closest('.retalo-btn') || 
+                e.target.closest('.reply-btn') ||
+                e.target.closest('.promote-btn') ||
+                e.target.closest('.hashtag-link') ||
+                e.target.closest('.photo-item')) {
+                return;
+            }
+            saveScrollPosition();
+        });
+    });
+    
+    // Save when clicking on reply buttons
+    document.querySelectorAll('.reply-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            saveScrollPosition();
+        });
+    });
+    
+    // Save when clicking on view post links
+    document.querySelectorAll('a[href^="/post/"]').forEach(link => {
+        link.addEventListener('click', () => {
+            saveScrollPosition();
+        });
+    });
+}
+
+// Also save before page unload (for any navigation)
+window.addEventListener('beforeunload', () => {
+    const scrollableContent = document.getElementById('scrollableContent');
+    if (scrollableContent) {
+        sessionStorage.setItem('dashboardScrollPosition', scrollableContent.scrollTop);
+        sessionStorage.setItem('dashboardScrollTimestamp', Date.now().toString());
+    }
+});
+
+
+</script>
+
+
 
 </body>
 </html>
