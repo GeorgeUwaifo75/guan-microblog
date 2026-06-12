@@ -2347,6 +2347,12 @@ async function createNewPostHtml(content, photos, taloId) {
         photosHtml += `</div>`;
     }
     
+    // Escape content for HTML
+    const escapedContent = escapeHtml(content);
+    const escapedUserId = escapeHtml(userData.user_id);
+    const escapedFirstName = escapeHtml(userData.first_name);
+    const escapedLastName = escapeHtml(userData.last_name);
+    
     return `
         <div class="talo-card" data-talo-id="${taloId}">
             <div class="talo-header">
@@ -2354,27 +2360,26 @@ async function createNewPostHtml(content, photos, taloId) {
                     `<img class="talo-user-photo" src="${userData.profile_photo}" alt="">` : 
                     `<div class="talo-user-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center;">👤</div>`}
                 <div class="talo-user-info">
-                    <a href="/profile/${userData.user_id}" style="text-decoration: none; color: inherit;">
-                        <span class="talo-user-name">${userData.first_name} ${userData.last_name}</span>
-                        <span class="talo-user-id">@${userData.user_id}</span>
+                    <a href="/profile/${escapedUserId}" style="text-decoration: none; color: inherit;">
+                        <span class="talo-user-name">${escapedFirstName} ${escapedLastName}</span>
+                        <span class="talo-user-id">@${escapedUserId}</span>
                     </a>
                     <div class="talo-time" data-time="${isoTime}"></div>
                 </div>
             </div>
-            <div class="talo-content" id="taloContent_${taloId}">${escapeHtml(content)}</div>
+            <div class="talo-content" id="taloContent_${taloId}">${escapedContent}</div>
             ${photosHtml}
             <div class="talo-stats">
                 <button class="stat-btn like-btn" data-id="${taloId}">💎 <span class="like-count">0</span></button>
                 <button class="stat-btn dislike-btn" data-id="${taloId}">👎 <span class="dislike-count">0</span></button>
-                <button class="stat-btn retalo-btn" data-id="${taloId}" data-user-id="${userData.user_id}" data-content="${escapeHtml(content)}" data-photos='${JSON.stringify(photos)}'>
+                <button class="stat-btn retalo-btn" data-id="${taloId}" data-user-id="${escapedUserId}" data-content="${escapedContent.replace(/"/g, '&quot;')}" data-photos='${JSON.stringify(photos)}'>
                     🔄 <span class="retalo-count">0</span>
                 </button>
-                <a href="/post/${taloId}" class="reply-btn">💬 <span>0</span></a>
+                <a href="/post/${taloId}" class="reply-btn" onclick="saveScrollPosition()">💬 <span>0</span></a>
             </div>
         </div>
     `;
 }
-
 
 
         async function performSearch(query) {
@@ -2851,6 +2856,19 @@ async function createNewPostHtml(content, photos, taloId) {
         progressDiv.style.display = 'none';
         progressBar.style.width = '0%';
     }
+
+
+// After inserting the new post, attach scroll saving event
+const newPost = feedDiv.firstElementChild;
+const replyLink = newPost.querySelector('.reply-btn');
+if (replyLink) {
+    replyLink.addEventListener('click', (e) => {
+        saveScrollPosition();
+    });
+}
+
+
+
 }
 
         
@@ -3429,6 +3447,51 @@ async function createNewPostHtml(content, photos, taloId) {
             if (event.target === document.getElementById('followersModal')) closeFollowersModal();
             if (event.target === document.getElementById('followingModal')) closeFollowingModal();
         };
+
+
+// Initialize scroll position restoration and saving
+restoreScrollPosition();
+setupScrollSaving();
+
+// Also set up observer for dynamically loaded content (for new posts)
+const observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(mutation) {
+        if (mutation.addedNodes.length) {
+            // Re-setup scroll saving for new elements
+            document.querySelectorAll('.talo-card').forEach(card => {
+                // Remove existing listener to avoid duplicates
+                card.removeEventListener('click', saveScrollPosition);
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('.like-btn') || 
+                        e.target.closest('.dislike-btn') || 
+                        e.target.closest('.retalo-btn') || 
+                        e.target.closest('.reply-btn') ||
+                        e.target.closest('.promote-btn') ||
+                        e.target.closest('.hashtag-link') ||
+                        e.target.closest('.photo-item')) {
+                        return;
+                    }
+                    saveScrollPosition();
+                });
+            });
+            
+            document.querySelectorAll('.reply-btn').forEach(btn => {
+                btn.removeEventListener('click', saveScrollPosition);
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    saveScrollPosition();
+                });
+            });
+        }
+    });
+});
+
+// Start observing
+observer.observe(document.getElementById('talosFeed'), { childList: true, subtree: true });
+
+
+
+
     </script>
 
 <script>
@@ -3704,6 +3767,85 @@ document.addEventListener('DOMContentLoaded', function() {
         homeBtn.onclick = markAllPostsAsViewed;
     }
 });
+
+
+// ========== SCROLL POSITION SAVING ==========
+// Save scroll position before leaving the page
+function saveScrollPosition() {
+    const scrollableContent = document.getElementById('scrollableContent');
+    if (scrollableContent) {
+        const scrollPosition = scrollableContent.scrollTop;
+        sessionStorage.setItem('dashboardScrollPosition', scrollPosition);
+        sessionStorage.setItem('dashboardScrollTimestamp', Date.now().toString());
+    }
+}
+
+// Restore scroll position when returning to dashboard
+function restoreScrollPosition() {
+    const savedPosition = sessionStorage.getItem('dashboardScrollPosition');
+    const savedTimestamp = sessionStorage.getItem('dashboardScrollTimestamp');
+    const currentTime = Date.now();
+    
+    // Only restore if the saved position is less than 30 seconds old
+    if (savedPosition && savedTimestamp && (currentTime - parseInt(savedTimestamp)) < 30000) {
+        const scrollableContent = document.getElementById('scrollableContent');
+        if (scrollableContent) {
+            // Small delay to ensure content is loaded
+            setTimeout(() => {
+                scrollableContent.scrollTop = parseInt(savedPosition);
+                // Clear after restoring to prevent restoring on subsequent refreshes
+                sessionStorage.removeItem('dashboardScrollPosition');
+                sessionStorage.removeItem('dashboardScrollTimestamp');
+            }, 100);
+        }
+    }
+}
+
+// Save scroll position when clicking on any link that goes to post page
+function setupScrollSaving() {
+    // Save when clicking on a post card (to view post)
+    document.querySelectorAll('.talo-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+            // Don't save if clicking on interactive elements inside
+            if (e.target.closest('.like-btn') || 
+                e.target.closest('.dislike-btn') || 
+                e.target.closest('.retalo-btn') || 
+                e.target.closest('.reply-btn') ||
+                e.target.closest('.promote-btn') ||
+                e.target.closest('.hashtag-link') ||
+                e.target.closest('.photo-item')) {
+                return;
+            }
+            saveScrollPosition();
+        });
+    });
+    
+    // Save when clicking on reply buttons
+    document.querySelectorAll('.reply-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            saveScrollPosition();
+        });
+    });
+    
+    // Save when clicking on view post links
+    document.querySelectorAll('a[href^="/post/"]').forEach(link => {
+        link.addEventListener('click', () => {
+            saveScrollPosition();
+        });
+    });
+}
+
+// Also save before page unload (for any navigation)
+window.addEventListener('beforeunload', () => {
+    const scrollableContent = document.getElementById('scrollableContent');
+    if (scrollableContent) {
+        sessionStorage.setItem('dashboardScrollPosition', scrollableContent.scrollTop);
+        sessionStorage.setItem('dashboardScrollTimestamp', Date.now().toString());
+    }
+});
+
+
 
 initNotificationSystem();
 </script>

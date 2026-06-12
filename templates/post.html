@@ -1066,6 +1066,14 @@
                 }
             });
         }
+
+
+     // At the end of the post.html script, add:
+       window.addEventListener('beforeunload', () => {
+    // Clear saved scroll position when leaving post page
+    // The dashboard will save a new position when navigating away
+      });
+
     </script>
 </body>
 </html>
