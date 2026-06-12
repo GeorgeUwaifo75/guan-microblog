@@ -690,11 +690,12 @@ async def dashboard(request: Request):
         
     
     talos = data.get("talos", [])
-    
+
     # Get all promoted posts
     all_promoted_talos = []
     regular_talos = []
     
+    # First, collect all posts that should be visible (including new ones with is_new flag)
     for talo in talos:
         # Add user info to each talo
         for u in data.get("users", []):
@@ -704,7 +705,7 @@ async def dashboard(request: Request):
                 break
         talo["reply_count"] = len([r for r in data.get("replies", []) if r.get("parent_talo_id") == talo["id"]])
         
-        # Check if this post is newer than last viewed
+        # Check if this post is newer than last viewed (for indicator only)
         talo_created = None
         if last_viewed and talo.get("created_at"):
             try:
@@ -717,42 +718,37 @@ async def dashboard(request: Request):
                 logger.warning(f"Could not parse created_at: {talo.get('created_at')}, error: {e}")
                 pass
         
-        # Safe comparison - both are now offset-naive or both None
+        # Safe comparison - for indicator only, not for filtering
         is_new_post = False
         if last_viewed and talo_created:
             try:
                 is_new_post = talo_created > last_viewed
             except TypeError:
-                # Fallback to string comparison if datetime comparison fails
                 is_new_post = str(talo_created) > str(last_viewed)
-                
+        
+        # Mark if new (for indicator badge)
+        if is_new_post:
+            talo["is_new"] = True
+        
         if talo.get("promoted", False):
-            # For promoted posts, always include (but mark as new if applicable)
-            if is_new_post:
-                talo["is_new"] = True
+            # For promoted posts, always include
             all_promoted_talos.append(talo)
         else:
             # For regular posts, only show from followed users
             if followed_user_ids and talo["user_id"] in followed_user_ids:
-                # Only include if NOT a new post (new posts are hidden until refresh)
-                if not is_new_post:
-                    regular_talos.append(talo)
-                else:
-                    # Mark as hidden but count for indicator
-                    talo["is_new"] = True
+                # ALWAYS include posts from followed users - show them all
+                regular_talos.append(talo)
             elif not followed_user_ids or len(followed_user_ids) <= 1:  # Only self
-                if not is_new_post:
-                    regular_talos.append(talo)
+                regular_talos.append(talo)
     
     # Sort regular posts by date (newest first)
     regular_talos.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     
-    # After the sorting, add this:
+    # Count new posts for the indicator badge
     new_posts_count = 0
     for talo in talos:
         if talo.get("is_new", False):
             new_posts_count += 1
-    
     # ===== PROBABILISTIC PROMOTED POSTS (25% chance to show each) =====
     import random
     selected_promoted_talos = []
