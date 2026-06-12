@@ -3502,14 +3502,13 @@ observer.observe(document.getElementById('talosFeed'), { childList: true, subtre
 
 <script>
 // ========== NOTIFICATION SYSTEM ==========
-// Separate variables for different notification types
-let unviewedPostsCount = {{ new_posts_count|default(0) }};  // New posts from followed users (home indicator)
-let unreadActivityCount = 0;  // Activity notifications (likes, replies, follows) - bell badge
+// ========== CLEAN NOTIFICATION SYSTEM ==========
+// This handles: New Posts from followed users (Home indicator + Bell badge)
+
+let unviewedPostsCount = {{ new_posts_count|default(0) }};
 let lastViewedTimestamp = localStorage.getItem('lastViewedPostsTimestamp') || null;
-let followedUserIds = new Set();
 let notificationSound = null;
-let lastFetchedActivityCount = 0;
-let activityPollInterval = null;
+let notificationInterval = null;
 
 // Initialize notification sound
 function initNotificationSound() {
@@ -3523,11 +3522,11 @@ function initNotificationSound() {
                     oscillator.connect(gainNode);
                     gainNode.connect(audioContext.destination);
                     oscillator.frequency.value = 880;
-                    gainNode.gain.value = 0.1;
+                    gainNode.gain.value = 0.15;
                     oscillator.start();
                     gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.3);
                     oscillator.stop(audioContext.currentTime + 0.3);
-                } catch(e) {}
+                } catch(e) { console.log('Audio error:', e); }
             }
         };
     } catch(e) {
@@ -3537,27 +3536,11 @@ function initNotificationSound() {
 
 function playNotificationBeep() {
     if (notificationSound) {
-        notificationSound.play();
+        try { notificationSound.play(); } catch(e) {}
     }
 }
 
-// Load followed users
-async function loadFollowedUsers() {
-    try {
-        const response = await fetch('/api/get_followed_users');
-        const data = await response.json();
-        followedUserIds.clear();
-        if (data.followed_users) {
-            data.followed_users.forEach(id => followedUserIds.add(id));
-        }
-        return followedUserIds;
-    } catch (error) {
-        console.error('Error loading followed users:', error);
-        return followedUserIds;
-    }
-}
-
-// Update the bell icon badge with activity notification count
+// Update the bell badge with count
 function updateBellBadge(count) {
     const badge = document.getElementById('activityBadge');
     if (badge) {
@@ -3577,7 +3560,7 @@ function updateBellBadge(count) {
     }
 }
 
-// Update home indicator for new posts
+// Update home indicator (green dot on home button)
 function updateHomeIndicator(hasNewPosts) {
     const homeIndicator = document.getElementById('homeIndicator');
     if (homeIndicator) {
@@ -3591,38 +3574,8 @@ function updateHomeIndicator(hasNewPosts) {
     }
 }
 
-// Fetch unread activity notifications count (likes, replies, follows)
-async function fetchUnreadActivityCount() {
-    try {
-        const response = await fetch('/api/get_activity_notifications');
-        const data = await response.json();
-        
-        // Count unread notifications (those without read flag)
-        const unreadCount = data.notifications ? data.notifications.filter(n => !n.read).length : 0;
-        
-        // Check if new notifications arrived
-        if (unreadCount > unreadActivityCount && unreadActivityCount > 0) {
-            // New notifications arrived while user is active
-            playNotificationBeep();
-            showFlashNotification(`🔔 ${unreadCount - unreadActivityCount} new notification${(unreadCount - unreadActivityCount) !== 1 ? 's' : ''}!`, 'info');
-        } else if (unreadCount > 0 && unreadActivityCount === 0) {
-            // First new notification
-            playNotificationBeep();
-            showFlashNotification(`🔔 ${unreadCount} new notification${unreadCount !== 1 ? 's' : ''}!`, 'info');
-        }
-        
-        unreadActivityCount = unreadCount;
-        updateBellBadge(unreadActivityCount);
-        
-        return unreadActivityCount;
-    } catch (error) {
-        console.error('Error fetching activity notifications:', error);
-        return 0;
-    }
-}
-
-// Fetch unviewed posts count (new posts from followed users)
-async function fetchUnviewedPostsCount() {
+// Fetch unviewed posts count from server
+async function checkForNewPosts() {
     if (isRefreshing) return;
     
     try {
@@ -3632,28 +3585,29 @@ async function fetchUnviewedPostsCount() {
         const data = await response.json();
         
         const oldCount = unviewedPostsCount;
-        unviewedPostsCount = data.count;
+        const newCount = data.count;
         
-        // Update home indicator
-        updateHomeIndicator(unviewedPostsCount > 0);
-        
-        // Play sound and show notification if new posts detected
-        if (unviewedPostsCount > oldCount && oldCount > 0) {
-            playNotificationBeep();
-            showFlashNotification(`📱 ${unviewedPostsCount - oldCount} new post${(unviewedPostsCount - oldCount) !== 1 ? 's' : ''} available! Tap home to refresh.`, 'info');
-        } else if (unviewedPostsCount > 0 && oldCount === 0) {
-            playNotificationBeep();
-            showFlashNotification(`📱 ${unviewedPostsCount} new post${unviewedPostsCount !== 1 ? 's' : ''} available! Tap home to refresh.`, 'info');
+        if (newCount !== oldCount) {
+            unviewedPostsCount = newCount;
+            
+            // Update home indicator (green dot)
+            updateHomeIndicator(unviewedPostsCount > 0);
+            
+            // Update bell badge with count
+            updateBellBadge(unviewedPostsCount);
+            
+            // Play sound if new posts arrived
+            if (newCount > oldCount && newCount > 0) {
+                playNotificationBeep();
+                showFlashNotification(`📱 ${newCount - oldCount} new post${(newCount - oldCount) !== 1 ? 's' : ''} available! Tap home to refresh.`, 'info');
+            }
         }
-        
-        return unviewedPostsCount;
     } catch (error) {
-        console.error('Error fetching unviewed posts count:', error);
-        return unviewedPostsCount;
+        console.error('Error checking for new posts:', error);
     }
 }
 
-// Mark all posts as viewed (refresh timeline)
+// Manual refresh when user taps home icon
 async function markAllPostsAsViewed() {
     if (isRefreshing) return;
     isRefreshing = true;
@@ -3678,6 +3632,7 @@ async function markAllPostsAsViewed() {
         if (response.ok) {
             unviewedPostsCount = 0;
             updateHomeIndicator(false);
+            updateBellBadge(0);
             location.reload();
         } else {
             if (homeBtn) homeBtn.innerHTML = originalText;
@@ -3692,48 +3647,20 @@ async function markAllPostsAsViewed() {
     }
 }
 
-// Mark a single notification as read
-async function markNotificationRead(notificationId) {
-    try {
-        const response = await fetch(`/api/mark_notification_read/${notificationId}`, { method: 'POST' });
-        if (response.ok) {
-            unreadActivityCount = Math.max(0, unreadActivityCount - 1);
-            updateBellBadge(unreadActivityCount);
-            // Reload notifications list
-            loadActivityNotifications();
-        }
-    } catch (error) {
-        console.error('Error marking notification read:', error);
+// Toggle activity panel (for likes/replies/follows - separate from new posts)
+function toggleActivityPanel() {
+    const panel = document.getElementById('notificationsPanel');
+    const isVisible = panel.classList.contains('show');
+    
+    if (!isVisible) {
+        loadActivityNotifications();
+        panel.classList.add('show');
+    } else {
+        panel.classList.remove('show');
     }
 }
 
-// Mark all notifications as read (when opening panel)
-async function markAllNotificationsRead() {
-    try {
-        // Mark all as read via API
-        const notificationsList = document.getElementById('notificationsList');
-        const notificationItems = notificationsList?.querySelectorAll('.notification-item');
-        
-        if (notificationItems && notificationItems.length > 0) {
-            for (const item of notificationItems) {
-                const notifId = item.dataset.notifId;
-                if (notifId && item.classList.contains('unread')) {
-                    await fetch(`/api/mark_notification_read/${notifId}`, { method: 'POST' }).catch(e => console.log(e));
-                }
-            }
-        }
-        
-        unreadActivityCount = 0;
-        updateBellBadge(0);
-        
-        // Also refresh the notifications list to update read status
-        await loadActivityNotifications();
-    } catch (error) {
-        console.error('Error marking all notifications read:', error);
-    }
-}
-
-// Load activity notifications for the panel
+// Load activity notifications (likes, replies, follows)
 async function loadActivityNotifications() {
     try {
         const response = await fetch('/api/get_activity_notifications');
@@ -3741,13 +3668,6 @@ async function loadActivityNotifications() {
         const notificationsList = document.getElementById('notificationsList');
         
         if (data.notifications && data.notifications.length > 0) {
-            // Update unread count based on fresh data
-            const freshUnreadCount = data.notifications.filter(n => !n.read).length;
-            if (freshUnreadCount !== unreadActivityCount) {
-                unreadActivityCount = freshUnreadCount;
-                updateBellBadge(unreadActivityCount);
-            }
-            
             notificationsList.innerHTML = data.notifications.map(notif => `
                 <div class="notification-item ${notif.read ? '' : 'unread'}" data-notif-id="${notif.id}" data-related-id="${notif.related_talo_id || ''}" data-type="${notif.type}">
                     <div style="flex: 1;" onclick="viewActivityNotification('${notif.id}', '${notif.type}', '${notif.related_talo_id || ''}')">
@@ -3758,11 +3678,8 @@ async function loadActivityNotifications() {
                     <button class="delete-notification-btn" onclick="event.stopPropagation(); deleteActivityNotification('${notif.id}')">✖</button>
                 </div>
             `).join('');
-            initSwipeToDelete();
         } else {
             notificationsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No activity notifications</div>';
-            unreadActivityCount = 0;
-            updateBellBadge(0);
         }
     } catch (error) {
         console.error('Error loading activity notifications:', error);
@@ -3770,14 +3687,10 @@ async function loadActivityNotifications() {
     }
 }
 
-// View and mark notification as read
+// View and delete activity notification
 async function viewActivityNotification(notificationId, type, relatedTaloId) {
-    await markNotificationRead(notificationId);
-    
-    const notifItem = document.querySelector(`.notification-item[data-notif-id="${notificationId}"]`);
-    if (notifItem) {
-        notifItem.classList.remove('unread');
-    }
+    // Delete the notification when viewed
+    await deleteActivityNotification(notificationId);
     
     if (type === 'follow') {
         const match = document.querySelector(`.notification-item[data-notif-id="${notificationId}"] small`)?.textContent;
@@ -3790,41 +3703,18 @@ async function viewActivityNotification(notificationId, type, relatedTaloId) {
     }
 }
 
-// Delete a notification
 async function deleteActivityNotification(notificationId) {
     try {
         const response = await fetch(`/api/delete_activity_notification/${notificationId}`, { method: 'DELETE' });
         if (response.ok) {
             const notifItem = document.querySelector(`.notification-item[data-notif-id="${notificationId}"]`);
             if (notifItem) {
-                // Check if it was unread
-                if (notifItem.classList.contains('unread')) {
-                    unreadActivityCount = Math.max(0, unreadActivityCount - 1);
-                    updateBellBadge(unreadActivityCount);
-                }
                 notifItem.classList.add('deleting');
                 setTimeout(() => notifItem.remove(), 300);
             }
         }
     } catch (error) {
         console.error('Error deleting notification:', error);
-    }
-}
-
-// Toggle activity panel
-function toggleActivityPanel() {
-    const panel = document.getElementById('notificationsPanel');
-    const isVisible = panel.classList.contains('show');
-    
-    if (!isVisible) {
-        loadActivityNotifications();
-        panel.classList.add('show');
-        // Mark all as read when opening panel
-        setTimeout(() => {
-            markAllNotificationsRead();
-        }, 500);
-    } else {
-        panel.classList.remove('show');
     }
 }
 
@@ -3839,95 +3729,41 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// Swipe to delete on mobile
-function initSwipeToDelete() {
-    const notificationItems = document.querySelectorAll('.notification-item');
-    let touchStartX = 0;
-    let currentItem = null;
-    
-    notificationItems.forEach(item => {
-        item.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
-            currentItem = item;
-        });
-        
-        item.addEventListener('touchmove', (e) => {
-            if (!currentItem) return;
-            const touchX = e.touches[0].clientX;
-            const diff = touchStartX - touchX;
-            if (diff > 50) {
-                e.preventDefault();
-                currentItem.classList.add('swiping');
-            }
-        });
-        
-        item.addEventListener('touchend', (e) => {
-            if (!currentItem) return;
-            const touchX = e.changedTouches[0].clientX;
-            const diff = touchStartX - touchX;
-            if (diff > 100) {
-                const notifId = currentItem.dataset.notifId;
-                if (notifId) {
-                    deleteActivityNotification(notifId);
-                }
-            }
-            currentItem.classList.remove('swiping');
-            currentItem = null;
-        });
-    });
-}
-
-// Periodic checks
-async function checkForNewPosts() {
-    if (isRefreshing) return;
-    await fetchUnviewedPostsCount();
-}
-
-async function checkForNewActivity() {
-    await fetchUnreadActivityCount();
-}
-
-// Clear all activity notifications
-async function clearAllActivityNotifications() {
-    if (confirm('Clear all activity notifications?')) {
-        try {
-            const response = await fetch('/api/clear_all_activity_notifications', { method: 'DELETE' });
-            if (response.ok) {
-                unreadActivityCount = 0;
-                updateBellBadge(0);
-                loadActivityNotifications();
-                showFlashNotification('All notifications cleared', 'success');
-            }
-        } catch (error) {
-            console.error('Error clearing notifications:', error);
-        }
-    }
-}
-
-// Initialize notification system
-async function initNotificationSystem() {
+// Initialize the notification system
+function initNotificationSystem() {
     initNotificationSound();
-    await loadFollowedUsers();
     
-    // Initialize UI
+    // Initial UI update
     updateHomeIndicator(unviewedPostsCount > 0);
-    await fetchUnreadActivityCount();
+    updateBellBadge(unviewedPostsCount);
     
-    // Set up periodic checks (every 15 seconds for activity, 30 for posts)
-    if (activityPollInterval) clearInterval(activityPollInterval);
-    activityPollInterval = setInterval(checkForNewActivity, 15000);  // Every 15 seconds for activity
-    setInterval(checkForNewPosts, 30000);  // Every 30 seconds for new posts
+    // Clear any existing interval
+    if (notificationInterval) clearInterval(notificationInterval);
     
-    // Check when page becomes visible again
+    // Check for new posts every 20 seconds
+    notificationInterval = setInterval(checkForNewPosts, 20000);
+    
+    // Also check when page becomes visible again
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) {
             checkForNewPosts();
-            checkForNewActivity();
         }
     });
 }
 
+// Override refreshTimeline to use markAllPostsAsViewed
+const originalRefreshTimeline = window.refreshTimeline;
+window.refreshTimeline = markAllPostsAsViewed;
 
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const homeBtn = document.getElementById('homeBtn');
+    if (homeBtn) {
+        homeBtn.onclick = markAllPostsAsViewed;
+    }
+    
+    initNotificationSystem();
+});
 </script>
 
 <script>
@@ -4005,23 +3841,6 @@ window.addEventListener('beforeunload', () => {
         sessionStorage.setItem('dashboardScrollPosition', scrollableContent.scrollTop);
         sessionStorage.setItem('dashboardScrollTimestamp', Date.now().toString());
     }
-});
-
-
-//New position....
-
-// Override refreshTimeline
-const originalRefreshTimeline = window.refreshTimeline;
-window.refreshTimeline = markAllPostsAsViewed;
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    const homeBtn = document.getElementById('homeBtn');
-    if (homeBtn) {
-        homeBtn.onclick = markAllPostsAsViewed;
-    }
-    
-    initNotificationSystem();
 });
 
 
