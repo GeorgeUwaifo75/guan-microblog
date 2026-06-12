@@ -112,6 +112,62 @@ class APICache:
 api_cache = APICache(ttl_seconds=30)  # Cache for 30 seconds
 
 
+class PersistentAPICache:
+    """File-based cache that persists across server restarts"""
+    def __init__(self, cache_file="api_cache.json", ttl_seconds=300):  # 5 minute TTL
+        self.cache_file = cache_file
+        self.ttl = ttl_seconds
+        self._load_cache()
+    
+    def _load_cache(self):
+        """Load cache from file"""
+        try:
+            if os.path.exists(self.cache_file):
+                with open(self.cache_file, 'r') as f:
+                    data = json.load(f)
+                    self.cache = data.get('data', {})
+                    self.timestamp = data.get('timestamp', 0)
+            else:
+                self.cache = {}
+                self.timestamp = 0
+        except Exception as e:
+            logger.error(f"Error loading persistent cache: {e}")
+            self.cache = {}
+            self.timestamp = 0
+    
+    def _save_cache(self):
+        """Save cache to file"""
+        try:
+            with open(self.cache_file, 'w') as f:
+                json.dump({
+                    'data': self.cache,
+                    'timestamp': self.timestamp
+                }, f)
+        except Exception as e:
+            logger.error(f"Error saving persistent cache: {e}")
+    
+    def get(self, key):
+        """Get cached data if not expired"""
+        if self.cache and time.time() - self.timestamp < self.ttl:
+            return self.cache.get(key)
+        return None
+    
+    def set(self, key, data):
+        """Set cached data"""
+        self.cache = {key: data}
+        self.timestamp = time.time()
+        self._save_cache()
+    
+    def clear(self):
+        """Clear cache"""
+        self.cache = {}
+        self.timestamp = 0
+        if os.path.exists(self.cache_file):
+            os.remove(self.cache_file)
+
+# Replace api_cache with persistent cache
+api_cache = PersistentAPICache(ttl_seconds=300)  # 5 minute cache
+
 # ===== WA_GUAN ACCOUNT CONFIGURATION =====
 WA_GUAN_USER_ID = "wa_guan"
 WA_GUAN_FIRST_NAME = "Support"
@@ -255,7 +311,7 @@ Get started by following interesting accounts and sharing your first talo.
 
 # Also update the get_jsonbin_data function to be more resilient
 async def get_jsonbin_data(force_refresh=False) -> Dict:
-    """Fetch data from jsonbinbro API with retry logic and caching"""
+    """Fetch data from jsonbinbro API with improved retry logic"""
     
     # Check cache first
     if not force_refresh:
@@ -264,14 +320,15 @@ async def get_jsonbin_data(force_refresh=False) -> Dict:
             logger.info("Returning cached API data")
             return cached_data
     
-    max_retries = 2  # Reduced from 3 for faster failure
-    retry_delay = 1  # Reduced from 2 seconds
+    max_retries = 3
+    retry_delay = 2  # Increased from 1 second
     
     for attempt in range(max_retries):
         try:
             url = f"{API_BASE}/bins/{BIN_ID}?api_key={API_KEY}"
             
-            async with httpx.AsyncClient(timeout=10.0) as client:  # Reduced timeout to 10s
+            # Increased timeout to 15 seconds
+            async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.get(url)
                 
                 if response.status_code == 200:
@@ -317,9 +374,9 @@ async def get_jsonbin_data(force_refresh=False) -> Dict:
                 else:
                     if attempt < max_retries - 1:
                         logger.warning(f"API returned {response.status_code}, retrying...")
-                        await asyncio.sleep(retry_delay)
+                        await asyncio.sleep(retry_delay * (attempt + 1))  # Exponential backoff
                         continue
-                    # Return cached data if available instead of failing
+                    # Return cached data if available
                     cached = api_cache.get("jsonbin_data")
                     if cached:
                         logger.warning("Using cached data due to API error")
@@ -329,19 +386,19 @@ async def get_jsonbin_data(force_refresh=False) -> Dict:
         except httpx.TimeoutException:
             logger.error(f"Timeout error (attempt {attempt + 1}/{max_retries})")
             if attempt < max_retries - 1:
-                await asyncio.sleep(retry_delay)
+                await asyncio.sleep(retry_delay * (attempt + 1))
                 continue
             # Return cached data if available
             cached = api_cache.get("jsonbin_data")
             if cached:
                 logger.warning("Using cached data due to timeout")
                 return cached
-            raise HTTPException(status_code=503, detail="API timeout - Please try again")
+            raise HTTPException(status_code=503, detail="API is currently slow. Please try again in a moment.")
             
         except Exception as e:
             logger.error(f"Error fetching data (attempt {attempt + 1}/{max_retries}): {str(e)}")
             if attempt < max_retries - 1:
-                await asyncio.sleep(retry_delay)
+                await asyncio.sleep(retry_delay * (attempt + 1))
                 continue
             # Return cached data if available
             cached = api_cache.get("jsonbin_data")
@@ -356,7 +413,6 @@ async def get_jsonbin_data(force_refresh=False) -> Dict:
         logger.warning("Using cached data as final fallback")
         return cached
     raise HTTPException(status_code=503, detail="Unable to access API after multiple attempts")
-
 
 async def save_jsonbin_data(data: Dict) -> bool:
     """Save data to jsonbinbro API"""
@@ -582,7 +638,17 @@ async def api_signup(user_data: UserSignup):
 
 @app.post("/api/login")
 async def api_login(login_data: UserLogin):
-    data = await get_jsonbin_data()
+    try:
+        data = await get_jsonbin_data()
+    except HTTPException as e:
+        # If API fails, try one more time with force refresh
+        logger.warning("First API attempt failed, retrying...")
+        await asyncio.sleep(1)
+        try:
+            data = await get_jsonbin_data(force_refresh=True)
+        except HTTPException:
+            # Return user-friendly error
+            raise HTTPException(status_code=503, detail="Service is starting up. Please wait 10 seconds and try again.")
     
     await ensure_wa_guan_account()
     data = await get_jsonbin_data()
@@ -2789,12 +2855,30 @@ async def refresh_cache(request: Request):
 
 @app.get("/api/health")
 async def health_check():
+    """Health check endpoint for Render"""
     try:
+        # Try to get cached data first
+        cached = api_cache.get("jsonbin_data")
+        if cached:
+            return {
+                "status": "healthy",
+                "api": "jsonbinbro (cached)",
+                "connected": True,
+                "cached": True,
+                "stats": {
+                    "users": len(cached.get("users", [])),
+                    "talos": len(cached.get("talos", [])),
+                    "replies": len(cached.get("replies", []))
+                }
+            }
+        
+        # Try fresh data
         data = await get_jsonbin_data()
         return {
             "status": "healthy",
             "api": "jsonbinbro",
             "connected": True,
+            "cached": False,
             "stats": {
                 "users": len(data.get("users", [])),
                 "talos": len(data.get("talos", [])),
@@ -2802,13 +2886,25 @@ async def health_check():
             }
         }
     except Exception as e:
-        return {"status": "unhealthy", "error": str(e)}
+        return {"status": "starting", "error": str(e)}
 
-# Update the startup event to be more resilient
 @app.on_event("startup")
 async def startup_event():
-    """Startup with graceful handling of API issues"""
+    """Startup with pre-loading of data"""
     logger.info("Starting GuAn Microblogging Platform...")
+    
+    # Pre-load data into cache on startup
+    for attempt in range(3):
+        try:
+            logger.info(f"Attempting to pre-load API data (attempt {attempt + 1}/3)...")
+            data = await get_jsonbin_data(force_refresh=True)
+            if data:
+                logger.info(f"Successfully pre-loaded data: {len(data.get('users', []))} users, {len(data.get('talos', []))} talos")
+                break
+        except Exception as e:
+            logger.error(f"Pre-load attempt {attempt + 1} failed: {str(e)}")
+            if attempt < 2:
+                await asyncio.sleep(5)
     
     # Try to ensure wa_guan account exists, but don't block startup
     for attempt in range(3):
