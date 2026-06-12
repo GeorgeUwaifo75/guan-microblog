@@ -1788,6 +1788,12 @@
     font-size: 13px;
     border: 1px dashed #ccc;
 }
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+}
     </style>
 </head>
 <body>
@@ -3497,11 +3503,13 @@ observer.observe(document.getElementById('talosFeed'), { childList: true, subtre
 <script>
 // ========== NOTIFICATION SYSTEM ==========
 // Separate variables for different notification types
-let unviewedPostsCount = {{ new_posts_count|default(0) }};  // New posts from followed users
-let unreadActivityCount = 0;  // Activity notifications (likes, replies, follows)
+let unviewedPostsCount = {{ new_posts_count|default(0) }};  // New posts from followed users (home indicator)
+let unreadActivityCount = 0;  // Activity notifications (likes, replies, follows) - bell badge
 let lastViewedTimestamp = localStorage.getItem('lastViewedPostsTimestamp') || null;
 let followedUserIds = new Set();
 let notificationSound = null;
+let lastFetchedActivityCount = 0;
+let activityPollInterval = null;
 
 // Initialize notification sound
 function initNotificationSound() {
@@ -3556,6 +3564,12 @@ function updateBellBadge(count) {
         if (count > 0) {
             badge.style.display = 'inline-block';
             badge.textContent = count > 99 ? '99+' : count;
+            // Animate bell icon
+            const bellBtn = document.getElementById('activityBellBtn');
+            if (bellBtn) {
+                bellBtn.style.animation = 'pulse 0.5s ease-in-out 3';
+                setTimeout(() => { if(bellBtn) bellBtn.style.animation = ''; }, 1500);
+            }
         } else {
             badge.style.display = 'none';
             badge.textContent = '0';
@@ -3585,6 +3599,18 @@ async function fetchUnreadActivityCount() {
         
         // Count unread notifications (those without read flag)
         const unreadCount = data.notifications ? data.notifications.filter(n => !n.read).length : 0;
+        
+        // Check if new notifications arrived
+        if (unreadCount > unreadActivityCount && unreadActivityCount > 0) {
+            // New notifications arrived while user is active
+            playNotificationBeep();
+            showFlashNotification(`🔔 ${unreadCount - unreadActivityCount} new notification${(unreadCount - unreadActivityCount) !== 1 ? 's' : ''}!`, 'info');
+        } else if (unreadCount > 0 && unreadActivityCount === 0) {
+            // First new notification
+            playNotificationBeep();
+            showFlashNotification(`🔔 ${unreadCount} new notification${unreadCount !== 1 ? 's' : ''}!`, 'info');
+        }
+        
         unreadActivityCount = unreadCount;
         updateBellBadge(unreadActivityCount);
         
@@ -3684,11 +3710,24 @@ async function markNotificationRead(notificationId) {
 // Mark all notifications as read (when opening panel)
 async function markAllNotificationsRead() {
     try {
-        const response = await fetch('/api/mark_all_notifications_read', { method: 'POST' });
-        if (response.ok) {
-            unreadActivityCount = 0;
-            updateBellBadge(0);
+        // Mark all as read via API
+        const notificationsList = document.getElementById('notificationsList');
+        const notificationItems = notificationsList?.querySelectorAll('.notification-item');
+        
+        if (notificationItems && notificationItems.length > 0) {
+            for (const item of notificationItems) {
+                const notifId = item.dataset.notifId;
+                if (notifId && item.classList.contains('unread')) {
+                    await fetch(`/api/mark_notification_read/${notifId}`, { method: 'POST' }).catch(e => console.log(e));
+                }
+            }
         }
+        
+        unreadActivityCount = 0;
+        updateBellBadge(0);
+        
+        // Also refresh the notifications list to update read status
+        await loadActivityNotifications();
     } catch (error) {
         console.error('Error marking all notifications read:', error);
     }
@@ -3702,6 +3741,13 @@ async function loadActivityNotifications() {
         const notificationsList = document.getElementById('notificationsList');
         
         if (data.notifications && data.notifications.length > 0) {
+            // Update unread count based on fresh data
+            const freshUnreadCount = data.notifications.filter(n => !n.read).length;
+            if (freshUnreadCount !== unreadActivityCount) {
+                unreadActivityCount = freshUnreadCount;
+                updateBellBadge(unreadActivityCount);
+            }
+            
             notificationsList.innerHTML = data.notifications.map(notif => `
                 <div class="notification-item ${notif.read ? '' : 'unread'}" data-notif-id="${notif.id}" data-related-id="${notif.related_talo_id || ''}" data-type="${notif.type}">
                     <div style="flex: 1;" onclick="viewActivityNotification('${notif.id}', '${notif.type}', '${notif.related_talo_id || ''}')">
@@ -3715,6 +3761,8 @@ async function loadActivityNotifications() {
             initSwipeToDelete();
         } else {
             notificationsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No activity notifications</div>';
+            unreadActivityCount = 0;
+            updateBellBadge(0);
         }
     } catch (error) {
         console.error('Error loading activity notifications:', error);
@@ -3772,7 +3820,9 @@ function toggleActivityPanel() {
         loadActivityNotifications();
         panel.classList.add('show');
         // Mark all as read when opening panel
-        markAllNotificationsRead();
+        setTimeout(() => {
+            markAllNotificationsRead();
+        }, 500);
     } else {
         panel.classList.remove('show');
     }
@@ -3863,9 +3913,10 @@ async function initNotificationSystem() {
     updateHomeIndicator(unviewedPostsCount > 0);
     await fetchUnreadActivityCount();
     
-    // Set up periodic checks
+    // Set up periodic checks (every 15 seconds for activity, 30 for posts)
+    if (activityPollInterval) clearInterval(activityPollInterval);
+    activityPollInterval = setInterval(checkForNewActivity, 15000);  // Every 15 seconds for activity
     setInterval(checkForNewPosts, 30000);  // Every 30 seconds for new posts
-    setInterval(checkForNewActivity, 30000);  // Every 30 seconds for activity
     
     // Check when page becomes visible again
     document.addEventListener('visibilitychange', () => {
