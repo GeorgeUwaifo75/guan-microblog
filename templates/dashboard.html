@@ -3496,13 +3496,15 @@ observer.observe(document.getElementById('talosFeed'), { childList: true, subtre
 
 <script>
 // ========== NOTIFICATION SYSTEM ==========
-let unviewedPostsCount = 0;
+let unviewedPostsCount = {{ new_posts_count|default(0) }};
 let lastViewedTimestamp = localStorage.getItem('lastViewedPostsTimestamp') || null;
 let followedUserIds = new Set();
 let notificationSound = null;
+let lastKnownUnviewedCount = unviewedPostsCount;
 
 function initNotificationSound() {
     try {
+        // Create a simple beep using Web Audio API
         notificationSound = {
             play: function() {
                 try {
@@ -3512,11 +3514,13 @@ function initNotificationSound() {
                     oscillator.connect(gainNode);
                     gainNode.connect(audioContext.destination);
                     oscillator.frequency.value = 880;
-                    gainNode.gain.value = 0.1;
+                    gainNode.gain.value = 0.15;
                     oscillator.start();
                     gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.3);
                     oscillator.stop(audioContext.currentTime + 0.3);
-                } catch(e) {}
+                } catch(e) {
+                    console.log('Web Audio not supported');
+                }
             }
         };
     } catch(e) {
@@ -3535,7 +3539,9 @@ async function loadFollowedUsers() {
         const response = await fetch('/api/get_followed_users');
         const data = await response.json();
         followedUserIds.clear();
-        data.followed_users.forEach(id => followedUserIds.add(id));
+        if (data.followed_users) {
+            data.followed_users.forEach(id => followedUserIds.add(id));
+        }
         return followedUserIds;
     } catch (error) {
         console.error('Error loading followed users:', error);
@@ -3543,71 +3549,34 @@ async function loadFollowedUsers() {
     }
 }
 
-
-let unviewedPostsCount = {{ new_posts_count|default(0) }};
-let lastViewedTimestamp = localStorage.getItem('lastViewedPostsTimestamp') || null;
-
-async function fetchUnviewedPostsCount() {
-    // Don't fetch from API on page load - use server value
-    // But we still need to update the UI
+// Update the UI badge and home indicator
+function updateNotificationIndicators(count) {
     const badge = document.getElementById('activityBadge');
     const homeIndicator = document.getElementById('homeIndicator');
     
-    if (unviewedPostsCount > 0) {
+    if (count > 0) {
         if (badge) {
             badge.style.display = 'inline-block';
-            badge.textContent = unviewedPostsCount > 99 ? '99+' : unviewedPostsCount;
+            badge.textContent = count > 99 ? '99+' : count;
         }
         if (homeIndicator) {
             homeIndicator.classList.remove('gray');
             homeIndicator.style.background = '#28a745';
         }
     } else {
-        if (badge) badge.style.display = 'none';
+        if (badge) {
+            badge.style.display = 'none';
+            badge.textContent = '0';
+        }
         if (homeIndicator) {
             homeIndicator.classList.add('gray');
             homeIndicator.style.background = '#888';
         }
     }
-    
-    return unviewedPostsCount;
 }
 
-
-async function markAllPostsAsViewed() {
-    if (isRefreshing) return;
-    isRefreshing = true;
-    
-    const now = new Date().toISOString();
-    lastViewedTimestamp = now;
-    localStorage.setItem('lastViewedPostsTimestamp', now);
-    
-    try {
-        const response = await fetch('/api/mark_posts_viewed', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ timestamp: now })
-        });
-        
-        if (response.ok) {
-            unviewedPostsCount = 0;
-            const badge = document.getElementById('activityBadge');
-            const homeIndicator = document.getElementById('homeIndicator');
-            badge.style.display = 'none';
-            badge.textContent = '0';
-            homeIndicator.classList.add('gray');
-            homeIndicator.style.background = '#888';
-            location.reload();
-        }
-    } catch (error) {
-        console.error('Error marking posts as viewed:', error);
-    } finally {
-        isRefreshing = false;
-    }
-}
-
-// Update checkForNewPosts to also compare with server values
-async function checkForNewPosts() {
+// Fetch unviewed posts count from server (periodic check)
+async function fetchUnviewedPostsCount() {
     if (isRefreshing) return;
     
     try {
@@ -3618,34 +3587,89 @@ async function checkForNewPosts() {
         
         const oldCount = unviewedPostsCount;
         unviewedPostsCount = data.count;
-        const badge = document.getElementById('activityBadge');
-        const homeIndicator = document.getElementById('homeIndicator');
         
-        if (unviewedPostsCount > 0) {
-            if (badge) {
-                badge.style.display = 'inline-block';
-                badge.textContent = unviewedPostsCount > 99 ? '99+' : unviewedPostsCount;
-            }
-            if (homeIndicator) {
-                homeIndicator.classList.remove('gray');
-                homeIndicator.style.background = '#28a745';
-            }
+        // Update the UI
+        updateNotificationIndicators(unviewedPostsCount);
+        
+        // Play sound and show notification if new posts detected
+        if (unviewedPostsCount > oldCount && oldCount > 0) {
+            // New posts arrived while user was active
+            playNotificationBeep();
+            showFlashNotification(`📱 ${unviewedPostsCount - oldCount} new post${(unviewedPostsCount - oldCount) !== 1 ? 's' : ''} available! Tap home to refresh.`, 'info');
             
-            // Just show notification, don't auto-refresh
-            if (oldCount === 0 && unviewedPostsCount > 0) {
-                showFlashNotification(`📱 ${unviewedPostsCount} new post${unviewedPostsCount !== 1 ? 's' : ''} available. Tap home to refresh!`, 'info');
+            // Animate bell icon
+            const bellBtn = document.getElementById('activityBellBtn');
+            if (bellBtn) {
+                bellBtn.style.animation = 'pulse 0.5s ease-in-out 3';
+                setTimeout(() => { bellBtn.style.animation = ''; }, 1500);
             }
-        } else {
-            if (badge) badge.style.display = 'none';
-            if (homeIndicator) {
-                homeIndicator.classList.add('gray');
-                homeIndicator.style.background = '#888';
+        } else if (unviewedPostsCount > 0 && oldCount === 0) {
+            // First time detecting new posts after being viewed
+            playNotificationBeep();
+            showFlashNotification(`📱 ${unviewedPostsCount} new post${unviewedPostsCount !== 1 ? 's' : ''} available! Tap home to refresh.`, 'info');
+            
+            const bellBtn = document.getElementById('activityBellBtn');
+            if (bellBtn) {
+                bellBtn.style.animation = 'pulse 0.5s ease-in-out 3';
+                setTimeout(() => { bellBtn.style.animation = ''; }, 1500);
             }
         }
+        
+        return unviewedPostsCount;
     } catch (error) {
-        console.error('Error checking for new posts:', error);
+        console.error('Error fetching unviewed posts count:', error);
+        return unviewedPostsCount;
     }
 }
+
+// Manual refresh when user taps home icon
+async function markAllPostsAsViewed() {
+    if (isRefreshing) return;
+    isRefreshing = true;
+    
+    const now = new Date().toISOString();
+    lastViewedTimestamp = now;
+    localStorage.setItem('lastViewedPostsTimestamp', now);
+    
+    // Show loading state on home button
+    const homeBtn = document.getElementById('homeBtn');
+    const originalText = homeBtn ? homeBtn.innerHTML : '';
+    if (homeBtn) {
+        homeBtn.innerHTML = '<span class="loading-spinner" style="width: 18px; height: 18px;"></span>';
+    }
+    
+    try {
+        const response = await fetch('/api/mark_posts_viewed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ timestamp: now })
+        });
+        
+        if (response.ok) {
+            unviewedPostsCount = 0;
+            updateNotificationIndicators(0);
+            
+            // Reload to show new posts
+            location.reload();
+        } else {
+            if (homeBtn) homeBtn.innerHTML = originalText;
+            isRefreshing = false;
+            showFlashNotification('Failed to refresh. Please try again.', 'error');
+        }
+    } catch (error) {
+        console.error('Error marking posts as viewed:', error);
+        if (homeBtn) homeBtn.innerHTML = originalText;
+        isRefreshing = false;
+        showFlashNotification('Network error. Please try again.', 'error');
+    }
+}
+
+// Periodic check for new posts (every 30 seconds)
+async function checkForNewPosts() {
+    if (isRefreshing) return;
+    await fetchUnviewedPostsCount();
+}
+
 async function loadActivityNotifications() {
     try {
         const response = await fetch('/api/get_activity_notifications');
@@ -3769,24 +3793,43 @@ function initSwipeToDelete() {
     });
 }
 
+// Override the original refreshTimeline to use markAllPostsAsViewed
 const originalRefreshTimeline = window.refreshTimeline;
 window.refreshTimeline = markAllPostsAsViewed;
 
 async function initNotificationSystem() {
     initNotificationSound();
     await loadFollowedUsers();
-    await fetchUnviewedPostsCount();
+    
+    // Initialize the UI with current count
+    updateNotificationIndicators(unviewedPostsCount);
+    
+    // Set up periodic checking for new posts (every 30 seconds)
     setInterval(checkForNewPosts, 30000);
+    
+    // Also check when page becomes visible again
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            checkForNewPosts();
+        }
+    });
 }
 
+// Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
+    // Ensure home button uses markAllPostsAsViewed
     const homeBtn = document.getElementById('homeBtn');
     if (homeBtn) {
         homeBtn.onclick = markAllPostsAsViewed;
     }
+    
+    // Initialize notification system
+    initNotificationSystem();
 });
 
+</script>
 
+<script>
 // ========== SCROLL POSITION SAVING ==========
 // Save scroll position before leaving the page
 function saveScrollPosition() {
@@ -3862,11 +3905,9 @@ window.addEventListener('beforeunload', () => {
         sessionStorage.setItem('dashboardScrollTimestamp', Date.now().toString());
     }
 });
-
-
-
-initNotificationSystem();
 </script>
+
+
 
 </body>
 </html>
