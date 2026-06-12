@@ -2541,42 +2541,6 @@ async def clear_all_activity_notifications(request: Request):
     
     return {"success": True}
 
-@app.get("/api/get_new_notifications_since")
-async def get_new_notifications_since(request: Request):
-    """Return notifications created after the given 'since' ISO timestamp.
-    Used by the frontend to detect genuinely new (just-arrived) notifications
-    and increment the badge count without double-counting existing unread ones."""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        return {"notifications": [], "count": 0}
-
-    data = await get_jsonbin_data()
-    user = None
-    for u in data.get("users", []):
-        if u.get("session_token") == session_token:
-            user = u
-            break
-
-    if not user:
-        return {"notifications": [], "count": 0}
-
-    since = request.headers.get("X-Since", "")
-
-    new_notifs = []
-    for notif in data.get("notifications", []):
-        if (
-            notif.get("user_id") == user["user_id"]
-            and notif.get("type") != "new_post"
-            and not notif.get("read", False)
-        ):
-            created = notif.get("created_at", "")
-            if not since or created > since:
-                new_notifs.append(notif)
-
-    new_notifs.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-    return {"notifications": new_notifs, "count": len(new_notifs)}
-
-
 @app.get("/api/check_new_notifications")
 async def check_new_notifications(request: Request):
     """Check for new notifications since last check"""
