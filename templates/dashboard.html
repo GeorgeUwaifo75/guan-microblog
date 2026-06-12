@@ -3927,19 +3927,6 @@ async function initNotificationSystem() {
     });
 }
 
-// Override refreshTimeline
-const originalRefreshTimeline = window.refreshTimeline;
-window.refreshTimeline = markAllPostsAsViewed;
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    const homeBtn = document.getElementById('homeBtn');
-    if (homeBtn) {
-        homeBtn.onclick = markAllPostsAsViewed;
-    }
-    
-    initNotificationSystem();
-});
 
 </script>
 
@@ -4019,6 +4006,26 @@ window.addEventListener('beforeunload', () => {
         sessionStorage.setItem('dashboardScrollTimestamp', Date.now().toString());
     }
 });
+
+
+//New position....
+
+// Override refreshTimeline
+const originalRefreshTimeline = window.refreshTimeline;
+window.refreshTimeline = markAllPostsAsViewed;
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const homeBtn = document.getElementById('homeBtn');
+    if (homeBtn) {
+        homeBtn.onclick = markAllPostsAsViewed;
+    }
+    
+    initNotificationSystem();
+});
+
+
+
 </script>
 
 
