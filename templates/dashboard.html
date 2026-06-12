@@ -2684,7 +2684,7 @@ async function createNewPostHtml(content, photos, taloId) {
             if (existing) existing.remove();
             const notification = document.createElement('div');
             notification.className = `flash-notification ${type}`;
-            let icon = type === 'success' ? '✅' : '❌';
+            let icon = type === 'success' ? '✅' : type === 'info' ? 'ℹ️' : '❌';
             notification.innerHTML = `<span class="flash-notification-icon">${icon}</span><span class="flash-notification-message">${message}</span>`;
             document.body.appendChild(notification);
             setTimeout(() => notification.classList.add('show'), 10);
@@ -3527,16 +3527,20 @@ observer.observe(document.getElementById('talosFeed'), { childList: true, subtre
     </script>
 
 <script>
-// ========== UNIFIED NOTIFICATION SYSTEM ==========
-
-// ========== SIMPLIFIED NOTIFICATION SYSTEM ==========
+// ========== FIXED NOTIFICATION SYSTEM ==========
 
 // Variables
 let unviewedPostsCount = {{ new_posts_count|default(0) }};
 let lastViewedTimestamp = localStorage.getItem('lastViewedPostsTimestamp') || null;
 let notificationInterval = null;
 let activityInterval = null;
-let lastNotifTimestamp = null; // ISO string of the most recent notification we've seen
+
+// Persist last notification timestamp in localStorage
+const NOTIF_TS_KEY = 'guan_lastNotifTimestamp';
+let lastNotifTimestamp = localStorage.getItem(NOTIF_TS_KEY) || null;
+
+// In-memory badge count
+let activityBadgeCount = 0;
 
 // Update home indicator (green dot on home button) - for unviewed posts
 function updateHomeIndicator(hasNewPosts) {
@@ -3554,11 +3558,12 @@ function updateHomeIndicator(hasNewPosts) {
 
 // Update bell badge - for ACTIVITY notifications (likes, replies, follows)
 function updateBellBadge(count) {
+    activityBadgeCount = Math.max(0, count);
     const badge = document.getElementById('activityBadge');
     if (badge) {
-        if (count > 0) {
+        if (activityBadgeCount > 0) {
             badge.style.display = 'inline-block';
-            badge.textContent = count > 99 ? '99+' : count;
+            badge.textContent = activityBadgeCount > 99 ? '99+' : activityBadgeCount;
             // Animate bell icon
             const bellBtn = document.getElementById('activityBellBtn');
             if (bellBtn && !bellBtn.hasAttribute('data-animated')) {
@@ -3578,6 +3583,24 @@ function updateBellBadge(count) {
     }
 }
 
+// Fetch total unread notification count from server (accurate badge)
+async function fetchUnreadNotificationCount() {
+    try {
+        const response = await fetch('/api/get_activity_notifications');
+        const data = await response.json();
+        
+        if (data.notifications) {
+            const unreadCount = data.notifications.filter(n => !n.read).length;
+            updateBellBadge(unreadCount);
+            return unreadCount;
+        }
+        return 0;
+    } catch (error) {
+        console.error('Error fetching unread count:', error);
+        return 0;
+    }
+}
+
 // Fetch unviewed posts count (for home indicator)
 async function fetchUnviewedPostsCount() {
     if (isRefreshing) return;
@@ -3591,7 +3614,6 @@ async function fetchUnviewedPostsCount() {
         const oldCount = unviewedPostsCount;
         unviewedPostsCount = data.count;
         
-        // Only update home indicator with unviewed posts count
         updateHomeIndicator(unviewedPostsCount > 0);
         
         if (unviewedPostsCount > oldCount && unviewedPostsCount > 0) {
@@ -3602,8 +3624,7 @@ async function fetchUnviewedPostsCount() {
     }
 }
 
-// Fetch activity notifications count (for bell badge)
-// Uses the /since endpoint so only genuinely NEW notifications increment the badge
+// Check for NEW notifications since last check (for badge updates)
 async function fetchActivityCount() {
     try {
         const headers = {};
@@ -3612,31 +3633,30 @@ async function fetchActivityCount() {
         const response = await fetch('/api/get_new_notifications_since', { headers });
         const data = await response.json();
 
-        // Track the latest notification timestamp so the next poll only gets newer ones
-        if (data.notifications && data.notifications.length > 0) {
-            const latestTs = data.notifications[0].created_at; // already sorted desc
-            if (!lastNotifTimestamp || latestTs > lastNotifTimestamp) {
-                lastNotifTimestamp = latestTs;
-            }
-        }
-
         const newCount = data.count || 0;
 
         if (newCount > 0) {
-            // Accumulate on top of whatever is already showing
-            const badge = document.getElementById('activityBadge');
-            const existing = (badge && badge.style.display !== 'none') ? (parseInt(badge.textContent) || 0) : 0;
-            updateBellBadge(existing + newCount);
+            // New notifications arrived - refresh total unread count
+            await fetchUnreadNotificationCount();
+            
+            // Update timestamp to the latest notification we've processed
+            if (data.notifications && data.notifications.length > 0) {
+                const latestTs = data.notifications[0].created_at;
+                if (!lastNotifTimestamp || latestTs > lastNotifTimestamp) {
+                    lastNotifTimestamp = latestTs;
+                    localStorage.setItem(NOTIF_TS_KEY, lastNotifTimestamp);
+                }
+            }
 
-            // Show a brief flash for the new arrivals
+            // Show flash notification
             const typeLabels = (data.notifications || []).map(n =>
-                n.type === 'retalo' ? '\uD83D\uDD04 Repost' :
-                n.type === 'like'   ? '\uD83D\uDCAE Like'   :
-                n.type === 'follow' ? '\uD83D\uDC65 Follow'  : '\uD83D\uDCAC Reply'
+                n.type === 'retalo' ? '🔄 Repost' :
+                n.type === 'like'   ? '💎 Like'   :
+                n.type === 'follow' ? '👥 Follow'  : '💬 Reply'
             );
             const uniqueTypes = [...new Set(typeLabels)];
             const label = uniqueTypes.length === 1 ? uniqueTypes[0] : newCount + ' new notification' + (newCount > 1 ? 's' : '');
-            showFlashNotification('\uD83D\uDD14 ' + label, 'info');
+            showFlashNotification('🔔 ' + label, 'info');
         }
 
         return newCount;
@@ -3685,22 +3705,24 @@ async function markAllPostsAsViewed() {
     }
 }
 
-// ========== ACTIVITY NOTIFICATIONS PANEL (Likes, Replies, Follows) ==========
+// ========== ACTIVITY NOTIFICATIONS PANEL ==========
 
 // Toggle activity panel - called by bell icon
 window.toggleActivityPanel = function() {
     const panel = document.getElementById('notificationsPanel');
+    if (!panel) return;
+    
     const isVisible = panel.classList.contains('show');
     
     if (!isVisible) {
-        loadActivityNotifications();
-        panel.classList.add('show');
-        // Clear the badge immediately when panel is opened
-        updateBellBadge(0);
-        // Advance the timestamp so the next poll only catches NEW arrivals after this moment
-        lastNotifTimestamp = new Date().toISOString();
-        // Mark all as read on server
-        markAllActivityRead();
+        // Load notifications first, then show panel
+        loadActivityNotifications().then(() => {
+            panel.classList.add('show');
+            // Clear badge
+            updateBellBadge(0);
+            // Mark all as read
+            markAllActivityRead();
+        });
     } else {
         panel.classList.remove('show');
     }
@@ -3713,14 +3735,18 @@ async function markAllActivityRead() {
         const data = await response.json();
         
         if (data.notifications && data.notifications.length > 0) {
-            for (const notif of data.notifications) {
-                if (!notif.read) {
-                    await fetch(`/api/mark_notification_read/${notif.id}`, { method: 'POST' }).catch(e => console.log(e));
-                }
+            const unreadNotifs = data.notifications.filter(n => !n.read);
+            // Mark each unread notification as read
+            for (const notif of unreadNotifs) {
+                await fetch(`/api/mark_notification_read/${notif.id}`, { method: 'POST' }).catch(e => console.log(e));
+            }
+            // Update timestamp to the most recent notification
+            const newestTs = data.notifications[0].created_at;
+            if (!lastNotifTimestamp || newestTs > lastNotifTimestamp) {
+                lastNotifTimestamp = newestTs;
+                localStorage.setItem(NOTIF_TS_KEY, lastNotifTimestamp);
             }
         }
-        // Refresh badge count
-        await fetchActivityCount();
     } catch (error) {
         console.error('Error marking all as read:', error);
     }
@@ -3728,13 +3754,15 @@ async function markAllActivityRead() {
 
 // Load activity notifications into the panel
 async function loadActivityNotifications() {
+    const notificationsList = document.getElementById('notificationsList');
+    if (!notificationsList) return;
+    
     try {
         const response = await fetch('/api/get_activity_notifications');
         const data = await response.json();
-        const notificationsList = document.getElementById('notificationsList');
         
         if (data.notifications && data.notifications.length > 0) {
-            // Split into new (unread) and already-seen (read) for visual grouping
+            // Split into new (unread) and already-seen (read)
             const unread = data.notifications.filter(n => !n.read);
             const read   = data.notifications.filter(n =>  n.read);
 
@@ -3768,31 +3796,39 @@ async function loadActivityNotifications() {
         }
     } catch (error) {
         console.error('Error loading activity notifications:', error);
-        document.getElementById('notificationsList').innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">Error loading notifications</div>';
+        notificationsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">Error loading notifications</div>';
     }
 }
 
-// View activity notification
+// View activity notification - mark as read and navigate
 window.viewActivityNotification = async function(notificationId, type, relatedTaloId) {
-    // Mark as read first
-    await fetch(`/api/mark_notification_read/${notificationId}`, { method: 'POST' }).catch(e => console.log(e));
-    
-    // Remove from UI
+    // Find the notification element and extract username BEFORE removing it
     const notifItem = document.querySelector(`.notification-item[data-notif-id="${notificationId}"]`);
-    if (notifItem) {
-        notifItem.classList.add('deleting');
-        setTimeout(() => notifItem.remove(), 300);
+    let usernameMatch = null;
+    if (notifItem && type === 'follow') {
+        const smallText = notifItem.querySelector('small');
+        if (smallText) {
+            usernameMatch = smallText.textContent.match(/@(\w+)/);
+        }
     }
     
-    // Update badge count
-    await fetchActivityCount();
+    // Mark as read on server
+    await fetch(`/api/mark_notification_read/${notificationId}`, { method: 'POST' }).catch(e => console.log(e));
+    
+    // Remove from UI with animation
+    if (notifItem) {
+        notifItem.classList.add('deleting');
+        setTimeout(() => {
+            notifItem.remove();
+            // Recalculate badge from remaining unread in panel
+            const remainingUnread = document.querySelectorAll('.notification-item.unread');
+            updateBellBadge(remainingUnread.length);
+        }, 300);
+    }
     
     // Navigate
-    if (type === 'follow') {
-        const usernameMatch = notifItem?.querySelector('small')?.textContent?.match(/@(\w+)/);
-        if (usernameMatch) {
-            window.location.href = `/profile/${usernameMatch[1]}`;
-        }
+    if (type === 'follow' && usernameMatch) {
+        window.location.href = `/profile/${usernameMatch[1]}`;
     } else if (relatedTaloId) {
         window.location.href = `/post/${relatedTaloId}`;
     }
@@ -3806,9 +3842,13 @@ async function deleteActivityNotification(notificationId) {
             const notifItem = document.querySelector(`.notification-item[data-notif-id="${notificationId}"]`);
             if (notifItem) {
                 notifItem.classList.add('deleting');
-                setTimeout(() => notifItem.remove(), 300);
+                setTimeout(() => {
+                    notifItem.remove();
+                    // Recalculate badge
+                    const remainingUnread = document.querySelectorAll('.notification-item.unread');
+                    updateBellBadge(remainingUnread.length);
+                }, 300);
             }
-            await fetchActivityCount();
         }
     } catch (error) {
         console.error('Error deleting notification:', error);
@@ -3831,18 +3871,20 @@ async function initNotificationSystem() {
     // Initial UI updates
     updateHomeIndicator(unviewedPostsCount > 0);
 
-    // Seed lastNotifTimestamp from the newest existing unread notification.
-    // This prevents already-present unread items from being double-counted
-    // as "new" on the very first poll cycle.
+    // Fetch current total unread count for badge
+    await fetchUnreadNotificationCount();
+
+    // Seed lastNotifTimestamp from the NEWEST notification (read or unread)
+    // so next poll only finds genuinely new arrivals
     try {
         const seedResp = await fetch('/api/get_activity_notifications');
         const seedData = await seedResp.json();
-        const unreadNotifs = (seedData.notifications || []).filter(n => !n.read);
-        if (unreadNotifs.length > 0) {
-            // They come back sorted desc; take the most recent timestamp
-            lastNotifTimestamp = unreadNotifs[0].created_at;
-            // Show the existing count on the badge right away
-            updateBellBadge(unreadNotifs.length);
+        if (seedData.notifications && seedData.notifications.length > 0) {
+            const newestTs = seedData.notifications[0].created_at;
+            if (!lastNotifTimestamp || newestTs > lastNotifTimestamp) {
+                lastNotifTimestamp = newestTs;
+                localStorage.setItem(NOTIF_TS_KEY, lastNotifTimestamp);
+            }
         }
     } catch (e) {
         console.error('Error seeding notification timestamp:', e);
@@ -3868,7 +3910,6 @@ async function initNotificationSystem() {
 }
 
 // Override refreshTimeline
-const originalRefreshTimeline = window.refreshTimeline;
 window.refreshTimeline = markAllPostsAsViewed;
 
 // Initialize on page load
@@ -3880,6 +3921,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     initNotificationSystem();
 });
+
 </script>
 
 <script>
