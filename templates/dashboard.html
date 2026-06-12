@@ -3543,53 +3543,36 @@ async function loadFollowedUsers() {
     }
 }
 
+
+let unviewedPostsCount = {{ new_posts_count|default(0) }};
+let lastViewedTimestamp = localStorage.getItem('lastViewedPostsTimestamp') || null;
+
 async function fetchUnviewedPostsCount() {
-    try {
-        await loadFollowedUsers();
-        const response = await fetch('/api/get_unviewed_posts_count', {
-            headers: { 'X-Last-Viewed': lastViewedTimestamp || '' }
-        });
-        const data = await response.json();
-        
-        const oldCount = unviewedPostsCount;
-        unviewedPostsCount = data.count;
-        const badge = document.getElementById('activityBadge');
-        const homeIndicator = document.getElementById('homeIndicator');
-        
-        if (unviewedPostsCount > 0) {
+    // Don't fetch from API on page load - use server value
+    // But we still need to update the UI
+    const badge = document.getElementById('activityBadge');
+    const homeIndicator = document.getElementById('homeIndicator');
+    
+    if (unviewedPostsCount > 0) {
+        if (badge) {
             badge.style.display = 'inline-block';
             badge.textContent = unviewedPostsCount > 99 ? '99+' : unviewedPostsCount;
+        }
+        if (homeIndicator) {
             homeIndicator.classList.remove('gray');
             homeIndicator.style.background = '#28a745';
-            
-            if (unviewedPostsCount > oldCount && oldCount > 0) {
-                playNotificationBeep();
-                const bellBtn = document.getElementById('activityBellBtn');
-                if (bellBtn) {
-                    bellBtn.style.animation = 'pulse 0.5s ease-in-out 3';
-                    setTimeout(() => { bellBtn.style.animation = ''; }, 1500);
-                }
-            } else if (unviewedPostsCount > 0 && oldCount === 0) {
-                playNotificationBeep();
-                const bellBtn = document.getElementById('activityBellBtn');
-                if (bellBtn) {
-                    bellBtn.style.animation = 'pulse 0.5s ease-in-out 3';
-                    setTimeout(() => { bellBtn.style.animation = ''; }, 1500);
-                }
-            }
-        } else {
-            badge.style.display = 'none';
-            badge.textContent = '0';
+        }
+    } else {
+        if (badge) badge.style.display = 'none';
+        if (homeIndicator) {
             homeIndicator.classList.add('gray');
             homeIndicator.style.background = '#888';
         }
-        
-        return data.count;
-    } catch (error) {
-        console.error('Error fetching unviewed posts count:', error);
-        return 0;
     }
+    
+    return unviewedPostsCount;
 }
+
 
 async function markAllPostsAsViewed() {
     if (isRefreshing) return;
@@ -3623,11 +3606,46 @@ async function markAllPostsAsViewed() {
     }
 }
 
+// Update checkForNewPosts to also compare with server values
 async function checkForNewPosts() {
     if (isRefreshing) return;
-    await fetchUnviewedPostsCount();
+    
+    try {
+        const response = await fetch('/api/get_unviewed_posts_count', {
+            headers: { 'X-Last-Viewed': lastViewedTimestamp || '' }
+        });
+        const data = await response.json();
+        
+        const oldCount = unviewedPostsCount;
+        unviewedPostsCount = data.count;
+        const badge = document.getElementById('activityBadge');
+        const homeIndicator = document.getElementById('homeIndicator');
+        
+        if (unviewedPostsCount > 0) {
+            if (badge) {
+                badge.style.display = 'inline-block';
+                badge.textContent = unviewedPostsCount > 99 ? '99+' : unviewedPostsCount;
+            }
+            if (homeIndicator) {
+                homeIndicator.classList.remove('gray');
+                homeIndicator.style.background = '#28a745';
+            }
+            
+            // Just show notification, don't auto-refresh
+            if (oldCount === 0 && unviewedPostsCount > 0) {
+                showFlashNotification(`📱 ${unviewedPostsCount} new post${unviewedPostsCount !== 1 ? 's' : ''} available. Tap home to refresh!`, 'info');
+            }
+        } else {
+            if (badge) badge.style.display = 'none';
+            if (homeIndicator) {
+                homeIndicator.classList.add('gray');
+                homeIndicator.style.background = '#888';
+            }
+        }
+    } catch (error) {
+        console.error('Error checking for new posts:', error);
+    }
 }
-
 async function loadActivityNotifications() {
     try {
         const response = await fetch('/api/get_activity_notifications');

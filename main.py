@@ -672,6 +672,16 @@ async def dashboard(request: Request):
             followed_user_ids.add(follow.get("following_id"))
     followed_user_ids.add(user["user_id"])
     
+    # Get user's last viewed timestamp
+    last_viewed_str = user.get("last_posts_viewed", "")
+    last_viewed = None
+    if last_viewed_str:
+        try:
+            last_viewed = datetime.fromisoformat(last_viewed_str)
+        except:
+            pass
+        
+    
     talos = data.get("talos", [])
     
     # Get all promoted posts
@@ -687,17 +697,42 @@ async def dashboard(request: Request):
                 break
         talo["reply_count"] = len([r for r in data.get("replies", []) if r.get("parent_talo_id") == talo["id"]])
         
+        # Check if this post is newer than last viewed
+        talo_created = None
+        if last_viewed and talo.get("created_at"):
+            try:
+                talo_created = datetime.fromisoformat(talo.get("created_at"))
+            except:
+                pass
+        
+        is_new_post = last_viewed and talo_created and talo_created > last_viewed
+        
         if talo.get("promoted", False):
+            # For promoted posts, always include (but mark as new if applicable)
+            if is_new_post:
+                talo["is_new"] = True
             all_promoted_talos.append(talo)
         else:
             # For regular posts, only show from followed users
             if followed_user_ids and talo["user_id"] in followed_user_ids:
-                regular_talos.append(talo)
+                # Only include if NOT a new post (new posts are hidden until refresh)
+                if not is_new_post:
+                    regular_talos.append(talo)
+                else:
+                    # Mark as hidden but count for indicator
+                    talo["is_new"] = True
             elif not followed_user_ids or len(followed_user_ids) <= 1:  # Only self
-                regular_talos.append(talo)
+                if not is_new_post:
+                    regular_talos.append(talo)
     
     # Sort regular posts by date (newest first)
     regular_talos.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    
+    # After the sorting, add this:
+    new_posts_count = 0
+    for talo in talos:
+        if talo.get("is_new", False):
+            new_posts_count += 1
     
     # ===== PROBABILISTIC PROMOTED POSTS (25% chance to show each) =====
     import random
@@ -755,7 +790,8 @@ async def dashboard(request: Request):
         "unread_notifications": unread_notifications,
         "paystack_public_key": PAYSTACK_PUBLIC_KEY,
         "promoted_shown_count": promoted_shown_count,
-        "promoted_total_count": promoted_total_count
+        "promoted_total_count": promoted_total_count,
+        "new_posts_count": new_posts_count
     })
 
 @app.get("/api/get_promoted_posts")
