@@ -3534,12 +3534,14 @@ let unviewedPostsCount = {{ new_posts_count|default(0) }};
 let lastViewedTimestamp = localStorage.getItem('lastViewedPostsTimestamp') || null;
 let notificationInterval = null;
 let activityInterval = null;
+let isNotificationPanelOpen = false;
+let pendingBadgeUpdate = null;
 
 // Persist last notification timestamp in localStorage
 const NOTIF_TS_KEY = 'guan_lastNotifTimestamp';
 let lastNotifTimestamp = localStorage.getItem(NOTIF_TS_KEY) || null;
 
-// In-memory badge count
+// In-memory badge count - this is the SOURCE OF TRUTH for the UI
 let activityBadgeCount = 0;
 
 // Update home indicator (green dot on home button) - for unviewed posts
@@ -3583,7 +3585,7 @@ function updateBellBadge(count) {
     }
 }
 
-// Fetch total unread notification count from server (accurate badge)
+// Fetch total unread notification count from server (used for initial load only)
 async function fetchUnreadNotificationCount() {
     try {
         const response = await fetch('/api/get_activity_notifications');
@@ -3591,7 +3593,6 @@ async function fetchUnreadNotificationCount() {
         
         if (data.notifications) {
             const unreadCount = data.notifications.filter(n => !n.read).length;
-            updateBellBadge(unreadCount);
             return unreadCount;
         }
         return 0;
@@ -3625,7 +3626,11 @@ async function fetchUnviewedPostsCount() {
 }
 
 // Check for NEW notifications since last check (for badge updates)
+// FIXED: No longer calls fetchUnreadNotificationCount() which was causing the race condition
 async function fetchActivityCount() {
+    // Don't check for new notifications while panel is open
+    if (isNotificationPanelOpen) return 0;
+    
     try {
         const headers = {};
         if (lastNotifTimestamp) headers['X-Since'] = lastNotifTimestamp;
@@ -3635,21 +3640,21 @@ async function fetchActivityCount() {
 
         const newCount = data.count || 0;
 
-        if (newCount > 0) {
-            // New notifications arrived - refresh total unread count
-            await fetchUnreadNotificationCount();
-            
+        if (newCount > 0 && data.notifications && data.notifications.length > 0) {
             // Update timestamp to the latest notification we've processed
-            if (data.notifications && data.notifications.length > 0) {
-                const latestTs = data.notifications[0].created_at;
-                if (!lastNotifTimestamp || latestTs > lastNotifTimestamp) {
-                    lastNotifTimestamp = latestTs;
-                    localStorage.setItem(NOTIF_TS_KEY, lastNotifTimestamp);
-                }
+            const latestTs = data.notifications[0].created_at;
+            if (!lastNotifTimestamp || latestTs > lastNotifTimestamp) {
+                lastNotifTimestamp = latestTs;
+                localStorage.setItem(NOTIF_TS_KEY, lastNotifTimestamp);
             }
 
+            // INCREMENT the badge by the new count, don't reset it
+            const currentCount = activityBadgeCount;
+            const totalCount = currentCount + newCount;
+            updateBellBadge(totalCount);
+
             // Show flash notification
-            const typeLabels = (data.notifications || []).map(n =>
+            const typeLabels = data.notifications.map(n =>
                 n.type === 'retalo' ? '🔄 Repost' :
                 n.type === 'like'   ? '💎 Like'   :
                 n.type === 'follow' ? '👥 Follow'  : '💬 Reply'
@@ -3715,37 +3720,75 @@ window.toggleActivityPanel = function() {
     const isVisible = panel.classList.contains('show');
     
     if (!isVisible) {
+        // Panel is opening
+        isNotificationPanelOpen = true;
+        
         // Load notifications first, then show panel
         loadActivityNotifications().then(() => {
             panel.classList.add('show');
-            // Clear badge
+            // Clear badge immediately when user opens panel
             updateBellBadge(0);
-            // Mark all as read
+            // Mark all as read in background
             markAllActivityRead();
         });
     } else {
+        // Panel is closing
         panel.classList.remove('show');
+        isNotificationPanelOpen = false;
+        
+        // After closing, sync with server to get accurate count
+        // This handles any notifications that arrived while panel was open
+        setTimeout(() => {
+            syncBadgeWithServer();
+        }, 500);
     }
 };
+
+// NEW: Sync badge with server after panel closes
+async function syncBadgeWithServer() {
+    if (isNotificationPanelOpen) return; // Don't sync if panel reopened
+    
+    try {
+        const response = await fetch('/api/get_activity_notifications');
+        const data = await response.json();
+        
+        if (data.notifications) {
+            const unreadCount = data.notifications.filter(n => !n.read).length;
+            updateBellBadge(unreadCount);
+        }
+    } catch (error) {
+        console.error('Error syncing badge:', error);
+    }
+}
 
 // Mark all activity notifications as read
 async function markAllActivityRead() {
     try {
+        // First, get current notifications
         const response = await fetch('/api/get_activity_notifications');
         const data = await response.json();
         
         if (data.notifications && data.notifications.length > 0) {
             const unreadNotifs = data.notifications.filter(n => !n.read);
-            // Mark each unread notification as read
-            for (const notif of unreadNotifs) {
-                await fetch(`/api/mark_notification_read/${notif.id}`, { method: 'POST' }).catch(e => console.log(e));
-            }
+            
+            // Mark ALL unread notifications as read in parallel (faster)
+            const markPromises = unreadNotifs.map(notif => 
+                fetch(`/api/mark_notification_read/${notif.id}`, { method: 'POST' })
+                    .catch(e => console.log('Mark read error:', e))
+            );
+            
+            await Promise.all(markPromises);
+            
             // Update timestamp to the most recent notification
             const newestTs = data.notifications[0].created_at;
             if (!lastNotifTimestamp || newestTs > lastNotifTimestamp) {
                 lastNotifTimestamp = newestTs;
                 localStorage.setItem(NOTIF_TS_KEY, lastNotifTimestamp);
             }
+            
+            // Also clear the server-side new_post notifications
+            await fetch('/api/clear_all_activity_notifications', { method: 'DELETE' })
+                .catch(e => console.log('Clear all error:', e));
         }
     } catch (error) {
         console.error('Error marking all as read:', error);
@@ -3863,6 +3906,12 @@ document.addEventListener('click', function(e) {
         !panel.contains(e.target) && 
         bellBtn && !bellBtn.contains(e.target)) {
         panel.classList.remove('show');
+        isNotificationPanelOpen = false;
+        
+        // Sync badge after closing
+        setTimeout(() => {
+            syncBadgeWithServer();
+        }, 500);
     }
 });
 
@@ -3871,8 +3920,9 @@ async function initNotificationSystem() {
     // Initial UI updates
     updateHomeIndicator(unviewedPostsCount > 0);
 
-    // Fetch current total unread count for badge
-    await fetchUnreadNotificationCount();
+    // Fetch current total unread count for badge (initial load only)
+    const initialCount = await fetchUnreadNotificationCount();
+    updateBellBadge(initialCount);
 
     // Seed lastNotifTimestamp from the NEWEST notification (read or unread)
     // so next poll only finds genuinely new arrivals
@@ -3904,7 +3954,9 @@ async function initNotificationSystem() {
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) {
             fetchUnviewedPostsCount();
-            fetchActivityCount();
+            if (!isNotificationPanelOpen) {
+                fetchActivityCount();
+            }
         }
     });
 }
@@ -3921,6 +3973,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     initNotificationSystem();
 });
+
 
 </script>
 
