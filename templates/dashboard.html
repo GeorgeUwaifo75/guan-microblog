@@ -3843,7 +3843,18 @@ window.addEventListener('beforeunload', () => {
     }
 });
 
-
+// Override refreshTimeline and initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const homeBtn = document.getElementById('homeBtn');
+    if (homeBtn) {
+        homeBtn.onclick = markAllPostsAsViewed;
+    }
+    
+    // Only initialize if not already initialized
+    if (typeof initNotificationSystem === 'function') {
+        initNotificationSystem();
+    }
+});
 
 </script>
 
