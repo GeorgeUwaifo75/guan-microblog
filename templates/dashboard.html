@@ -3369,30 +3369,31 @@ if (replyLink) {
         }
         
         async function checkForNewNotifications() {
-            try {
-                const response = await fetch('/api/check_new_notifications', {
-                    headers: { 'X-Last-Checked': lastNotificationCheck }
-                });
-                const data = await response.json();
-                if (data.has_new) {
-                    const badge = document.getElementById('notificationCount');
-                    const currentCount = parseInt(badge.textContent) || 0;
-                    const newCount = currentCount + data.count;
-                    if (newCount > 0) {
-                        badge.style.display = 'inline-block';
-                        badge.textContent = newCount;
-                    }
-                    const notifBtn = document.querySelector('.icon-btn');
-                    if (notifBtn) {
-                        notifBtn.style.animation = 'pulse 0.5s ease-in-out 3';
-                        setTimeout(() => { notifBtn.style.animation = ''; }, 1500);
-                    }
+    try {
+        const response = await fetch('/api/check_new_notifications', {
+            headers: { 'X-Last-Checked': lastNotificationCheck || new Date().toISOString() }
+        });
+        const data = await response.json();
+        if (data.has_new) {
+            const badge = document.getElementById('activityBadge');
+            if (badge) {
+                const currentCount = parseInt(badge.textContent) || 0;
+                const newCount = currentCount + data.count;
+                if (newCount > 0) {
+                    badge.style.display = 'inline-block';
+                    badge.textContent = newCount > 99 ? '99+' : newCount;
                 }
-            } catch (error) {
-                console.error('Error checking notifications:', error);
+            }
+            const bellBtn = document.getElementById('activityBellBtn');
+            if (bellBtn) {
+                bellBtn.style.animation = 'pulse 0.5s ease-in-out 3';
+                setTimeout(() => { if(bellBtn) bellBtn.style.animation = ''; }, 1500);
             }
         }
-        
+    } catch (error) {
+        console.error('Error checking notifications:', error);
+    }
+}
 
 	// Add periodic cache refresh (every 2 minutes)
 	setInterval(async () => {
