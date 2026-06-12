@@ -3361,12 +3361,12 @@ if (replyLink) {
         let lastNotificationCheck = localStorage.getItem('lastNotificationCheck') || new Date().toISOString();
         
         function initRealTimeNotifications() {
-            if (notificationPollInterval) clearInterval(notificationPollInterval);
-            notificationPollInterval = setInterval(checkForNewNotifications, 10000);
-            document.addEventListener('visibilitychange', () => {
-                if (!document.hidden) checkForNewNotifications();
-            });
-        }
+   	 if (notificationPollInterval) clearInterval(notificationPollInterval);
+  	  notificationPollInterval = setInterval(checkForNewNotifications, 10000);
+  	  document.addEventListener('visibilitychange', () => {
+  	      if (!document.hidden) checkForNewNotifications();
+ 	   });
+	}
         
         async function checkForNewNotifications() {
     try {
@@ -3456,9 +3456,16 @@ if (replyLink) {
         };
 
 
-// Initialize scroll position restoration and saving
-restoreScrollPosition();
-setupScrollSaving();
+// Initialize scroll position restoration and saving - call AFTER functions are defined
+// The functions are defined at the bottom of the file, so we need to wait
+setTimeout(function() {
+    if (typeof restoreScrollPosition === 'function') {
+        restoreScrollPosition();
+    }
+    if (typeof setupScrollSaving === 'function') {
+        setupScrollSaving();
+    }
+}, 100);
 
 // Also set up observer for dynamically loaded content (for new posts)
 const observer = new MutationObserver(function(mutations) {
@@ -3503,6 +3510,9 @@ observer.observe(document.getElementById('talosFeed'), { childList: true, subtre
 
 <script>
 // ========== CLEAN NOTIFICATION SYSTEM ==========
+
+let lastNotificationCheck = localStorage.getItem('lastNotificationCheck') || new Date().toISOString();
+
 // This handles: New Posts from followed users (Bell badge shows this count)
 
 // Only declare once - use the value from server template
