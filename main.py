@@ -2583,6 +2583,32 @@ async def check_new_notifications(request: Request):
     
     return {"has_new": new_count > 0, "count": new_count}
 
+@app.post("/api/mark_notification_read/{notification_id}")
+async def mark_notification_read(notification_id: str, request: Request):
+    """Mark a single notification as read"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    for notif in data.get("notifications", []):
+        if notif.get("id") == notification_id and notif.get("user_id") == user["user_id"]:
+            notif["read"] = True
+            await save_jsonbin_data(data)
+            return {"success": True}
+    
+    raise HTTPException(status_code=404, detail="Notification not found")
+
 # Update the notification creation in like, follow, and reply endpoints to only notify followed users
 # Modify the create_reply endpoint:
 
