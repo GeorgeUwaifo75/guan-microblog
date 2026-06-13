@@ -1843,6 +1843,25 @@
     background: #fff0f0;
 }
 
+.promote-post-btn {
+    background: none;
+    border: none;
+    padding: 10px 16px;
+    cursor: pointer;
+    color: #ffcc00;
+    background: linear-gradient(135deg, #990000 0%, #cc0000 100%);
+    width: 100%;
+    text-align: left;
+    font-size: 14px;
+    transition: background 0.2s;
+    font-weight: bold;
+}
+
+.promote-post-btn:hover {
+    background: linear-gradient(135deg, #cc0000 0%, #ff0000 100%);
+    color: white;
+}
+
     </style>
 </head>
 <body>
@@ -1989,14 +2008,16 @@
         	  <div class="talo-time" data-time="{{ talo.created_at }}"></div>
     	    </div>
     	  {% if talo.user_id == user.user_id %}
-          <div class="post-actions-dropdown">
-              <button class="post-actions-btn" onclick="event.stopPropagation(); window.togglePostActions(this)">⋮</button>
-              <div class="post-actions-menu">
-                  <button class="delete-post-btn" onclick="event.stopPropagation(); window.deletePost('{{ talo.id }}')">🗑️ Delete Post</button>
-              </div>
-          </div>
+        <div class="post-actions-dropdown">
+            <button class="post-actions-btn" onclick="event.stopPropagation(); window.togglePostActions(this)">⋮</button>
+            <div class="post-actions-menu">
+                {% if not talo.promoted %}
+                <button class="promote-post-btn" onclick="event.stopPropagation(); window.openPromotionModalFromPost('{{ talo.id }}')">⭐ Promote Post</button>
+                {% endif %}
+                <button class="delete-post-btn" onclick="event.stopPropagation(); window.deletePost('{{ talo.id }}')">🗑️ Delete Post</button>
+            </div>
+        </div>
         {% endif %}
-
   </div>
         <div class="talo-content" id="taloContent_{{ talo.id }}">{{ talo.content }}</div>
 
@@ -2356,7 +2377,13 @@ window.togglePostActions = function(btn) {
             showFlashNotification('Network error. Please try again.', 'error');
         }
     };
-    
+
+window.openPromotionModalFromPost = function(taloId) {
+    currentPromotionTalo = taloId;
+    document.getElementById('promotionModal').style.display = 'flex';
+};
+
+
     // Close dropdown when clicking anywhere else
     document.addEventListener('click', function(e) {
         // Check if click target is NOT inside a post-actions-menu and NOT a post-actions-btn
