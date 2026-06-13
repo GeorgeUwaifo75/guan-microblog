@@ -3211,36 +3211,153 @@ window.openPromotionModalFromPost = function(taloId) {
     function closeFollowingModal() { document.getElementById('followingModal').style.display = 'none'; }
     
     // ========== NOTIFICATIONS ==========
-    async function loadNotifications() {
-        try {
-            const response = await fetch('/api/get_notifications');
-            const data = await response.json();
-            const notificationsList = document.getElementById('notificationsList');
-            const notificationCountSpan = document.getElementById('notificationCount');
-            if (data.notifications && data.notifications.length > 0) {
-                const unreadCount = data.notifications.filter(n => !n.read).length;
-                if (unreadCount > 0) {
-                    notificationCountSpan.style.display = 'inline-block';
-                    notificationCountSpan.textContent = unreadCount;
-                    unreadNotifications = unreadCount;
-                } else {
-                    notificationCountSpan.style.display = 'none';
-                }
-                notificationsList.innerHTML = data.notifications.map(notif => `
-                    <div class="notification-item ${notif.read ? '' : 'unread'}" onclick="markNotificationRead('${notif.id}')">
-                        <strong>${notif.type === 'retalo' ? '🔄 Repost' : notif.type === 'like' ? '💎 Like' : notif.type === 'follow' ? '👥 Follow' : '💬 Reply'}</strong><br>
-                        <small>${notif.message}</small><br>
-                        <small style="color: #999;">${new Date(notif.created_at).toLocaleString()}</small>
-                    </div>
-                `).join('');
+   // ========== NOTIFICATIONS - FIXED ==========
+let currentNotificationCount = 0;
+
+async function loadNotifications() {
+    try {
+        // Use the activity notifications endpoint which has likes, replies, follows, retalos
+        const response = await fetch('/api/get_activity_notifications');
+        const data = await response.json();
+        const notificationsList = document.getElementById('notificationsList');
+        const notificationCountSpan = document.getElementById('notificationCount');
+        
+        if (data.notifications && data.notifications.length > 0) {
+            const unreadCount = data.notifications.filter(n => !n.read).length;
+            currentNotificationCount = unreadCount;
+            if (unreadCount > 0) {
+                notificationCountSpan.style.display = 'inline-block';
+                notificationCountSpan.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                unreadNotifications = unreadCount;
             } else {
-                notificationsList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No notifications</div>';
                 notificationCountSpan.style.display = 'none';
             }
-        } catch (error) {
-            document.getElementById('notificationsList').innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">Error loading notifications</div>';
+            notificationsList.innerHTML = data.notifications.map(notif => `
+                <div class="notification-item ${notif.read ? '' : 'unread'}" data-notif-id="${notif.id}" data-related-id="${notif.related_talo_id || ''}" data-type="${notif.type}" onclick="viewAndMarkNotification('${notif.id}', '${notif.type}', '${notif.related_talo_id || ''}')">
+                    <div style="flex: 1;">
+                        <strong>${notif.type === 'retalo' ? '🔄 Repost' : notif.type === 'like' ? '💎 Like' : notif.type === 'follow' ? '👥 Follow' : '💬 Reply'}</strong><br>
+                        <small>${escapeHtml(notif.message)}</small><br>
+                        <small style="color: #999;">${formatTimeAgo(notif.created_at)}</small>
+                    </div>
+                    <button class="delete-notification-btn" onclick="event.stopPropagation(); deleteNotification('${notif.id}')">✖</button>
+                </div>
+            `).join('');
+            initSwipeToDelete();
+        } else {
+            notificationsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No notifications yet</div>';
+            notificationCountSpan.style.display = 'none';
         }
+    } catch (error) {
+        console.error('Error loading notifications:', error);
+        document.getElementById('notificationsList').innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">Error loading notifications</div>';
     }
+}
+
+async function viewAndMarkNotification(notificationId, type, relatedTaloId) {
+    try {
+        // Mark as read/delete it
+        await fetch(`/api/delete_activity_notification/${notificationId}`, { method: 'DELETE' });
+        
+        // Remove from UI
+        const notifItem = document.querySelector(`.notification-item[data-notif-id="${notificationId}"]`);
+        if (notifItem) {
+            notifItem.classList.add('deleting');
+            setTimeout(() => notifItem.remove(), 300);
+        }
+        
+        // Update badge count
+        currentNotificationCount = Math.max(0, currentNotificationCount - 1);
+        const badge = document.getElementById('notificationCount');
+        if (badge && currentNotificationCount > 0) {
+            badge.textContent = currentNotificationCount;
+        } else if (badge) {
+            badge.style.display = 'none';
+        }
+        
+        // Navigate based on notification type
+        if (type === 'follow') {
+            const usernameMatch = relatedTaloId || (notifItem?.querySelector('small')?.textContent.match(/@(\w+)/)?.[1]);
+            if (usernameMatch) {
+                window.location.href = `/profile/${usernameMatch}`;
+            }
+        } else if (relatedTaloId) {
+            window.location.href = `/post/${relatedTaloId}`;
+        }
+    } catch (error) {
+        console.error('Error viewing notification:', error);
+    }
+}
+
+async function deleteNotification(notificationId) {
+    try {
+        await fetch(`/api/delete_activity_notification/${notificationId}`, { method: 'DELETE' });
+        const notifItem = document.querySelector(`.notification-item[data-notif-id="${notificationId}"]`);
+        if (notifItem) {
+            notifItem.classList.add('deleting');
+            setTimeout(() => notifItem.remove(), 300);
+        }
+        
+        currentNotificationCount = Math.max(0, currentNotificationCount - 1);
+        const badge = document.getElementById('notificationCount');
+        if (badge && currentNotificationCount > 0) {
+            badge.textContent = currentNotificationCount;
+        } else if (badge) {
+            badge.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error deleting notification:', error);
+    }
+}
+
+function initSwipeToDelete() {
+    const notificationItems = document.querySelectorAll('.notification-item');
+    let touchStartX = 0;
+    let currentItem = null;
+    
+    notificationItems.forEach(item => {
+        item.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            currentItem = item;
+        });
+        
+        item.addEventListener('touchmove', (e) => {
+            if (!currentItem) return;
+            const touchX = e.touches[0].clientX;
+            const diff = touchStartX - touchX;
+            if (diff > 50) {
+                e.preventDefault();
+                currentItem.classList.add('swiping');
+            }
+        });
+        
+        item.addEventListener('touchend', (e) => {
+            if (!currentItem) return;
+            const touchX = e.changedTouches[0].clientX;
+            const diff = touchStartX - touchX;
+            if (diff > 100) {
+                const notifId = currentItem.dataset.notifId;
+                if (notifId) {
+                    deleteNotification(notifId);
+                }
+            }
+            currentItem.classList.remove('swiping');
+            currentItem = null;
+        });
+    });
+}
+
+// Override toggleNotifications to load activity notifications
+function toggleNotifications() {
+    const panel = document.getElementById('notificationsPanel');
+    const isVisible = panel.classList.contains('show');
+    
+    if (!isVisible) {
+        loadNotifications();
+        panel.classList.add('show');
+    } else {
+        panel.classList.remove('show');
+    }
+}
     
     async function markNotificationRead(notificationId) {
         try {
@@ -3511,6 +3628,59 @@ window.openPromotionModalFromPost = function(taloId) {
             console.log('Cache refresh failed');
         }
     }, 120000);
+
+
+// Periodic check for new notifications
+async function checkForNewActivityNotifications() {
+    try {
+        const response = await fetch('/api/get_activity_notifications');
+        const data = await response.json();
+        
+        if (data.notifications && data.notifications.length > 0) {
+            const unreadCount = data.notifications.filter(n => !n.read).length;
+            const badge = document.getElementById('notificationCount');
+            
+            if (unreadCount > currentNotificationCount) {
+                // Play sound for new notification
+                try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    oscillator.frequency.value = 880;
+                    gainNode.gain.value = 0.1;
+                    oscillator.start();
+                    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.3);
+                    oscillator.stop(audioContext.currentTime + 0.3);
+                } catch(e) {}
+                
+                // Animate bell
+                const bellBtn = document.getElementById('activityBellBtn');
+                if (bellBtn) {
+                    bellBtn.style.animation = 'pulse 0.5s ease-in-out 3';
+                    setTimeout(() => { if(bellBtn) bellBtn.style.animation = ''; }, 1500);
+                }
+            }
+            
+            currentNotificationCount = unreadCount;
+            if (badge && currentNotificationCount > 0) {
+                badge.style.display = 'inline-block';
+                badge.textContent = currentNotificationCount > 99 ? '99+' : currentNotificationCount;
+            } else if (badge && currentNotificationCount === 0) {
+                badge.style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.error('Error checking new notifications:', error);
+    }
+}
+
+// Start polling for new notifications every 15 seconds
+setInterval(checkForNewActivityNotifications, 15000);
+
+
+
     
     // ========== INITIALIZATION ==========
     document.querySelectorAll('.talo-time').forEach(el => {
@@ -3570,6 +3740,7 @@ window.openPromotionModalFromPost = function(taloId) {
         if (event.target === document.getElementById('followersModal')) closeFollowersModal();
         if (event.target === document.getElementById('followingModal')) closeFollowingModal();
     };
+
 </script>
 
 </body>
