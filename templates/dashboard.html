@@ -3228,333 +3228,295 @@ window.openPromotionModalFromPost = function(taloId) {
     function closeFollowersModal() { document.getElementById('followersModal').style.display = 'none'; }
     function closeFollowingModal() { document.getElementById('followingModal').style.display = 'none'; }
     
-// ========== NOTIFICATION SYSTEM - COMPLETELY REWRITTEN ==========
-    let currentNotificationCount = 0;
-    let notificationPollInterval = null;
-    let audioCtx = null;
-    let audioInitialized = false;
+// ========== NOTIFICATION SYSTEM - NO AUDIO, SIMPLE & WORKING ==========
+let currentNotificationCount = 0;
+let notificationPollInterval = null;
+
+// --- Helper: Escape HTML to prevent XSS ---
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// --- Update notification badge ---
+function updateNotificationBadge(count) {
+    const badge = document.getElementById('notificationCount');
+    if (!badge) return;
     
-    // --- Initialize Audio Context (requires user interaction) ---
-    function initAudioContext() {
-        if (audioInitialized) return;
-        try {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            audioInitialized = true;
-            console.log('Audio context initialized');
-        } catch(e) {
-            console.log('Audio not supported:', e);
-        }
+    currentNotificationCount = count;
+    
+    if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : count;
+        badge.style.display = 'inline-block';
+        badge.style.position = 'absolute';
+        badge.style.top = '-5px';
+        badge.style.right = '-8px';
+        badge.style.background = '#ffcc00';
+        badge.style.color = '#cc0000';
+        badge.style.borderRadius = '50%';
+        badge.style.padding = '2px 6px';
+        badge.style.fontSize = '10px';
+        badge.style.fontWeight = 'bold';
+        badge.style.minWidth = '18px';
+        badge.style.textAlign = 'center';
+    } else {
+        badge.style.display = 'none';
     }
+}
+
+// --- Animate bell button for visual feedback ---
+function animateBellButton() {
+    const bellBtn = document.getElementById('activityBellBtn');
+    if (!bellBtn) return;
     
-    // Play notification sound
-    function playNotificationSound() {
-        if (!audioInitialized) {
-            initAudioContext();
-        }
-        if (!audioCtx) return;
+    bellBtn.style.animation = 'none';
+    bellBtn.offsetHeight; // Force reflow
+    bellBtn.style.animation = 'pulse 0.5s ease-in-out 3';
+    
+    setTimeout(() => {
+        if (bellBtn) bellBtn.style.animation = '';
+    }, 1500);
+}
+
+// --- Load notifications count only (lightweight polling) ---
+async function fetchNotificationCount() {
+    try {
+        const response = await fetch('/api/get_activity_notifications');
+        if (!response.ok) throw new Error('Network error');
+        const data = await response.json();
         
-        try {
-            // Resume if suspended
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume().then(() => {
-                    playSoundInternal();
-                }).catch(e => console.log('Audio resume failed:', e));
-            } else {
-                playSoundInternal();
-            }
-        } catch(e) {
-            console.log('Sound error:', e);
-        }
-    }
-    
-    function playSoundInternal() {
-        try {
-            const now = audioCtx.currentTime;
-            
-            // First tone (880Hz)
-            const osc1 = audioCtx.createOscillator();
-            const gain1 = audioCtx.createGain();
-            osc1.connect(gain1);
-            gain1.connect(audioCtx.destination);
-            osc1.type = 'sine';
-            osc1.frequency.value = 880;
-            gain1.gain.setValueAtTime(0.15, now);
-            gain1.gain.exponentialRampToValueAtTime(0.00001, now + 0.3);
-            osc1.start(now);
-            osc1.stop(now + 0.3);
-            
-            // Second tone (1100Hz, slight delay)
-            const osc2 = audioCtx.createOscillator();
-            const gain2 = audioCtx.createGain();
-            osc2.connect(gain2);
-            gain2.connect(audioCtx.destination);
-            osc2.type = 'sine';
-            osc2.frequency.value = 1100;
-            gain2.gain.setValueAtTime(0.15, now + 0.15);
-            gain2.gain.exponentialRampToValueAtTime(0.00001, now + 0.45);
-            osc2.start(now + 0.15);
-            osc2.stop(now + 0.45);
-        } catch(e) {
-            console.log('Sound playback error:', e);
-        }
-    }
-    
-    // Update notification badge
-    function updateNotificationBadge(count) {
-        const badge = document.getElementById('notificationCount');
-        if (!badge) return;
+        const newCount = (data.notifications || []).filter(n => !n.read).length;
         
-        currentNotificationCount = count;
-        
-        if (count > 0) {
-            badge.textContent = count > 99 ? '99+' : count;
-            badge.style.display = 'inline-flex';
-            badge.style.alignItems = 'center';
-            badge.style.justifyContent = 'center';
-        } else {
-            badge.textContent = '0';
-            badge.style.display = 'none';
+        // Check if count increased for animation
+        if (newCount > currentNotificationCount && newCount > 0 && currentNotificationCount > 0) {
+            console.log(`🔔 New notification! Count: ${currentNotificationCount} → ${newCount}`);
+            animateBellButton();
         }
-    }
-    
-    // Animate bell button
-    function animateBellButton() {
-        const bellBtn = document.getElementById('activityBellBtn');
-        if (!bellBtn) return;
         
-        bellBtn.style.animation = 'none';
-        bellBtn.offsetHeight; // Force reflow
-        bellBtn.style.animation = 'pulse 0.5s ease-in-out 3';
+        updateNotificationBadge(newCount);
+        return newCount;
+    } catch (error) {
+        console.error('Error fetching notification count:', error);
+        return currentNotificationCount;
+    }
+}
+
+// --- Load full notifications for panel display ---
+async function loadNotifications() {
+    try {
+        const response = await fetch('/api/get_activity_notifications');
+        if (!response.ok) throw new Error('Network error');
+        const data = await response.json();
+        const notificationsList = document.getElementById('notificationsList');
+        if (!notificationsList) return;
         
-        setTimeout(() => {
-            if (bellBtn) bellBtn.style.animation = '';
-        }, 1500);
-    }
-    
-    // Load notifications count only (lightweight)
-    async function fetchNotificationCount() {
-        try {
-            const response = await fetch('/api/get_activity_notifications');
-            if (!response.ok) throw new Error('Network error');
-            const data = await response.json();
-            
-            const newCount = (data.notifications || []).filter(n => !n.read).length;
-            
-            // Check if count increased (for sound and animation)
-            if (newCount > currentNotificationCount && newCount > 0 && currentNotificationCount > 0) {
-                // Only play sound if this is a new notification (not first load)
-                playNotificationSound();
-                animateBellButton();
-            }
-            
-            updateNotificationBadge(newCount);
-            return newCount;
-        } catch (error) {
-            console.error('Error fetching notification count:', error);
-            return currentNotificationCount;
-        }
-    }
-    
-    // Load full notifications for panel display
-    async function loadNotifications() {
-        try {
-            const response = await fetch('/api/get_activity_notifications');
-            if (!response.ok) throw new Error('Network error');
-            const data = await response.json();
-            const notificationsList = document.getElementById('notificationsList');
-            if (!notificationsList) return;
-            
-            // Update badge count
-            const unreadCount = (data.notifications || []).filter(n => !n.read).length;
-            updateNotificationBadge(unreadCount);
-            
-            if (data.notifications && data.notifications.length > 0) {
-                notificationsList.innerHTML = data.notifications.map(notif => `
-                    <div class="notification-item ${notif.read ? '' : 'unread'}"
-                         data-notif-id="${notif.id}"
-                         data-related-id="${notif.related_talo_id || ''}"
-                         data-type="${notif.type}"
-                         onclick="viewAndMarkNotification('${notif.id}', '${notif.type}', '${notif.related_talo_id || ''}')">
-                        <div style="flex: 1;">
-                            <strong>${notif.type === 'retalo' ? '🔄 Repost' : notif.type === 'like' ? '💎 Like' : notif.type === 'follow' ? '👥 Follow' : '💬 Reply'}</strong><br>
-                            <small>${escapeHtml(notif.message)}</small><br>
-                            <small style="color: #999;">${formatTimeAgo(notif.created_at)}</small>
-                        </div>
-                        <button class="delete-notification-btn" onclick="event.stopPropagation(); deleteNotification('${notif.id}')">✖</button>
+        // Update badge count
+        const unreadCount = (data.notifications || []).filter(n => !n.read).length;
+        updateNotificationBadge(unreadCount);
+        
+        if (data.notifications && data.notifications.length > 0) {
+            notificationsList.innerHTML = data.notifications.map(notif => `
+                <div class="notification-item ${notif.read ? '' : 'unread'}"
+                     data-notif-id="${notif.id}"
+                     data-related-id="${notif.related_talo_id || ''}"
+                     data-type="${notif.type}"
+                     onclick="viewAndMarkNotification('${notif.id}', '${notif.type}', '${notif.related_talo_id || ''}')">
+                    <div style="flex: 1;">
+                        <strong>${notif.type === 'retalo' ? '🔄 Repost' : notif.type === 'like' ? '💎 Like' : notif.type === 'follow' ? '👥 Follow' : '💬 Reply'}</strong><br>
+                        <small>${escapeHtml(notif.message)}</small><br>
+                        <small style="color: #999;">${formatTimeAgo(notif.created_at)}</small>
                     </div>
-                `).join('');
-                initSwipeToDelete();
-            } else {
-                notificationsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No notifications yet</div>';
-            }
-        } catch (error) {
-            console.error('Error loading notifications:', error);
-            const notificationsList = document.getElementById('notificationsList');
-            if (notificationsList) {
-                notificationsList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">Error loading notifications</div>';
-            }
+                    <button class="delete-notification-btn" onclick="event.stopPropagation(); deleteNotification('${notif.id}')">✖</button>
+                </div>
+            `).join('');
+            initSwipeToDelete();
+        } else {
+            notificationsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No notifications yet</div>';
+        }
+    } catch (error) {
+        console.error('Error loading notifications:', error);
+        const notificationsList = document.getElementById('notificationsList');
+        if (notificationsList) {
+            notificationsList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">Error loading notifications</div>';
         }
     }
-    
-    // Mark notification as read and navigate
-    async function viewAndMarkNotification(notificationId, type, relatedTaloId) {
-        try {
-            // Mark as read
-            await fetch(`/api/mark_notification_read/${notificationId}`, { method: 'PATCH' });
-            
-            // Update UI
-            const notifItem = document.querySelector(`.notification-item[data-notif-id="${notificationId}"]`);
-            if (notifItem && notifItem.classList.contains('unread')) {
-                notifItem.classList.remove('unread');
-                currentNotificationCount = Math.max(0, currentNotificationCount - 1);
-                updateNotificationBadge(currentNotificationCount);
-            }
-            
-            // Navigate based on type
-            if (type === 'follow') {
-                let username = relatedTaloId;
-                if (!username && notifItem) {
-                    const smallText = notifItem.querySelector('small')?.textContent;
-                    const match = smallText?.match(/@(\w+)/);
-                    if (match) username = match[1];
-                }
-                if (username) window.location.href = `/profile/${username}`;
-            } else if (relatedTaloId) {
-                window.location.href = `/post/${relatedTaloId}`;
-            }
-        } catch (error) {
-            console.error('Error marking notification read:', error);
-        }
-    }
-    
-    // Delete a single notification
-    async function deleteNotification(notificationId) {
-        try {
-            const notifItem = document.querySelector(`.notification-item[data-notif-id="${notificationId}"]`);
-            const wasUnread = notifItem && notifItem.classList.contains('unread');
-            
-            await fetch(`/api/delete_activity_notification/${notificationId}`, { method: 'DELETE' });
-            
-            if (notifItem) {
-                notifItem.classList.add('deleting');
-                setTimeout(() => notifItem.remove(), 300);
-            }
-            
-            if (wasUnread) {
-                currentNotificationCount = Math.max(0, currentNotificationCount - 1);
-                updateNotificationBadge(currentNotificationCount);
-            }
-        } catch (error) {
-            console.error('Error deleting notification:', error);
-        }
-    }
-    
-    // Swipe to delete for mobile
-    function initSwipeToDelete() {
-        const notificationItems = document.querySelectorAll('.notification-item');
+}
+
+// --- Mark notification as read and navigate ---
+window.viewAndMarkNotification = async function(notificationId, type, relatedTaloId) {
+    try {
+        // Mark as read on server
+        await fetch(`/api/mark_notification_read/${notificationId}`, { method: 'PATCH' });
         
-        notificationItems.forEach(item => {
-            let touchStartX = 0;
-            let touchStartY = 0;
-            let swipeActive = false;
-            
-            item.removeEventListener('touchstart', swipeStartHandler);
-            item.removeEventListener('touchmove', swipeMoveHandler);
-            item.removeEventListener('touchend', swipeEndHandler);
-            
-            function swipeStartHandler(e) {
-                touchStartX = e.touches[0].clientX;
-                touchStartY = e.touches[0].clientY;
-                swipeActive = false;
+        // Update UI
+        const notifItem = document.querySelector(`.notification-item[data-notif-id="${notificationId}"]`);
+        if (notifItem && notifItem.classList.contains('unread')) {
+            notifItem.classList.remove('unread');
+            currentNotificationCount = Math.max(0, currentNotificationCount - 1);
+            updateNotificationBadge(currentNotificationCount);
+        }
+        
+        // Navigate based on type
+        if (type === 'follow') {
+            let username = relatedTaloId;
+            if (!username && notifItem) {
+                const smallText = notifItem.querySelector('small')?.textContent;
+                const match = smallText?.match(/@(\w+)/);
+                if (match) username = match[1];
             }
+            if (username) window.location.href = `/profile/${username}`;
+        } else if (relatedTaloId) {
+            window.location.href = `/post/${relatedTaloId}`;
+        }
+    } catch (error) {
+        console.error('Error marking notification read:', error);
+    }
+};
+
+// --- Delete a single notification ---
+window.deleteNotification = async function(notificationId) {
+    try {
+        const notifItem = document.querySelector(`.notification-item[data-notif-id="${notificationId}"]`);
+        const wasUnread = notifItem && notifItem.classList.contains('unread');
+        
+        await fetch(`/api/delete_activity_notification/${notificationId}`, { method: 'DELETE' });
+        
+        if (notifItem) {
+            notifItem.classList.add('deleting');
+            setTimeout(() => notifItem.remove(), 300);
+        }
+        
+        if (wasUnread) {
+            currentNotificationCount = Math.max(0, currentNotificationCount - 1);
+            updateNotificationBadge(currentNotificationCount);
+        }
+    } catch (error) {
+        console.error('Error deleting notification:', error);
+    }
+};
+
+// --- Swipe to delete for mobile ---
+function initSwipeToDelete() {
+    const notificationItems = document.querySelectorAll('.notification-item');
+    
+    notificationItems.forEach(item => {
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let swipeActive = false;
+        
+        // Remove old listeners to avoid duplicates
+        item.removeEventListener('touchstart', swipeStartHandler);
+        item.removeEventListener('touchmove', swipeMoveHandler);
+        item.removeEventListener('touchend', swipeEndHandler);
+        
+        function swipeStartHandler(e) {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            swipeActive = false;
+        }
+        
+        function swipeMoveHandler(e) {
+            const dx = touchStartX - e.touches[0].clientX;
+            const dy = Math.abs(e.touches[0].clientY - touchStartY);
             
-            function swipeMoveHandler(e) {
-                const dx = touchStartX - e.touches[0].clientX;
-                const dy = Math.abs(e.touches[0].clientY - touchStartY);
-                
-                if (dx > 10 && dx > dy * 1.5) {
-                    swipeActive = true;
-                    item.classList.add('swiping');
-                    e.preventDefault();
-                    item.style.transform = `translateX(-${Math.min(dx, 120)}px)`;
-                }
+            if (dx > 10 && dx > dy * 1.5) {
+                swipeActive = true;
+                item.classList.add('swiping');
+                e.preventDefault();
+                item.style.transform = `translateX(-${Math.min(dx, 120)}px)`;
             }
+        }
+        
+        function swipeEndHandler(e) {
+            const dx = touchStartX - e.changedTouches[0].clientX;
+            item.style.transform = '';
             
-            function swipeEndHandler(e) {
-                const dx = touchStartX - e.changedTouches[0].clientX;
-                item.style.transform = '';
-                
-                if (swipeActive && dx > 100) {
-                    const notifId = item.dataset.notifId;
-                    if (notifId) deleteNotification(notifId);
-                } else {
-                    item.classList.remove('swiping');
-                }
-                swipeActive = false;
+            if (swipeActive && dx > 100) {
+                const notifId = item.dataset.notifId;
+                if (notifId) window.deleteNotification(notifId);
+            } else {
+                item.classList.remove('swiping');
             }
-            
-            item.addEventListener('touchstart', swipeStartHandler, { passive: true });
-            item.addEventListener('touchmove', swipeMoveHandler, { passive: false });
-            item.addEventListener('touchend', swipeEndHandler, { passive: true });
+            swipeActive = false;
+        }
+        
+        item.addEventListener('touchstart', swipeStartHandler, { passive: true });
+        item.addEventListener('touchmove', swipeMoveHandler, { passive: false });
+        item.addEventListener('touchend', swipeEndHandler, { passive: true });
+    });
+}
+
+// --- Toggle notification panel ---
+window.toggleActivityPanel = function() {
+    const panel = document.getElementById('notificationsPanel');
+    if (!panel) return;
+    
+    if (panel.classList.contains('show')) {
+        panel.classList.remove('show');
+    } else {
+        // Load fresh notifications when opening
+        loadNotifications().then(() => {
+            panel.classList.add('show');
         });
     }
-    
-    // Toggle notification panel
-    function toggleActivityPanel() {
-        const panel = document.getElementById('notificationsPanel');
-        if (!panel) return;
-        
-        if (panel.classList.contains('show')) {
-            panel.classList.remove('show');
-        } else {
-            // Load fresh notifications when opening
-            loadNotifications().then(() => {
-                panel.classList.add('show');
-            });
-        }
-    }
-    
-    // Start polling for notifications
-    function startNotificationPolling() {
-        if (notificationPollInterval) {
-            clearInterval(notificationPollInterval);
-        }
-        
-        // Initial fetch
-        fetchNotificationCount();
-        
-        // Poll every 10 seconds
-        notificationPollInterval = setInterval(() => {
-            fetchNotificationCount();
-        }, 10000);
-    }
-    
-    // Initialize audio on first user interaction (browser requirement)
-    function setupAudioOnFirstInteraction() {
-        const initAudio = () => {
-            initAudioContext();
-            document.removeEventListener('click', initAudio);
-            document.removeEventListener('touchstart', initAudio);
-        };
-        document.addEventListener('click', initAudio);
-        document.addEventListener('touchstart', initAudio);
-    }
-    
-    // Close panel when clicking outside
-    document.addEventListener('click', function(e) {
-        const panel = document.getElementById('notificationsPanel');
-        const bellBtn = document.getElementById('activityBellBtn');
-        if (panel && panel.classList.contains('show') &&
-            !panel.contains(e.target) &&
-            bellBtn && !bellBtn.contains(e.target)) {
-            panel.classList.remove('show');
-        }
-    });
-    
-    // Start notification system
-    setupAudioOnFirstInteraction();
-    startNotificationPolling();
+};
 
+// --- Start polling for notifications ---
+function startNotificationPolling() {
+    if (notificationPollInterval) {
+        clearInterval(notificationPollInterval);
+    }
+    
+    // Initial fetch
+    fetchNotificationCount();
+    
+    // Poll every 10 seconds
+    notificationPollInterval = setInterval(() => {
+        fetchNotificationCount();
+    }, 10000);
+}
+
+// --- Close panel when clicking outside ---
+document.addEventListener('click', function(e) {
+    const panel = document.getElementById('notificationsPanel');
+    const bellBtn = document.getElementById('activityBellBtn');
+    if (panel && panel.classList.contains('show') &&
+        !panel.contains(e.target) &&
+        bellBtn && !bellBtn.contains(e.target)) {
+        panel.classList.remove('show');
+    }
+});
+
+// --- FIX: Add missing markAllPostsAsViewed function ---
+window.markAllPostsAsViewed = async function() {
+    const now = new Date().toISOString();
+    localStorage.setItem('lastSeenTimestamp', now);
+    latestTaloTimestamp = now;
+    
+    try {
+        await fetch('/api/mark_posts_viewed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ timestamp: now })
+        });
+        
+        // Update home indicator
+        const indicator = document.getElementById('homeIndicator');
+        if (indicator) {
+            indicator.classList.add('gray');
+            indicator.style.background = '#888';
+        }
+        
+        showFlashNotification('✓ All posts marked as viewed', 'success');
+    } catch (error) {
+        console.error('Error marking posts as viewed:', error);
+    }
+};
+
+// --- Start everything ---
+startNotificationPolling();
 
     
     // ========== MOBILE MENU ==========
