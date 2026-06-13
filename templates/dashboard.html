@@ -2495,9 +2495,9 @@ window.openPromotionModalFromPost = function(taloId) {
         return text.replace(regex, '<span class="search-highlight">$1</span>');
     }
     
-    async function createNewPostHtml(content, photos, taloId) {
-        const now = new Date();
-        const isoTime = now.toISOString();
+    async function createNewPostHtml(content, photos, taloId, createdAt = null) {
+   		  const now = createdAt || new Date().toISOString();
+   		   const isoTime = now;
         
         let photosHtml = '';
         if (photos && photos.length > 0) {
@@ -2679,26 +2679,42 @@ window.openPromotionModalFromPost = function(taloId) {
         }
     });
     
-    // ========== UTILITY FUNCTIONS ==========
 
+// ========== UTILITY FUNCTIONS ==========
 function formatTimeAgo(dateStr) {
+    if (!dateStr) return 'just now';
+    
     const date = new Date(dateStr);
     const now = new Date();
-    const diffSeconds = Math.floor((now - date) / 1000);
     
+    // Check if date is valid
+    if (isNaN(date.getTime())) return 'just now';
+    
+    const diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    // Handle negative differences (future dates - should not happen but just in case)
+    if (diffSeconds < 0) return 'just now';
+    
+    // Less than 5 seconds
     if (diffSeconds < 5) return 'just now';
-    if (diffSeconds < 60) return `${diffSeconds}s`;
     
+    // Seconds (5 to 59 seconds)
+    if (diffSeconds < 60) {
+        return `${diffSeconds}s`;
+    }
+    
+    // Minutes with seconds (1 minute to 59 minutes 59 seconds)
     const diffMinutes = Math.floor(diffSeconds / 60);
     const remainingSeconds = diffSeconds % 60;
     
     if (diffMinutes < 60) {
-        if (remainingSeconds > 0) {
+        if (remainingSeconds > 0 && remainingSeconds <= 59) {
             return `${diffMinutes}m ${remainingSeconds}s`;
         }
         return `${diffMinutes}m`;
     }
     
+    // Hours with minutes (1 hour to 23 hours 59 minutes)
     const diffHours = Math.floor(diffMinutes / 60);
     const remainingMinutes = diffMinutes % 60;
     
@@ -2709,6 +2725,7 @@ function formatTimeAgo(dateStr) {
         return `${diffHours}h`;
     }
     
+    // Days with hours (1 day to 6 days 23 hours)
     const diffDays = Math.floor(diffHours / 24);
     const remainingHours = diffHours % 24;
     
@@ -2719,6 +2736,7 @@ function formatTimeAgo(dateStr) {
         return `${diffDays}d`;
     }
     
+    // Weeks with days (1 week to 3 weeks 6 days)
     const diffWeeks = Math.floor(diffDays / 7);
     const remainingDays = diffDays % 7;
     
@@ -2729,6 +2747,7 @@ function formatTimeAgo(dateStr) {
         return `${diffWeeks}w`;
     }
     
+    // Months with days (1 month to 11 months 29 days)
     const diffMonths = Math.floor(diffDays / 30);
     const remainingDaysAfterMonths = diffDays % 30;
     
@@ -2739,6 +2758,7 @@ function formatTimeAgo(dateStr) {
         return `${diffMonths}mo`;
     }
     
+    // Years with months (1 year+)
     const diffYears = Math.floor(diffDays / 365);
     const remainingMonths = Math.floor((diffDays % 365) / 30);
     
@@ -2749,6 +2769,56 @@ function formatTimeAgo(dateStr) {
 }
 
 //END of TIME UTILITIES
+
+//LIVE TIMER for Format
+
+// ========== LIVE TIMESTAMP UPDATER ==========
+
+function updateAllTimestamps() {
+    document.querySelectorAll('.talo-time').forEach(el => {
+        if (el.dataset.time) {
+            el.textContent = formatTimeAgo(el.dataset.time);
+        }
+    });
+    // Also update notification timestamps if panel is open
+    document.querySelectorAll('.notification-item small:last-child').forEach(el => {
+        const timeText = el.textContent;
+        // Only update if it looks like a timestamp (contains numbers and letters like 's', 'm', 'h', etc.)
+        if (timeText && (timeText.includes('s') || timeText.includes('m') || timeText.includes('h') || 
+            timeText.includes('d') || timeText.includes('w') || timeText.includes('mo') || 
+            timeText.includes('y') || timeText === 'just now')) {
+            // Find the parent notification item and get the original timestamp
+            const notifItem = el.closest('.notification-item');
+            if (notifItem && notifItem.dataset.createdAt) {
+                el.textContent = formatTimeAgo(notifItem.dataset.createdAt);
+            }
+        }
+    });
+}
+
+// Update timestamps every second for the first minute, then every 10 seconds
+let updateInterval = null;
+let updateCount = 0;
+
+function startLiveTimestampUpdates() {
+    if (updateInterval) clearInterval(updateInterval);
+    
+    // Update every second for the first 60 seconds (to show seconds ticking)
+    updateInterval = setInterval(() => {
+        updateAllTimestamps();
+        updateCount++;
+        // After 60 seconds (60 updates), switch to 10-second intervals
+        if (updateCount >= 60) {
+            clearInterval(updateInterval);
+            updateInterval = setInterval(updateAllTimestamps, 10000);
+        }
+    }, 1000);
+}
+
+// Start live updates
+startLiveTimestampUpdates();
+
+//End Live timer
     
     function viewProfile(userId) {
         window.location.href = `/profile/${userId}`;
@@ -3058,6 +3128,9 @@ function formatTimeAgo(dateStr) {
         if (response.ok) {
             const data = await response.json();
             const newPostId = data.talo_id;
+        
+             const createdAt = data.created_at || new Date().toISOString(); // Use server timestamp if available
+
             
             // Update timestamp
             latestTaloTimestamp = new Date().toISOString();
@@ -3406,21 +3479,25 @@ async function loadNotifications() {
         updateNotificationBadge(unreadCount);
         
         if (data.notifications && data.notifications.length > 0) {
-            notificationsList.innerHTML = data.notifications.map(notif => `
-                <div class="notification-item ${notif.read ? '' : 'unread'}"
-                     data-notif-id="${notif.id}"
-                     data-related-id="${notif.related_talo_id || ''}"
-                     data-type="${notif.type}"
-                     onclick="viewAndMarkNotification('${notif.id}', '${notif.type}', '${notif.related_talo_id || ''}')">
-                    <div style="flex: 1;">
-                        <strong>${notif.type === 'retalo' ? '🔄 Repost' : notif.type === 'like' ? '💎 Like' : notif.type === 'follow' ? '👥 Follow' : '💬 Reply'}</strong><br>
-                        <small>${escapeHtml(notif.message)}</small><br>
-                        <small style="color: #999;">${formatTimeAgo(notif.created_at)}</small>
-                    </div>
-                    <button class="delete-notification-btn" onclick="event.stopPropagation(); deleteNotification('${notif.id}')">✖</button>
-                </div>
-            `).join('');
-            initSwipeToDelete();
+            // Inside loadNotifications function, update the notification HTML to include the original timestamp
+
+   notificationsList.innerHTML = data.notifications.map(notif => `
+    <div class="notification-item ${notif.read ? '' : 'unread'}"
+         data-notif-id="${notif.id}"
+         data-related-id="${notif.related_talo_id || ''}"
+         data-type="${notif.type}"
+         data-created-at="${notif.created_at}"
+         onclick="viewAndMarkNotification('${notif.id}', '${notif.type}', '${notif.related_talo_id || ''}')">
+        <div style="flex: 1;">
+            <strong>${notif.type === 'retalo' ? '🔄 Repost' : notif.type === 'like' ? '💎 Like' : notif.type === 'follow' ? '👥 Follow' : '💬 Reply'}</strong><br>
+            <small>${escapeHtml(notif.message)}</small><br>
+            <small style="color: #999;">${formatTimeAgo(notif.created_at)}</small>
+        </div>
+        <button class="delete-notification-btn" onclick="event.stopPropagation(); deleteNotification('${notif.id}')">✖</button>
+    </div>
+`).join('');
+
+initSwipeToDelete();
         } else {
             notificationsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No notifications yet</div>';
         }
