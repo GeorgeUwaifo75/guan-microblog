@@ -2531,6 +2531,35 @@ async def delete_activity_notification(notification_id: str, request: Request):
     
     raise HTTPException(status_code=404, detail="Notification not found")
 
+
+@app.patch("/api/mark_notification_read/{notification_id}")
+async def mark_notification_read(notification_id: str, request: Request):
+    """Mark a specific activity notification as read (without deleting it)"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    data = await get_jsonbin_data()
+    user = None
+
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    notifications = data.get("notifications", [])
+    for notif in notifications:
+        if notif.get("id") == notification_id and notif.get("user_id") == user["user_id"]:
+            if not notif.get("read", False):
+                notif["read"] = True
+                await save_jsonbin_data(data)
+            return {"success": True}
+
+    raise HTTPException(status_code=404, detail="Notification not found")
+
 @app.delete("/api/clear_all_activity_notifications")
 async def clear_all_activity_notifications(request: Request):
     """Clear all activity notifications for the current user"""
