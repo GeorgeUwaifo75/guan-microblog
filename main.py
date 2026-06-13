@@ -2852,6 +2852,171 @@ async def refresh_cache(request: Request):
     await get_jsonbin_data(force_refresh=True)
     return {"success": True}
 
+# Add this endpoint to main.py (after the like_talo endpoint)
+
+@app.post("/api/retalo")
+async def create_retalo(request: Request):
+    """Create a retalo/repost of an existing post"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    body = await request.json()
+    original_talo_id = body.get("original_talo_id")
+    original_user_id = body.get("original_user_id")
+    original_content = body.get("original_content", "")
+    original_photos = body.get("original_photos", [])
+    
+    # Find the original talo
+    original_talo = None
+    for talo in data.get("talos", []):
+        if talo["id"] == original_talo_id:
+            original_talo = talo
+            break
+    
+    if not original_talo:
+        raise HTTPException(status_code=404, detail="Original post not found")
+    
+    # Check if user already retaled this post
+    for talo in data.get("talos", []):
+        if talo.get("is_retalo") and talo.get("user_id") == user["user_id"] and talo.get("original_talo_id") == original_talo_id:
+            raise HTTPException(status_code=400, detail="You have already reposted this")
+    
+    # Create retalo content (original content with repost prefix)
+    retalo_content = f"🔄 Reposted from @{original_user_id}\n\n{original_content}"
+    
+    # Filter banned words
+    if contains_banned_words(retalo_content):
+        raise HTTPException(status_code=400, detail="The original post contains inappropriate language and cannot be reposted")
+    
+    # Create the retalo
+    retalo = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["user_id"],
+        "content": retalo_content,
+        "photos": original_photos,  # Copy original photos
+        "likes": 0,
+        "dislikes": 0,
+        "retalos": 0,
+        "reply_count": 0,
+        "created_at": datetime.now().isoformat(),
+        "promoted": False,
+        "promotion_level": 0,
+        "is_retalo": True,
+        "original_talo_id": original_talo_id,
+        "original_user_id": original_user_id
+    }
+    
+    if "talos" not in data:
+        data["talos"] = []
+    data["talos"].insert(0, retalo)
+    
+    # Increment retalo count on original post
+    for talo in data["talos"]:
+        if talo["id"] == original_talo_id:
+            talo["retalos"] = talo.get("retalos", 0) + 1
+            break
+    
+    # Update user's talos count
+    user["talos_count"] = user.get("talos_count", 0) + 1
+    
+    # Send notification to original poster (only if they follow the retaler)
+    if original_user_id != user["user_id"]:
+        follows_retaler = False
+        for follow in data.get("follows", []):
+            if follow.get("follower_id") == original_user_id and follow.get("following_id") == user["user_id"]:
+                follows_retaler = True
+                break
+        
+        if follows_retaler:
+            if "notifications" not in data:
+                data["notifications"] = []
+            
+            notification = {
+                "id": str(uuid.uuid4()),
+                "user_id": original_user_id,
+                "type": "retalo",
+                "message": f"@{user['user_id']} reposted your talo",
+                "related_talo_id": retalo["id"],
+                "original_talo_id": original_talo_id,
+                "from_user_id": user["user_id"],
+                "read": False,
+                "created_at": datetime.now().isoformat()
+            }
+            data["notifications"].append(notification)
+    
+    await save_jsonbin_data(data)
+    
+    return {"message": "Post reposted successfully", "retalo_id": retalo["id"], "retalo_count": original_talo["retalos"] + 1}
+
+@app.delete("/api/delete_talo/{talo_id}")
+async def delete_talo(talo_id: str, request: Request):
+    """Delete a post - only the author can delete their own post"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    # Find the talo
+    talo_index = None
+    talo = None
+    for i, t in enumerate(data.get("talos", [])):
+        if t["id"] == talo_id:
+            talo_index = i
+            talo = t
+            break
+    
+    if not talo:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    # Check if user is the author
+    if talo["user_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="You can only delete your own posts")
+    
+    # Delete all replies to this post
+    data["replies"] = [r for r in data.get("replies", []) if r.get("parent_talo_id") != talo_id]
+    
+    # Delete all likes on this post
+    data["likes"] = [l for l in data.get("likes", []) if l.get("talo_id") != talo_id]
+    
+    # Delete all dislikes on this post
+    if "dislikes" in data:
+        data["dislikes"] = [d for d in data.get("dislikes", []) if d.get("talo_id") != talo_id]
+    
+    # Delete notifications related to this post
+    data["notifications"] = [n for n in data.get("notifications", []) if n.get("related_talo_id") != talo_id and n.get("original_talo_id") != talo_id]
+    
+    # Remove the post
+    data["talos"].pop(talo_index)
+    
+    # Update user's talos count
+    user["talos_count"] = max(0, user.get("talos_count", 0) - 1)
+    
+    await save_jsonbin_data(data)
+    
+    return {"message": "Post deleted successfully"}
+
 
 @app.get("/api/health")
 async def health_check():
