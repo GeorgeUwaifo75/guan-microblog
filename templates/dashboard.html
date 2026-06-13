@@ -2680,16 +2680,75 @@ window.openPromotionModalFromPost = function(taloId) {
     });
     
     // ========== UTILITY FUNCTIONS ==========
-    function formatTimeAgo(dateStr) {
-        const date = new Date(dateStr);
-        const now = new Date();
-        const diff = Math.floor((now - date) / 1000);
-        if (diff < 5) return 'just now';
-        if (diff < 60) return `${diff}s`;
-        if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-        if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-        return date.toLocaleDateString();
+
+function formatTimeAgo(dateStr) {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffSeconds = Math.floor((now - date) / 1000);
+    
+    if (diffSeconds < 5) return 'just now';
+    if (diffSeconds < 60) return `${diffSeconds}s`;
+    
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    const remainingSeconds = diffSeconds % 60;
+    
+    if (diffMinutes < 60) {
+        if (remainingSeconds > 0) {
+            return `${diffMinutes}m ${remainingSeconds}s`;
+        }
+        return `${diffMinutes}m`;
     }
+    
+    const diffHours = Math.floor(diffMinutes / 60);
+    const remainingMinutes = diffMinutes % 60;
+    
+    if (diffHours < 24) {
+        if (remainingMinutes > 0) {
+            return `${diffHours}h ${remainingMinutes}m`;
+        }
+        return `${diffHours}h`;
+    }
+    
+    const diffDays = Math.floor(diffHours / 24);
+    const remainingHours = diffHours % 24;
+    
+    if (diffDays < 7) {
+        if (remainingHours > 0) {
+            return `${diffDays}d ${remainingHours}h`;
+        }
+        return `${diffDays}d`;
+    }
+    
+    const diffWeeks = Math.floor(diffDays / 7);
+    const remainingDays = diffDays % 7;
+    
+    if (diffWeeks < 4) {
+        if (remainingDays > 0) {
+            return `${diffWeeks}w ${remainingDays}d`;
+        }
+        return `${diffWeeks}w`;
+    }
+    
+    const diffMonths = Math.floor(diffDays / 30);
+    const remainingDaysAfterMonths = diffDays % 30;
+    
+    if (diffMonths < 12) {
+        if (remainingDaysAfterMonths > 0) {
+            return `${diffMonths}mo ${remainingDaysAfterMonths}d`;
+        }
+        return `${diffMonths}mo`;
+    }
+    
+    const diffYears = Math.floor(diffDays / 365);
+    const remainingMonths = Math.floor((diffDays % 365) / 30);
+    
+    if (remainingMonths > 0) {
+        return `${diffYears}y ${remainingMonths}mo`;
+    }
+    return `${diffYears}y`;
+}
+
+//END of TIME UTILITIES
     
     function viewProfile(userId) {
         window.location.href = `/profile/${userId}`;
