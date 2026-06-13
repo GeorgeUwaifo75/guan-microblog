@@ -2285,42 +2285,36 @@
         talos_count: {{ user.talos_count }}
     };
     
-    // Photo Viewer Function
-    function viewPhoto(url) {
-        const modal = document.getElementById('photoViewerModal');
-        const viewerImage = document.getElementById('viewerImage');
-        viewerImage.src = url;
-        modal.style.display = 'flex';
-    }
-    
-    function closePhotoViewer() {
-        document.getElementById('photoViewerModal').style.display = 'none';
-    }
-    
-    // ========== POST ACTIONS FUNCTIONS ==========
-    function togglePostActions(btn) {
-        // Prevent event bubbling
-        if (window.event) {
-            window.event.stopPropagation();
+    // ========== POST ACTIONS FUNCTIONS - FIXED ==========
+    window.togglePostActions = function(btn) {
+        // Stop event propagation
+        if (event) {
+            event.stopPropagation();
         }
+        
+        console.log('Toggle post actions called'); // Debug log
         
         // Get the menu element (next sibling of the button)
         const menu = btn.nextElementSibling;
         
+        if (!menu) {
+            console.log('Menu not found');
+            return;
+        }
+        
         // Close all other menus first
         document.querySelectorAll('.post-actions-menu').forEach(m => {
-            if (m !== menu) {
+            if (m !== menu && m !== btn.nextElementSibling) {
                 m.classList.remove('show');
             }
         });
         
         // Toggle the clicked menu
-        if (menu) {
-            menu.classList.toggle('show');
-        }
-    }
+        menu.classList.toggle('show');
+        console.log('Menu toggled, now has class show:', menu.classList.contains('show'));
+    };
     
-    async function deletePost(taloId) {
+    window.deletePost = async function(taloId) {
         if (!confirm('⚠️ Are you sure you want to delete this post? This action cannot be undone.')) {
             return;
         }
@@ -2347,7 +2341,7 @@
             console.error('Error deleting post:', error);
             showFlashNotification('Network error. Please try again.', 'error');
         }
-    }
+    };
     
     // Close dropdown when clicking anywhere else
     document.addEventListener('click', function(e) {
@@ -2359,6 +2353,18 @@
         }
     });
     
+    // Photo Viewer Function
+    function viewPhoto(url) {
+        const modal = document.getElementById('photoViewerModal');
+        const viewerImage = document.getElementById('viewerImage');
+        viewerImage.src = url;
+        modal.style.display = 'flex';
+    }
+    
+    function closePhotoViewer() {
+        document.getElementById('photoViewerModal').style.display = 'none';
+    }
+    
     // ========== FOCUS ON TEXTAREA FUNCTION ==========
     function focusOnTextarea() {
         const scrollableContentEl = document.getElementById('scrollableContent');
@@ -2367,23 +2373,14 @@
         
         if (!createSection || !textarea) return;
         
-        // Scroll the create talo section into view smoothly
         createSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
         
-        // Small delay to ensure scroll completes before focusing
         setTimeout(() => {
-            // Focus the textarea
             textarea.focus();
-            
-            // Place cursor at the end of any existing text
             const currentValue = textarea.value;
             textarea.setSelectionRange(currentValue.length, currentValue.length);
-            
-            // Add highlight effect to draw attention
             createSection.classList.add('highlight');
             setTimeout(() => createSection.classList.remove('highlight'), 1000);
-            
-            // Show FAB if it was hidden
             if (fabContainer && !fabVisible) {
                 fabContainer.classList.remove('hidden');
                 fabVisible = true;
@@ -2399,31 +2396,22 @@
         if (!fabContainer || !scrollableContent) return;
         
         scrollableContent.addEventListener('scroll', function() {
-            const scrollTop = scrollableContent.scrollTop;
-            
-            // Clear existing timeout
             if (scrollTimeout) {
                 clearTimeout(scrollTimeout);
             }
-            
-            // Hide FAB immediately when scrolling (any direction)
             if (fabVisible) {
                 fabContainer.classList.add('hidden');
                 fabVisible = false;
             }
-            
-            // Set timeout to show FAB when scrolling stops
             scrollTimeout = setTimeout(function() {
                 if (!fabVisible) {
                     fabContainer.classList.remove('hidden');
                     fabVisible = true;
                 }
             }, 150);
-            
-            lastScrollTop = scrollTop;
+            lastScrollTop = scrollableContent.scrollTop;
         });
         
-        // Ensure FAB is visible initially
         if (fabContainer && !fabVisible) {
             fabContainer.classList.remove('hidden');
             fabVisible = true;
@@ -2608,7 +2596,6 @@
             if (clearBtn) {
                 clearBtn.style.display = query ? 'block' : 'none';
             }
-            
             if (searchTimeout) clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
                 if (query) {
@@ -3033,7 +3020,6 @@
                 }
                 return;
             }
-            
             if (newPassword.length < 6) {
                 if (passwordError) {
                     passwordError.textContent = 'New password must be at least 6 characters';
@@ -3041,7 +3027,6 @@
                 }
                 return;
             }
-            
             if (newPassword !== confirmPassword) {
                 if (passwordError) {
                     passwordError.textContent = 'New passwords do not match';
@@ -3049,7 +3034,6 @@
                 }
                 return;
             }
-            
             formData.append('current_password', currentPassword);
             formData.append('new_password', newPassword);
         }
@@ -3074,9 +3058,7 @@
                 method: 'POST', 
                 body: formData 
             });
-            
             const result = await response.json();
-            
             if (response.ok) {
                 if (result.password_changed) {
                     if (passwordSuccess) {
@@ -3390,17 +3372,13 @@
         
         scrollableContent.addEventListener('touchmove', function(e) {
             if (!isAtTop || isRefreshingPull) return;
-            
             const currentY = e.touches[0].clientY;
             const pullDistance = currentY - startY;
-            
             if (pullDistance > 0) {
                 e.preventDefault();
                 const translateY = Math.min(pullDistance, 80);
-                
                 if (pullToRefreshEl) {
                     pullToRefreshEl.style.transform = `translateY(${translateY}px)`;
-                    
                     if (pullDistance >= 80) {
                         if (refreshText) refreshText.textContent = 'Release to refresh...';
                         pullToRefreshEl.classList.add('active');
@@ -3418,10 +3396,8 @@
                 }
                 return;
             }
-            
             const currentY = e.changedTouches[0].clientY;
             const pullDistance = currentY - startY;
-            
             if (pullDistance >= 80 && !isRefreshingPull) {
                 isRefreshingPull = true;
                 if (pullToRefreshEl) {
@@ -3429,12 +3405,10 @@
                     if (refreshText) refreshText.textContent = 'Refreshing...';
                     pullToRefreshEl.classList.add('active');
                 }
-                
                 const now = new Date().toISOString();
                 latestTaloTimestamp = now;
                 localStorage.setItem('lastSeenTimestamp', now);
                 location.reload();
-                
                 setTimeout(() => {
                     isRefreshingPull = false;
                     if (pullToRefreshEl) {
@@ -3447,7 +3421,6 @@
                     pullToRefreshEl.classList.remove('active');
                 }
             }
-            
             isAtTop = false;
         });
     }
@@ -3557,8 +3530,6 @@
         if (event.target === document.getElementById('followingModal')) closeFollowingModal();
     };
 </script>
-
-
 
 </body>
 </html>
