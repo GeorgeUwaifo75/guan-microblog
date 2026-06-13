@@ -732,8 +732,12 @@
         <div class="post-actions-dropdown">
             <button class="post-actions-btn" onclick="event.stopPropagation(); window.togglePostActions(this)">⋮</button>
             <div class="post-actions-menu">
+                
                 {% if not talo.promoted %}
+                <!--
                 <button class="promote-post-btn" onclick="event.stopPropagation(); window.openPromotionModalFromPost('{{ talo.id }}')">⭐ Promote Post</button>
+                //-->
+                <button class="promote-post-btn" >⭐ Promote Post</button>
                 {% endif %}
                 <button class="delete-post-btn" onclick="event.stopPropagation(); window.deletePost('{{ talo.id }}')">🗑️ Delete Post</button>
             </div>
