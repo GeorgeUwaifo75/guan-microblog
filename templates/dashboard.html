@@ -1882,9 +1882,9 @@
         </div>
         <div class="right-icons">
             <button class="icon-btn" onclick="toggleActivityPanel()" id="activityBellBtn">
-                🔔 
-                <span id="activityBadge" class="notification-badge" style="display: none;">0</span>
-            </button>
+    		🔔 
+    		<span id="notificationCount" class="notification-badge" style="display: none;">0</span>
+	    </button>
             <button class="icon-btn" onclick="markAllPostsAsViewed()" id="homeBtnHeader" title="Mark all posts as viewed">
                 🏠
             </button>
@@ -3210,26 +3210,27 @@ window.openPromotionModalFromPost = function(taloId) {
     function closeFollowersModal() { document.getElementById('followersModal').style.display = 'none'; }
     function closeFollowingModal() { document.getElementById('followingModal').style.display = 'none'; }
     
-    // ========== NOTIFICATIONS ==========
    // ========== NOTIFICATIONS - FIXED ==========
 let currentNotificationCount = 0;
 
 async function loadNotifications() {
     try {
-        // Use the activity notifications endpoint which has likes, replies, follows, retalos
+        // Use the activity notifications endpoint
         const response = await fetch('/api/get_activity_notifications');
         const data = await response.json();
         const notificationsList = document.getElementById('notificationsList');
         const notificationCountSpan = document.getElementById('notificationCount');
         
+        if (!notificationsList) return;
+        
         if (data.notifications && data.notifications.length > 0) {
             const unreadCount = data.notifications.filter(n => !n.read).length;
             currentNotificationCount = unreadCount;
-            if (unreadCount > 0) {
+            if (notificationCountSpan && unreadCount > 0) {
                 notificationCountSpan.style.display = 'inline-block';
                 notificationCountSpan.textContent = unreadCount > 99 ? '99+' : unreadCount;
                 unreadNotifications = unreadCount;
-            } else {
+            } else if (notificationCountSpan) {
                 notificationCountSpan.style.display = 'none';
             }
             notificationsList.innerHTML = data.notifications.map(notif => `
@@ -3245,11 +3246,14 @@ async function loadNotifications() {
             initSwipeToDelete();
         } else {
             notificationsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No notifications yet</div>';
-            notificationCountSpan.style.display = 'none';
+            if (notificationCountSpan) notificationCountSpan.style.display = 'none';
         }
     } catch (error) {
         console.error('Error loading notifications:', error);
-        document.getElementById('notificationsList').innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">Error loading notifications</div>';
+        const notificationsList = document.getElementById('notificationsList');
+        if (notificationsList) {
+            notificationsList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">Error loading notifications</div>';
+        }
     }
 }
 
@@ -3270,6 +3274,7 @@ async function viewAndMarkNotification(notificationId, type, relatedTaloId) {
         const badge = document.getElementById('notificationCount');
         if (badge && currentNotificationCount > 0) {
             badge.textContent = currentNotificationCount;
+            badge.style.display = 'inline-block';
         } else if (badge) {
             badge.style.display = 'none';
         }
@@ -3346,9 +3351,13 @@ function initSwipeToDelete() {
     });
 }
 
-// Override toggleNotifications to load activity notifications
-function toggleNotifications() {
+
+
+// This is the function called by the bell button onclick
+function toggleActivityPanel() {
     const panel = document.getElementById('notificationsPanel');
+    if (!panel) return;
+    
     const isVisible = panel.classList.contains('show');
     
     if (!isVisible) {
@@ -3358,32 +3367,67 @@ function toggleNotifications() {
         panel.classList.remove('show');
     }
 }
-    
-    async function markNotificationRead(notificationId) {
-        try {
-            await fetch(`/api/mark_notification_read/${notificationId}`, { method: 'POST' });
-            unreadNotifications--;
-            if (unreadNotifications <= 0) {
-                document.getElementById('notificationCount').style.display = 'none';
-            } else {
-                document.getElementById('notificationCount').textContent = unreadNotifications;
+
+// Periodic check for new notifications
+async function checkForNewActivityNotifications() {
+    try {
+        const response = await fetch('/api/get_activity_notifications');
+        const data = await response.json();
+        
+        if (data.notifications && data.notifications.length > 0) {
+            const unreadCount = data.notifications.filter(n => !n.read).length;
+            const badge = document.getElementById('notificationCount');
+            
+            if (unreadCount > currentNotificationCount && unreadCount > 0) {
+                // Play sound for new notification
+                try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    oscillator.frequency.value = 880;
+                    gainNode.gain.value = 0.1;
+                    oscillator.start();
+                    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.3);
+                    oscillator.stop(audioContext.currentTime + 0.3);
+                } catch(e) {}
+                
+                // Animate bell
+                const bellBtn = document.getElementById('activityBellBtn');
+                if (bellBtn) {
+                    bellBtn.style.animation = 'pulse 0.5s ease-in-out 3';
+                    setTimeout(() => { if(bellBtn) bellBtn.style.animation = ''; }, 1500);
+                }
             }
-            loadNotifications();
-        } catch (error) {
-            console.error('Error marking notification read:', error);
+            
+            currentNotificationCount = unreadCount;
+            if (badge && currentNotificationCount > 0) {
+                badge.style.display = 'inline-block';
+                badge.textContent = currentNotificationCount > 99 ? '99+' : currentNotificationCount;
+            } else if (badge && currentNotificationCount === 0) {
+                badge.style.display = 'none';
+            }
         }
+    } catch (error) {
+        console.error('Error checking new notifications:', error);
     }
-    
-    function toggleNotifications() {
-        const panel = document.getElementById('notificationsPanel');
-        panel.classList.toggle('show');
-        if (panel.classList.contains('show')) {
-            loadNotifications();
-            fetch('/api/mark_all_notifications_read', { method: 'POST' }).catch(console.error);
-            document.getElementById('notificationCount').style.display = 'none';
-            unreadNotifications = 0;
-        }
+}
+
+// Start polling for new notifications every 15 seconds
+setInterval(checkForNewActivityNotifications, 15000);
+
+// Close notification panel when clicking outside
+document.addEventListener('click', function(e) {
+    const panel = document.getElementById('notificationsPanel');
+    const bellBtn = document.getElementById('activityBellBtn');
+    if (panel && panel.classList.contains('show') && 
+        !panel.contains(e.target) && 
+        bellBtn && !bellBtn.contains(e.target)) {
+        panel.classList.remove('show');
     }
+});
+
     
     // ========== MOBILE MENU ==========
     function toggleMobileMenu() {
@@ -3584,41 +3628,11 @@ function toggleNotifications() {
     }
     
     // ========== REAL-TIME NOTIFICATIONS ==========
-    let notificationPollInterval = null;
+    //let notificationPollInterval = null;
     let lastNotificationCheck = localStorage.getItem('lastNotificationCheck') || new Date().toISOString();
     
-    function initRealTimeNotifications() {
-        if (notificationPollInterval) clearInterval(notificationPollInterval);
-        notificationPollInterval = setInterval(checkForNewNotifications, 10000);
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) checkForNewNotifications();
-        });
-    }
-    
-    async function checkForNewNotifications() {
-        try {
-            const response = await fetch('/api/check_new_notifications', {
-                headers: { 'X-Last-Checked': lastNotificationCheck }
-            });
-            const data = await response.json();
-            if (data.has_new) {
-                const badge = document.getElementById('notificationCount');
-                const currentCount = parseInt(badge.textContent) || 0;
-                const newCount = currentCount + data.count;
-                if (newCount > 0) {
-                    badge.style.display = 'inline-block';
-                    badge.textContent = newCount;
-                }
-                const notifBtn = document.querySelector('.icon-btn');
-                if (notifBtn) {
-                    notifBtn.style.animation = 'pulse 0.5s ease-in-out 3';
-                    setTimeout(() => { notifBtn.style.animation = ''; }, 1500);
-                }
-            }
-        } catch (error) {
-            console.error('Error checking notifications:', error);
-        }
-    }
+   
+ 
     
     // Add periodic cache refresh (every 2 minutes)
     setInterval(async () => {
@@ -3676,10 +3690,6 @@ async function checkForNewActivityNotifications() {
     }
 }
 
-// Start polling for new notifications every 15 seconds
-setInterval(checkForNewActivityNotifications, 15000);
-
-
 
     
     // ========== INITIALIZATION ==========
@@ -3724,7 +3734,7 @@ setInterval(checkForNewActivityNotifications, 15000);
     
     loadLastSeenTimestamp();
     setInterval(checkForNewTalos, 30000);
-    initRealTimeNotifications();
+    //initRealTimeNotifications();
     initPullToRefresh();
     initFabVisibilityControl();
     
