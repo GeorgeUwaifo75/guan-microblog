@@ -2249,1645 +2249,1316 @@
     </script>
 
     <script src="https://js.paystack.co/v1/inline.js"></script>
+
+<script>
+    let photoFiles = [];
+    let currentHashtagFilter = null;
+    let latestTaloTimestamp = null;
+    let isRefreshing = false;
+    let unreadNotifications = 0;
+    let searchTimeout = null;
     
-    <script>
-        let photoFiles = [];
-        let currentHashtagFilter = null;
-        let latestTaloTimestamp = null;
-        let isRefreshing = false;
-        let unreadNotifications = 0;
-        let searchTimeout = null;
-        
-        // FAB visibility control variables
-        let lastScrollTop = 0;
-        let fabContainer = null;
-        let fabVisible = true;
-        let scrollTimeout = null;
-        
-        const loggedInUserId = '{{ user.user_id }}';
-        const MAX_CHARS = 250;
-        
-        const trendingData = [
-            {% for word, count in trending %}
-            {word: "{{ word }}", count: {{ count }}},
-            {% endfor %}
-        ];
-        
-        const userData = {
-            user_id: '{{ user.user_id }}',
-            first_name: '{{ user.first_name }}',
-            last_name: '{{ user.last_name }}',
-            profile_photo: '{{ user.profile_photo or "" }}',
-            bio: '{{ user.bio or "" }}',
-            is_premium: {{ user.is_premium|lower }},
-            followers_count: {{ user.followers_count }},
-            following_count: {{ user.following_count }},
-            talos_count: {{ user.talos_count }}
-        };
-        
-        // Photo Viewer Function
-        function viewPhoto(url) {
-            const modal = document.getElementById('photoViewerModal');
-            const viewerImage = document.getElementById('viewerImage');
-            viewerImage.src = url;
-            modal.style.display = 'flex';
+    // FAB visibility control variables
+    let lastScrollTop = 0;
+    let fabContainer = null;
+    let fabVisible = true;
+    let scrollTimeout = null;
+    
+    const loggedInUserId = '{{ user.user_id }}';
+    const MAX_CHARS = 250;
+    
+    const trendingData = [
+        {% for word, count in trending %}
+        {word: "{{ word }}", count: {{ count }}},
+        {% endfor %}
+    ];
+    
+    const userData = {
+        user_id: '{{ user.user_id }}',
+        first_name: '{{ user.first_name }}',
+        last_name: '{{ user.last_name }}',
+        profile_photo: '{{ user.profile_photo or "" }}',
+        bio: '{{ user.bio or "" }}',
+        is_premium: {{ user.is_premium|lower }},
+        followers_count: {{ user.followers_count }},
+        following_count: {{ user.following_count }},
+        talos_count: {{ user.talos_count }}
+    };
+    
+    // Photo Viewer Function
+    function viewPhoto(url) {
+        const modal = document.getElementById('photoViewerModal');
+        const viewerImage = document.getElementById('viewerImage');
+        viewerImage.src = url;
+        modal.style.display = 'flex';
+    }
+    
+    function closePhotoViewer() {
+        document.getElementById('photoViewerModal').style.display = 'none';
+    }
+    
+    // ========== POST ACTIONS FUNCTIONS ==========
+    function togglePostActions(btn) {
+        // Prevent event bubbling
+        if (window.event) {
+            window.event.stopPropagation();
         }
         
-        function closePhotoViewer() {
-            document.getElementById('photoViewerModal').style.display = 'none';
+        // Get the menu element (next sibling of the button)
+        const menu = btn.nextElementSibling;
+        
+        // Close all other menus first
+        document.querySelectorAll('.post-actions-menu').forEach(m => {
+            if (m !== menu) {
+                m.classList.remove('show');
+            }
+        });
+        
+        // Toggle the clicked menu
+        if (menu) {
+            menu.classList.toggle('show');
+        }
+    }
+    
+    async function deletePost(taloId) {
+        if (!confirm('⚠️ Are you sure you want to delete this post? This action cannot be undone.')) {
+            return;
         }
         
-        // ========== FOCUS ON TEXTAREA FUNCTION ==========
-        function focusOnTextarea() {
-            const scrollableContentEl = document.getElementById('scrollableContent');
-            const createSection = document.getElementById('createTaloSection');
-            const textarea = document.getElementById('taloContent');
-            
-            if (!createSection || !textarea) return;
-            
-            // Scroll the create talo section into view smoothly
-            createSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            
-            // Small delay to ensure scroll completes before focusing
-            setTimeout(() => {
-                // Focus the textarea
-                textarea.focus();
-                
-                // Place cursor at the end of any existing text
-                const currentValue = textarea.value;
-                textarea.setSelectionRange(currentValue.length, currentValue.length);
-                
-                // Add highlight effect to draw attention
-                createSection.classList.add('highlight');
-                setTimeout(() => createSection.classList.remove('highlight'), 1000);
-                
-                // Show FAB if it was hidden
-                if (fabContainer && !fabVisible) {
-                    fabContainer.classList.remove('hidden');
-                    fabVisible = true;
-                }
-            }, 300);
-        }
-        
-        // ========== FAB VISIBILITY CONTROL - Shows FAB when scrolling stops ==========
-        function initFabVisibilityControl() {
-            fabContainer = document.getElementById('fabContainer');
-            
-            if (!fabContainer || !scrollableContent) return;
-            
-            scrollableContent.addEventListener('scroll', function() {
-                const scrollTop = scrollableContent.scrollTop;
-                
-                // Clear existing timeout
-                if (scrollTimeout) {
-                    clearTimeout(scrollTimeout);
-                }
-                
-                // Hide FAB immediately when scrolling (any direction)
-                if (fabVisible) {
-                    fabContainer.classList.add('hidden');
-                    fabVisible = false;
-                }
-                
-                // Set timeout to show FAB when scrolling stops
-                scrollTimeout = setTimeout(function() {
-                    if (!fabVisible) {
-                        fabContainer.classList.remove('hidden');
-                        fabVisible = true;
-                    }
-                }, 150); // 150ms delay after scrolling stops
-                
-                lastScrollTop = scrollTop;
+        try {
+            const response = await fetch(`/api/delete_talo/${taloId}`, {
+                method: 'DELETE'
             });
             
-            // Ensure FAB is visible initially
+            if (response.ok) {
+                showFlashNotification('✓ Post deleted successfully', 'success');
+                // Remove the post from DOM
+                const postCard = document.querySelector(`.talo-card[data-talo-id="${taloId}"]`);
+                if (postCard) {
+                    postCard.remove();
+                } else {
+                    location.reload();
+                }
+            } else {
+                const error = await response.json();
+                showFlashNotification(error.detail || 'Failed to delete post', 'error');
+            }
+        } catch (error) {
+            console.error('Error deleting post:', error);
+            showFlashNotification('Network error. Please try again.', 'error');
+        }
+    }
+    
+    // Close dropdown when clicking anywhere else
+    document.addEventListener('click', function(e) {
+        // Check if click target is NOT inside a post-actions-menu and NOT a post-actions-btn
+        if (!e.target.closest('.post-actions-menu') && !e.target.closest('.post-actions-btn')) {
+            document.querySelectorAll('.post-actions-menu').forEach(menu => {
+                menu.classList.remove('show');
+            });
+        }
+    });
+    
+    // ========== FOCUS ON TEXTAREA FUNCTION ==========
+    function focusOnTextarea() {
+        const scrollableContentEl = document.getElementById('scrollableContent');
+        const createSection = document.getElementById('createTaloSection');
+        const textarea = document.getElementById('taloContent');
+        
+        if (!createSection || !textarea) return;
+        
+        // Scroll the create talo section into view smoothly
+        createSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Small delay to ensure scroll completes before focusing
+        setTimeout(() => {
+            // Focus the textarea
+            textarea.focus();
+            
+            // Place cursor at the end of any existing text
+            const currentValue = textarea.value;
+            textarea.setSelectionRange(currentValue.length, currentValue.length);
+            
+            // Add highlight effect to draw attention
+            createSection.classList.add('highlight');
+            setTimeout(() => createSection.classList.remove('highlight'), 1000);
+            
+            // Show FAB if it was hidden
             if (fabContainer && !fabVisible) {
                 fabContainer.classList.remove('hidden');
                 fabVisible = true;
             }
-        }
-        
-        // ========== SEARCH FUNCTIONALITY ==========
-        const searchInput = document.getElementById('globalSearchInput');
-        const searchDropdown = document.getElementById('searchResultsDropdown');
-        const clearBtn = document.getElementById('clearSearchBtn');
-        
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-        
-        function highlightSearchText(text, query) {
-            if (!query || query.length < 1) return text;
-            const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const regex = new RegExp(`(${escapedQuery})`, 'gi');
-            return text.replace(regex, '<span class="search-highlight">$1</span>');
-        }
-        
-
-async function createNewPostHtml(content, photos, taloId) {
-    const now = new Date();
-    const isoTime = now.toISOString();
-    
-    let photosHtml = '';
-    if (photos && photos.length > 0) {
-        const photoCount = photos.length;
-        photosHtml = `<div class="talo-photos photo-count-${photoCount}">`;
-        for (let i = 0; i < Math.min(photoCount, 4); i++) {
-            photosHtml += `<div class="photo-item" onclick="event.stopPropagation(); viewPhoto('${photos[i].url}')">
-                <img src="${photos[i].url}" alt="Photo">
-                ${i === 3 && photoCount > 4 ? `<div class="photo-overlay">+${photoCount - 4}</div>` : ''}
-            </div>`;
-        }
-        photosHtml += `</div>`;
+        }, 300);
     }
     
-    return `
-        <div class="talo-card" data-talo-id="${taloId}">
-            <div class="talo-header">
-                ${userData.profile_photo ? 
-                    `<img class="talo-user-photo" src="${userData.profile_photo}" alt="">` : 
-                    `<div class="talo-user-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center;">👤</div>`}
-                <div class="talo-user-info">
-                    <a href="/profile/${userData.user_id}" style="text-decoration: none; color: inherit;">
-                        <span class="talo-user-name">${userData.first_name} ${userData.last_name}</span>
-                        <span class="talo-user-id">@${userData.user_id}</span>
-                    </a>
-                    <div class="talo-time" data-time="${isoTime}"></div>
+    // ========== FAB VISIBILITY CONTROL ==========
+    function initFabVisibilityControl() {
+        fabContainer = document.getElementById('fabContainer');
+        const scrollableContent = document.getElementById('scrollableContent');
+        
+        if (!fabContainer || !scrollableContent) return;
+        
+        scrollableContent.addEventListener('scroll', function() {
+            const scrollTop = scrollableContent.scrollTop;
+            
+            // Clear existing timeout
+            if (scrollTimeout) {
+                clearTimeout(scrollTimeout);
+            }
+            
+            // Hide FAB immediately when scrolling (any direction)
+            if (fabVisible) {
+                fabContainer.classList.add('hidden');
+                fabVisible = false;
+            }
+            
+            // Set timeout to show FAB when scrolling stops
+            scrollTimeout = setTimeout(function() {
+                if (!fabVisible) {
+                    fabContainer.classList.remove('hidden');
+                    fabVisible = true;
+                }
+            }, 150);
+            
+            lastScrollTop = scrollTop;
+        });
+        
+        // Ensure FAB is visible initially
+        if (fabContainer && !fabVisible) {
+            fabContainer.classList.remove('hidden');
+            fabVisible = true;
+        }
+    }
+    
+    // ========== SEARCH FUNCTIONALITY ==========
+    const searchInput = document.getElementById('globalSearchInput');
+    const searchDropdown = document.getElementById('searchResultsDropdown');
+    const clearBtn = document.getElementById('clearSearchBtn');
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function highlightSearchText(text, query) {
+        if (!query || query.length < 1) return text;
+        const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${escapedQuery})`, 'gi');
+        return text.replace(regex, '<span class="search-highlight">$1</span>');
+    }
+    
+    async function createNewPostHtml(content, photos, taloId) {
+        const now = new Date();
+        const isoTime = now.toISOString();
+        
+        let photosHtml = '';
+        if (photos && photos.length > 0) {
+            const photoCount = photos.length;
+            photosHtml = `<div class="talo-photos photo-count-${photoCount}">`;
+            for (let i = 0; i < Math.min(photoCount, 4); i++) {
+                photosHtml += `<div class="photo-item" onclick="event.stopPropagation(); viewPhoto('${photos[i].url}')">
+                    <img src="${photos[i].url}" alt="Photo">
+                    ${i === 3 && photoCount > 4 ? `<div class="photo-overlay">+${photoCount - 4}</div>` : ''}
+                </div>`;
+            }
+            photosHtml += `</div>`;
+        }
+        
+        return `
+            <div class="talo-card" data-talo-id="${taloId}">
+                <div class="talo-header">
+                    ${userData.profile_photo ? 
+                        `<img class="talo-user-photo" src="${userData.profile_photo}" alt="">` : 
+                        `<div class="talo-user-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center;">👤</div>`}
+                    <div class="talo-user-info">
+                        <a href="/profile/${userData.user_id}" style="text-decoration: none; color: inherit;">
+                            <span class="talo-user-name">${userData.first_name} ${userData.last_name}</span>
+                            <span class="talo-user-id">@${userData.user_id}</span>
+                        </a>
+                        <div class="talo-time" data-time="${isoTime}"></div>
+                    </div>
+                </div>
+                <div class="talo-content" id="taloContent_${taloId}">${escapeHtml(content)}</div>
+                ${photosHtml}
+                <div class="talo-stats">
+                    <button class="stat-btn like-btn" data-id="${taloId}">💎 <span class="like-count">0</span></button>
+                    <button class="stat-btn dislike-btn" data-id="${taloId}">👎 <span class="dislike-count">0</span></button>
+                    <button class="stat-btn retalo-btn" data-id="${taloId}" data-user-id="${userData.user_id}" data-content="${escapeHtml(content)}" data-photos='${JSON.stringify(photos)}'>
+                        🔄 <span class="retalo-count">0</span>
+                    </button>
+                    <a href="/post/${taloId}" class="reply-btn">💬 <span>0</span></a>
                 </div>
             </div>
-            <div class="talo-content" id="taloContent_${taloId}">${escapeHtml(content)}</div>
-            ${photosHtml}
-            <div class="talo-stats">
-                <button class="stat-btn like-btn" data-id="${taloId}">💎 <span class="like-count">0</span></button>
-                <button class="stat-btn dislike-btn" data-id="${taloId}">👎 <span class="dislike-count">0</span></button>
-                <button class="stat-btn retalo-btn" data-id="${taloId}" data-user-id="${userData.user_id}" data-content="${escapeHtml(content)}" data-photos='${JSON.stringify(photos)}'>
-                    🔄 <span class="retalo-count">0</span>
-                </button>
-                <a href="/post/${taloId}" class="reply-btn">💬 <span>0</span></a>
-            </div>
-        </div>
-    `;
-}
-
-
-
-        async function performSearch(query) {
-            if (!query || query.length < 1) {
-                searchDropdown.classList.remove('show');
+        `;
+    }
+    
+    async function performSearch(query) {
+        if (!query || query.length < 1) {
+            searchDropdown.classList.remove('show');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            
+            if (data.posts.length === 0 && data.users.length === 0) {
+                searchDropdown.innerHTML = `
+                    <div class="search-result-section">
+                        <div style="padding: 20px; text-align: center; color: #999;">
+                            No results found for "${escapeHtml(query)}"
+                        </div>
+                    </div>
+                `;
+                searchDropdown.classList.add('show');
                 return;
             }
             
-            try {
-                const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-                const data = await response.json();
-                
-                if (data.posts.length === 0 && data.users.length === 0) {
-                    searchDropdown.innerHTML = `
-                        <div class="search-result-section">
-                            <div style="padding: 20px; text-align: center; color: #999;">
-                                No results found for "${escapeHtml(query)}"
-                            </div>
-                        </div>
-                    `;
-                    searchDropdown.classList.add('show');
-                    return;
-                }
-                
-                let html = '';
-                
-                if (data.users.length > 0) {
-                    html += `<div class="search-result-section">
-                        <div class="search-result-title">👥 USERS (${data.users.length})</div>`;
-                    for (const user of data.users.slice(0, 5)) {
-                        let displayName = `${escapeHtml(user.first_name)} ${escapeHtml(user.last_name)}`;
-                        let displayUsername = `@${escapeHtml(user.user_id)}`;
-                        if (query.toLowerCase() === user.user_id.toLowerCase() || 
-                            query.toLowerCase().replace('@', '') === user.user_id.toLowerCase()) {
-                            displayUsername = `<span class="search-highlight">${displayUsername}</span>`;
-                        }
-                        if (displayName.toLowerCase().includes(query.toLowerCase())) {
-                            displayName = highlightSearchText(displayName, query);
-                        }
-                        html += `
-                            <div class="search-result-item" onclick="viewProfile('${user.user_id}')">
-                                <div class="search-result-user">
-                                    ${user.profile_photo ? 
-                                        `<img class="search-result-avatar" src="${user.profile_photo}" alt="">` : 
-                                        `<div class="search-result-avatar">👤</div>`}
-                                    <div class="search-result-info">
-                                        <div class="search-result-name">${displayName}</div>
-                                        <div class="search-result-username">${displayUsername}</div>
-                                    </div>
-                                </div>
-                            </div>`;
-                    }
-                    html += `</div>`;
-                }
-                
-                if (data.posts.length > 0) {
-                    html += `<div class="search-result-section">
-                        <div class="search-result-title">📝 POSTS (${data.posts.length})</div>`;
-                    for (const post of data.posts.slice(0, 5)) {
-                        let contentPreview = post.content.substring(0, 100);
-                        if (post.content.length > 100) contentPreview += '...';
-                        const highlightedContent = highlightSearchText(escapeHtml(contentPreview), query);
-                        html += `
-                            <div class="search-result-item" onclick="viewPost('${post.id}')">
-                                <div class="search-result-post">
-                                    <strong>@${escapeHtml(post.user_id)}</strong><br>
-                                    ${highlightedContent}
-                                    <br><small>💎 ${post.likes} 💬 ${post.reply_count} 🔄 ${post.retalos}</small>
-                                </div>
-                            </div>`;
-                    }
-                    html += `</div>`;
-                }
-                
-                if (data.posts.length > 5 || data.users.length > 5) {
-                    html += `<div class="view-all-results" onclick="viewAllResults('${escapeHtml(query)}')">
-                        View all ${data.posts.length + data.users.length} results →
-                    </div>`;
-                }
-                
-                searchDropdown.innerHTML = html;
-                searchDropdown.classList.add('show');
-            } catch (error) {
-                console.error('Search error:', error);
-            }
-        }
-        
-        function clearSearch() {
-            if (searchInput) {
-                searchInput.value = '';
-            }
-            if (searchDropdown) {
-                searchDropdown.classList.remove('show');
-            }
-            if (clearBtn) {
-                clearBtn.style.display = 'none';
-            }
-        }
-        
-        function viewAllResults(query) {
-            window.location.href = `/search?q=${encodeURIComponent(query)}`;
-        }
-        
-        function searchHashtag(hashtag) {
-            let cleanHashtag = String(hashtag).trim();
-            if (!cleanHashtag.startsWith('#')) {
-                cleanHashtag = '#' + cleanHashtag;
-            }
-            window.location.href = `/search?q=${encodeURIComponent(cleanHashtag)}`;
-        }
-        
-        if (searchInput) {
-            searchInput.addEventListener('input', function(e) {
-                const query = e.target.value.trim();
-                if (clearBtn) {
-                    clearBtn.style.display = query ? 'block' : 'none';
-                }
-                
-                if (searchTimeout) clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => {
-                    if (query) {
-                        performSearch(query);
-                    } else if (searchDropdown) {
-                        searchDropdown.classList.remove('show');
-                    }
-                }, 300);
-            });
+            let html = '';
             
-            searchInput.addEventListener('focus', function() {
-                if (searchInput.value.trim()) {
-                    performSearch(searchInput.value.trim());
+            if (data.users.length > 0) {
+                html += `<div class="search-result-section">
+                    <div class="search-result-title">👥 USERS (${data.users.length})</div>`;
+                for (const user of data.users.slice(0, 5)) {
+                    let displayName = `${escapeHtml(user.first_name)} ${escapeHtml(user.last_name)}`;
+                    let displayUsername = `@${escapeHtml(user.user_id)}`;
+                    if (query.toLowerCase() === user.user_id.toLowerCase() || 
+                        query.toLowerCase().replace('@', '') === user.user_id.toLowerCase()) {
+                        displayUsername = `<span class="search-highlight">${displayUsername}</span>`;
+                    }
+                    if (displayName.toLowerCase().includes(query.toLowerCase())) {
+                        displayName = highlightSearchText(displayName, query);
+                    }
+                    html += `
+                        <div class="search-result-item" onclick="viewProfile('${user.user_id}')">
+                            <div class="search-result-user">
+                                ${user.profile_photo ? 
+                                    `<img class="search-result-avatar" src="${user.profile_photo}" alt="">` : 
+                                    `<div class="search-result-avatar">👤</div>`}
+                                <div class="search-result-info">
+                                    <div class="search-result-name">${displayName}</div>
+                                    <div class="search-result-username">${displayUsername}</div>
+                                </div>
+                            </div>
+                        </div>`;
                 }
-            });
-        }
-        
-        document.addEventListener('click', function(e) {
-            const searchWrapper = document.querySelector('.search-wrapper');
-            if (searchWrapper && !searchWrapper.contains(e.target)) {
-                if (searchDropdown) searchDropdown.classList.remove('show');
+                html += `</div>`;
             }
+            
+            if (data.posts.length > 0) {
+                html += `<div class="search-result-section">
+                    <div class="search-result-title">📝 POSTS (${data.posts.length})</div>`;
+                for (const post of data.posts.slice(0, 5)) {
+                    let contentPreview = post.content.substring(0, 100);
+                    if (post.content.length > 100) contentPreview += '...';
+                    const highlightedContent = highlightSearchText(escapeHtml(contentPreview), query);
+                    html += `
+                        <div class="search-result-item" onclick="viewPost('${post.id}')">
+                            <div class="search-result-post">
+                                <strong>@${escapeHtml(post.user_id)}</strong><br>
+                                ${highlightedContent}
+                                <br><small>💎 ${post.likes} 💬 ${post.reply_count} 🔄 ${post.retalos}</small>
+                            </div>
+                        </div>`;
+                }
+                html += `</div>`;
+            }
+            
+            if (data.posts.length > 5 || data.users.length > 5) {
+                html += `<div class="view-all-results" onclick="viewAllResults('${escapeHtml(query)}')">
+                    View all ${data.posts.length + data.users.length} results →
+                </div>`;
+            }
+            
+            searchDropdown.innerHTML = html;
+            searchDropdown.classList.add('show');
+        } catch (error) {
+            console.error('Search error:', error);
+        }
+    }
+    
+    function clearSearch() {
+        if (searchInput) {
+            searchInput.value = '';
+        }
+        if (searchDropdown) {
+            searchDropdown.classList.remove('show');
+        }
+        if (clearBtn) {
+            clearBtn.style.display = 'none';
+        }
+    }
+    
+    function viewAllResults(query) {
+        window.location.href = `/search?q=${encodeURIComponent(query)}`;
+    }
+    
+    function searchHashtag(hashtag) {
+        let cleanHashtag = String(hashtag).trim();
+        if (!cleanHashtag.startsWith('#')) {
+            cleanHashtag = '#' + cleanHashtag;
+        }
+        window.location.href = `/search?q=${encodeURIComponent(cleanHashtag)}`;
+    }
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            const query = e.target.value.trim();
+            if (clearBtn) {
+                clearBtn.style.display = query ? 'block' : 'none';
+            }
+            
+            if (searchTimeout) clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                if (query) {
+                    performSearch(query);
+                } else if (searchDropdown) {
+                    searchDropdown.classList.remove('show');
+                }
+            }, 300);
         });
         
-        // ========== UTILITY FUNCTIONS ==========
-        function formatTimeAgo(dateStr) {
-            const date = new Date(dateStr);
-            const now = new Date();
-            const diff = Math.floor((now - date) / 1000);
-            if (diff < 5) return 'just now';
-    	    if (diff < 60) return `${diff}s`;
-            if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-            if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-            return date.toLocaleDateString();
-        }
-        
-        function viewProfile(userId) {
-            window.location.href = `/profile/${userId}`;
-        }
-        
-        function viewPost(postId) {
-            window.location.href = `/post/${postId}`;
-        }
-        
-        // ========== TIMELINE FUNCTIONS ==========
-        function loadLastSeenTimestamp() {
-            const saved = localStorage.getItem('lastSeenTimestamp');
-            if (saved) latestTaloTimestamp = saved;
-            checkForNewTalos();
-        }
-        
-        async function checkForNewTalos() {
-            if (isRefreshing) return;
-            try {
-                const response = await fetch('/api/get_latest_talo_timestamp');
-                const data = await response.json();
-                if (data.latest_timestamp) {
-                    const indicator = document.getElementById('homeIndicator');
-                    if (!latestTaloTimestamp || data.latest_timestamp > latestTaloTimestamp) {
-                        indicator.classList.remove('gray');
-                        indicator.style.background = '#28a745';
-                    } else {
-                        indicator.classList.add('gray');
-                        indicator.style.background = '#888';
-                    }
-                }
-            } catch (error) {
-                console.error('Error checking for new talos:', error);
+        searchInput.addEventListener('focus', function() {
+            if (searchInput.value.trim()) {
+                performSearch(searchInput.value.trim());
             }
+        });
+    }
+    
+    document.addEventListener('click', function(e) {
+        const searchWrapper = document.querySelector('.search-wrapper');
+        if (searchWrapper && !searchWrapper.contains(e.target)) {
+            if (searchDropdown) searchDropdown.classList.remove('show');
         }
-        
-        async function refreshTimeline() {
-            if (isRefreshing) return;
-            isRefreshing = true;
-            const indicator = document.getElementById('homeIndicator');
-            indicator.classList.add('gray');
-            indicator.style.background = '#888';
-            const now = new Date().toISOString();
-            latestTaloTimestamp = now;
-            localStorage.setItem('lastSeenTimestamp', now);
-            location.reload();
-        }
-        
-        // ========== HASHTAG FUNCTIONS ==========
-        function formatHashtagLinks(content) {
-            const hashtagRegex = /(#\w+)/g;
-            return content.replace(hashtagRegex, match => {
-                return `<span class="hashtag-link" onclick="event.stopPropagation(); searchHashtag('${match}')">${match}</span>`;
-            });
-        }
-        
-        function applyHashtagLinks() {
-            document.querySelectorAll('.talo-content').forEach(contentDiv => {
-                const originalContent = contentDiv.innerText;
-                const formattedContent = formatHashtagLinks(originalContent);
-                if (originalContent !== formattedContent) {
-                    contentDiv.innerHTML = formattedContent;
-                }
-            });
-        }
-        
-        function applyHashtagFilter() {
-            const filterBar = document.getElementById('filterBar');
-            const activeFilterSpan = document.getElementById('activeFilterTag');
-            const taloCards = document.querySelectorAll('.talo-card');
-            
-            if (currentHashtagFilter) {
-                filterBar.style.display = 'flex';
-                activeFilterSpan.textContent = currentHashtagFilter;
-                let visibleCount = 0;
-                taloCards.forEach(card => {
-                    const content = card.querySelector('.talo-content').textContent;
-                    if (content.toLowerCase().includes(currentHashtagFilter.toLowerCase())) {
-                        card.style.display = 'block';
-                        visibleCount++;
-                    } else {
-                        card.style.display = 'none';
-                    }
-                });
-                let noResultsMsg = document.getElementById('noFilterResults');
-                if (!noResultsMsg) {
-                    noResultsMsg = document.createElement('div');
-                    noResultsMsg.id = 'noFilterResults';
-                    noResultsMsg.style.textAlign = 'center';
-                    noResultsMsg.style.padding = '40px';
-                    noResultsMsg.style.background = 'white';
-                    noResultsMsg.style.borderRadius = '15px';
-                    noResultsMsg.style.color = '#999';
-                    document.getElementById('talosFeed').appendChild(noResultsMsg);
-                }
-                if (visibleCount === 0) {
-                    noResultsMsg.innerHTML = `<p>No posts found with tag ${currentHashtagFilter}</p>`;
-                    noResultsMsg.style.display = 'block';
+    });
+    
+    // ========== UTILITY FUNCTIONS ==========
+    function formatTimeAgo(dateStr) {
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diff = Math.floor((now - date) / 1000);
+        if (diff < 5) return 'just now';
+        if (diff < 60) return `${diff}s`;
+        if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+        return date.toLocaleDateString();
+    }
+    
+    function viewProfile(userId) {
+        window.location.href = `/profile/${userId}`;
+    }
+    
+    function viewPost(postId) {
+        window.location.href = `/post/${postId}`;
+    }
+    
+    // ========== TIMELINE FUNCTIONS ==========
+    function loadLastSeenTimestamp() {
+        const saved = localStorage.getItem('lastSeenTimestamp');
+        if (saved) latestTaloTimestamp = saved;
+        checkForNewTalos();
+    }
+    
+    async function checkForNewTalos() {
+        if (isRefreshing) return;
+        try {
+            const response = await fetch('/api/get_latest_talo_timestamp');
+            const data = await response.json();
+            if (data.latest_timestamp) {
+                const indicator = document.getElementById('homeIndicator');
+                if (!latestTaloTimestamp || data.latest_timestamp > latestTaloTimestamp) {
+                    indicator.classList.remove('gray');
+                    indicator.style.background = '#28a745';
                 } else {
-                    noResultsMsg.style.display = 'none';
+                    indicator.classList.add('gray');
+                    indicator.style.background = '#888';
                 }
+            }
+        } catch (error) {
+            console.error('Error checking for new talos:', error);
+        }
+    }
+    
+    async function refreshTimeline() {
+        if (isRefreshing) return;
+        isRefreshing = true;
+        const indicator = document.getElementById('homeIndicator');
+        indicator.classList.add('gray');
+        indicator.style.background = '#888';
+        const now = new Date().toISOString();
+        latestTaloTimestamp = now;
+        localStorage.setItem('lastSeenTimestamp', now);
+        location.reload();
+    }
+    
+    // ========== HASHTAG FUNCTIONS ==========
+    function formatHashtagLinks(content) {
+        const hashtagRegex = /(#\w+)/g;
+        return content.replace(hashtagRegex, match => {
+            return `<span class="hashtag-link" onclick="event.stopPropagation(); searchHashtag('${match}')">${match}</span>`;
+        });
+    }
+    
+    function applyHashtagLinks() {
+        document.querySelectorAll('.talo-content').forEach(contentDiv => {
+            const originalContent = contentDiv.innerText;
+            const formattedContent = formatHashtagLinks(originalContent);
+            if (originalContent !== formattedContent) {
+                contentDiv.innerHTML = formattedContent;
+            }
+        });
+    }
+    
+    function applyHashtagFilter() {
+        const filterBar = document.getElementById('filterBar');
+        const activeFilterSpan = document.getElementById('activeFilterTag');
+        const taloCards = document.querySelectorAll('.talo-card');
+        
+        if (currentHashtagFilter) {
+            filterBar.style.display = 'flex';
+            activeFilterSpan.textContent = currentHashtagFilter;
+            let visibleCount = 0;
+            taloCards.forEach(card => {
+                const content = card.querySelector('.talo-content').textContent;
+                if (content.toLowerCase().includes(currentHashtagFilter.toLowerCase())) {
+                    card.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+            let noResultsMsg = document.getElementById('noFilterResults');
+            if (!noResultsMsg) {
+                noResultsMsg = document.createElement('div');
+                noResultsMsg.id = 'noFilterResults';
+                noResultsMsg.style.textAlign = 'center';
+                noResultsMsg.style.padding = '40px';
+                noResultsMsg.style.background = 'white';
+                noResultsMsg.style.borderRadius = '15px';
+                noResultsMsg.style.color = '#999';
+                document.getElementById('talosFeed').appendChild(noResultsMsg);
+            }
+            if (visibleCount === 0) {
+                noResultsMsg.innerHTML = `<p>No posts found with tag ${currentHashtagFilter}</p>`;
+                noResultsMsg.style.display = 'block';
             } else {
-                filterBar.style.display = 'none';
-                taloCards.forEach(card => { card.style.display = 'block'; });
-                const noResultsMsg = document.getElementById('noFilterResults');
-                if (noResultsMsg) noResultsMsg.style.display = 'none';
+                noResultsMsg.style.display = 'none';
             }
+        } else {
+            filterBar.style.display = 'none';
+            taloCards.forEach(card => { card.style.display = 'block'; });
+            const noResultsMsg = document.getElementById('noFilterResults');
+            if (noResultsMsg) noResultsMsg.style.display = 'none';
         }
-        
-        function filterByHashtag(hashtag) {
-            currentHashtagFilter = hashtag;
-            applyHashtagFilter();
-            closeMobileMenu();
-            closeTrendingModal();
-            const createSection = document.getElementById('createTaloSection');
-            createSection.classList.add('highlight');
-            setTimeout(() => createSection.classList.remove('highlight'), 1000);
+    }
+    
+    function filterByHashtag(hashtag) {
+        currentHashtagFilter = hashtag;
+        applyHashtagFilter();
+        closeMobileMenu();
+        closeTrendingModal();
+        const createSection = document.getElementById('createTaloSection');
+        createSection.classList.add('highlight');
+        setTimeout(() => createSection.classList.remove('highlight'), 1000);
+    }
+    
+    function clearHashtagFilter() {
+        currentHashtagFilter = null;
+        applyHashtagFilter();
+    }
+    
+    // ========== LIKE FUNCTION ==========
+    async function likeTalo(taloId, btn) {
+        try {
+            const response = await fetch(`/api/like/${taloId}`, { method: 'POST' });
+            const data = await response.json();
+            const countSpan = btn.querySelector('.like-count');
+            if (countSpan) countSpan.textContent = data.count;
+            if (data.liked) btn.classList.add('liked');
+            else btn.classList.remove('liked');
+        } catch (error) {
+            console.error('Error liking talo:', error);
         }
-        
-        function clearHashtagFilter() {
-            currentHashtagFilter = null;
-            applyHashtagFilter();
+    }
+    
+    async function dislikeTalo(taloId, btn) {
+        try {
+            const response = await fetch(`/api/dislike/${taloId}`, { method: 'POST' });
+            const data = await response.json();
+            const countSpan = btn.querySelector('.dislike-count');
+            if (countSpan) countSpan.textContent = data.count;
+        } catch (error) {
+            console.error('Error disliking talo:', error);
         }
-        
-        // ========== LIKE FUNCTION ==========
-        async function likeTalo(taloId, btn) {
-            try {
-                const response = await fetch(`/api/like/${taloId}`, { method: 'POST' });
-                const data = await response.json();
-                const countSpan = btn.querySelector('.like-count');
-                if (countSpan) countSpan.textContent = data.count;
-                if (data.liked) btn.classList.add('liked');
-                else btn.classList.remove('liked');
-            } catch (error) {
-                console.error('Error liking talo:', error);
-            }
+    }
+    
+    // ========== RETALO FUNCTION ==========
+    function showFlashNotification(message, type = 'success') {
+        const existing = document.querySelector('.flash-notification');
+        if (existing) existing.remove();
+        const notification = document.createElement('div');
+        notification.className = `flash-notification ${type}`;
+        let icon = type === 'success' ? '✅' : '❌';
+        notification.innerHTML = `<span class="flash-notification-icon">${icon}</span><span class="flash-notification-message">${message}</span>`;
+        document.body.appendChild(notification);
+        setTimeout(() => notification.classList.add('show'), 10);
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 300);
+        }, 2500);
+    }
+    
+    async function retalo(taloId, originalUserId, originalContent, originalPhotos = []) {
+        const btn = document.querySelector(`.retalo-btn[data-id="${taloId}"]`);
+        const originalText = btn.innerHTML;
+        if (btn) {
+            btn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px;"></span> Reposting...';
+            btn.disabled = true;
         }
-        
-        // ========== RETALO FUNCTION ==========
-        function showFlashNotification(message, type = 'success') {
-            const existing = document.querySelector('.flash-notification');
-            if (existing) existing.remove();
-            const notification = document.createElement('div');
-            notification.className = `flash-notification ${type}`;
-            let icon = type === 'success' ? '✅' : '❌';
-            notification.innerHTML = `<span class="flash-notification-icon">${icon}</span><span class="flash-notification-message">${message}</span>`;
-            document.body.appendChild(notification);
-            setTimeout(() => notification.classList.add('show'), 10);
-            setTimeout(() => {
-                notification.classList.remove('show');
-                setTimeout(() => notification.remove(), 300);
-            }, 2500);
-        }
-        
-        async function retalo(taloId, originalUserId, originalContent, originalPhotos = []) {
-            const btn = document.querySelector(`.retalo-btn[data-id="${taloId}"]`);
-            const originalText = btn.innerHTML;
-            if (btn) {
-                btn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px;"></span> Reposting...';
-                btn.disabled = true;
-            }
-            try {
-                const response = await fetch('/api/retalo', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        original_talo_id: taloId,
-                        original_user_id: originalUserId,
-                        original_content: originalContent,
-                        original_photos: originalPhotos
-                    })
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    if (btn) {
-                        const countSpan = btn.querySelector('.retalo-count');
-                        if (countSpan) countSpan.textContent = parseInt(countSpan.textContent) + 1;
-                        btn.innerHTML = originalText;
-                        btn.disabled = false;
-                    }
-                    showFlashNotification('✓ Post reposted successfully!', 'success');
-                    setTimeout(() => location.reload(), 2000);
-                } else {
-                    showFlashNotification(data.detail || 'Failed to repost', 'error');
-                    if (btn) {
-                        btn.innerHTML = originalText;
-                        btn.disabled = false;
-                    }
+        try {
+            const response = await fetch('/api/retalo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    original_talo_id: taloId,
+                    original_user_id: originalUserId,
+                    original_content: originalContent,
+                    original_photos: originalPhotos
+                })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                if (btn) {
+                    const countSpan = btn.querySelector('.retalo-count');
+                    if (countSpan) countSpan.textContent = parseInt(countSpan.textContent) + 1;
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
                 }
-            } catch (error) {
-                showFlashNotification('Network error', 'error');
+                showFlashNotification('✓ Post reposted successfully!', 'success');
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                showFlashNotification(data.detail || 'Failed to repost', 'error');
                 if (btn) {
                     btn.innerHTML = originalText;
                     btn.disabled = false;
                 }
             }
-        }
-        
-        // ========== CREATE TALO FUNCTIONS ==========
-        function addPhotoInput() {
-            if (photoFiles.length >= 4) {
-                alert('Maximum 4 photos per post');
-                return;
+        } catch (error) {
+            showFlashNotification('Network error', 'error');
+            if (btn) {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             }
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/*';
-            input.style.display = 'none';
-            input.onchange = (e) => {
-                if (e.target.files && e.target.files[0]) {
-                    const file = e.target.files[0];
-                    photoFiles.push(file);
-                    const reader = new FileReader();
-                    reader.onload = (ev) => {
-                        const preview = document.getElementById('photoPreview');
-                        const container = document.createElement('div');
-                        container.className = 'photo-container';
-                        container.style.position = 'relative';
-                        container.style.display = 'inline-block';
-                        const img = document.createElement('img');
-                        img.src = ev.target.result;
-                        img.style.width = '80px';
-                        img.style.height = '80px';
-                        img.style.objectFit = 'cover';
-                        img.style.borderRadius = '8px';
-                        img.style.margin = '5px';
-                        const removeBtn = document.createElement('button');
-                        removeBtn.textContent = '✖';
-                        removeBtn.className = 'remove-photo';
-                        removeBtn.onclick = () => {
-                            container.remove();
-                            const fileIndex = photoFiles.indexOf(file);
-                            if (fileIndex > -1) photoFiles.splice(fileIndex, 1);
-                        };
-                        container.appendChild(img);
-                        container.appendChild(removeBtn);
-                        preview.appendChild(container);
-                    };
-                    reader.readAsDataURL(file);
-                }
-            };
-            document.getElementById('createTaloForm').appendChild(input);
-            input.click();
         }
-        
-        async function createTaloWithFirebase() {
-    const content = document.getElementById('taloContent').value;
-    if (!content.trim()) {
-        alert('Please enter some content');
-        return;
     }
-    if (content.length > MAX_CHARS) {
-        alert(`Content cannot exceed ${MAX_CHARS} characters`);
-        return;
-    }
-    const submitBtn = document.getElementById('submitTaloBtn');
-    const progressDiv = document.getElementById('uploadProgress');
-    const progressBar = document.getElementById('progressBar');
-    const progressText = document.getElementById('progressText');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Uploading...';
-    progressDiv.style.display = 'block';
-    try {
-        const photoUrls = [];
-        for (let i = 0; i < photoFiles.length; i++) {
-            progressBar.style.width = `${((i + 1) / (photoFiles.length + 1)) * 100}%`;
-            progressText.textContent = `Uploading photo ${i + 1}/${photoFiles.length}...`;
-            const file = photoFiles[i];
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${loggedInUserId}/${Date.now()}/${i}_${Date.now()}.${fileExt}`;
-            const storageRef = window.firebaseRef(window.firebaseStorage, `talos/${fileName}`);
-            const snapshot = await window.uploadBytes(storageRef, file);
-            const downloadURL = await window.getDownloadURL(snapshot.ref);
-            photoUrls.push({ url: downloadURL, path: `talos/${fileName}`, type: file.type });
+    
+    // ========== CREATE TALO FUNCTIONS ==========
+    function addPhotoInput() {
+        if (photoFiles.length >= 4) {
+            alert('Maximum 4 photos per post');
+            return;
         }
-        progressBar.style.width = '100%';
-        progressText.textContent = 'Creating post...';
-        const response = await fetch('/api/create_talo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content: content, photos: photoUrls })
-        });
-        if (response.ok) {
-            const data = await response.json();
-            latestTaloTimestamp = new Date().toISOString();
-            localStorage.setItem('lastSeenTimestamp', latestTaloTimestamp);
-            
-            // Instead of full reload, add the new post to the top of the feed
-            // Get the current user info
-            const newPostHtml = await createNewPostHtml(content, photoUrls, data.talo_id);
-            const feedDiv = document.getElementById('talosFeed');
-            // Insert at top
-            feedDiv.insertAdjacentHTML('afterbegin', newPostHtml);
-            // Format the time for the new post
-            const newPost = feedDiv.firstElementChild;
-            const timeElement = newPost.querySelector('.talo-time');
-            if (timeElement && timeElement.dataset.time) {
-                timeElement.textContent = formatTimeAgo(timeElement.dataset.time);
-            }
-            // Apply hashtag links to the new post
-            const contentDiv = newPost.querySelector('.talo-content');
-            if (contentDiv) {
-                contentDiv.innerHTML = formatHashtagLinks(contentDiv.innerText);
-            }
-            // Clear the form
-            document.getElementById('taloContent').value = '';
-            photoFiles = [];
-            document.getElementById('photoPreview').innerHTML = '';
-            updateCharCounter();
-            
-            showFlashNotification('Post created successfully!', 'success');
-        } else {
-            const error = await response.json();
-            alert('Failed to create post: ' + (error.detail || 'Unknown error'));
-        }
-    } catch (error) {
-        alert('Failed to create post. Please try again.');
-    } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Talo →';
-        progressDiv.style.display = 'none';
-        progressBar.style.width = '0%';
-    }
-}
-
-        
-        function updateCharCounter() {
-            const textarea = document.getElementById('taloContent');
-            const counterDiv = document.getElementById('charCounter');
-            const submitBtn = document.getElementById('submitTaloBtn');
-            const currentLength = textarea.value.length;
-            const remaining = MAX_CHARS - currentLength;
-            if (remaining >= 0) {
-                counterDiv.textContent = `${remaining} characters remaining`;
-                counterDiv.classList.remove('exceed');
-                if (remaining <= 20) counterDiv.classList.add('warning');
-                else counterDiv.classList.remove('warning');
-                submitBtn.disabled = false;
-            } else {
-                counterDiv.textContent = `${Math.abs(remaining)} characters over limit`;
-                counterDiv.classList.add('exceed');
-                submitBtn.disabled = true;
-            }
-        }
-        
-        // ========== PROFILE EDIT FUNCTIONS ==========
-        function openProfileEditModal() {
-            document.getElementById('profileEditModal').classList.add('active');
-        }
-        
-        function closeProfileEditModal() {
-            document.getElementById('profileEditModal').classList.remove('active');
-        }
-        
-        function previewProfilePhoto(input) {
-            if (input.files && input.files[0]) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.style.display = 'none';
+        input.onchange = (e) => {
+            if (e.target.files && e.target.files[0]) {
+                const file = e.target.files[0];
+                photoFiles.push(file);
                 const reader = new FileReader();
-                reader.onload = (e) => {
-                    document.getElementById('editProfilePhotoPreview').src = e.target.result;
+                reader.onload = (ev) => {
+                    const preview = document.getElementById('photoPreview');
+                    const container = document.createElement('div');
+                    container.className = 'photo-container';
+                    container.style.position = 'relative';
+                    container.style.display = 'inline-block';
+                    const img = document.createElement('img');
+                    img.src = ev.target.result;
+                    img.style.width = '80px';
+                    img.style.height = '80px';
+                    img.style.objectFit = 'cover';
+                    img.style.borderRadius = '8px';
+                    img.style.margin = '5px';
+                    const removeBtn = document.createElement('button');
+                    removeBtn.textContent = '✖';
+                    removeBtn.className = 'remove-photo';
+                    removeBtn.onclick = () => {
+                        container.remove();
+                        const fileIndex = photoFiles.indexOf(file);
+                        if (fileIndex > -1) photoFiles.splice(fileIndex, 1);
+                    };
+                    container.appendChild(img);
+                    container.appendChild(removeBtn);
+                    preview.appendChild(container);
                 };
-                reader.readAsDataURL(input.files[0]);
+                reader.readAsDataURL(file);
             }
+        };
+        document.getElementById('createTaloForm').appendChild(input);
+        input.click();
+    }
+    
+    async function createTaloWithFirebase() {
+        const content = document.getElementById('taloContent').value;
+        if (!content.trim()) {
+            alert('Please enter some content');
+            return;
         }
-        
-        async function saveProfileChanges() {
-            const formData = new FormData();
-            const photoFile = document.getElementById('editProfilePhoto').files[0];
-            
-            const passwordError = document.getElementById('passwordError');
-            const passwordSuccess = document.getElementById('passwordSuccess');
-            if (passwordError) passwordError.style.display = 'none';
-            if (passwordSuccess) passwordSuccess.style.display = 'none';
-            
-            const currentPassword = document.getElementById('editCurrentPassword')?.value || '';
-            const newPassword = document.getElementById('editNewPassword')?.value || '';
-            const confirmPassword = document.getElementById('editConfirmPassword')?.value || '';
-            
-            if (newPassword || confirmPassword || currentPassword) {
-                if (!currentPassword || !newPassword || !confirmPassword) {
-                    if (passwordError) {
-                        passwordError.textContent = 'Please fill in all password fields to change your password';
-                        passwordError.style.display = 'block';
-                    }
-                    return;
-                }
-                
-                if (newPassword.length < 6) {
-                    if (passwordError) {
-                        passwordError.textContent = 'New password must be at least 6 characters';
-                        passwordError.style.display = 'block';
-                    }
-                    return;
-                }
-                
-                if (newPassword !== confirmPassword) {
-                    if (passwordError) {
-                        passwordError.textContent = 'New passwords do not match';
-                        passwordError.style.display = 'block';
-                    }
-                    return;
-                }
-                
-                formData.append('current_password', currentPassword);
-                formData.append('new_password', newPassword);
+        if (content.length > MAX_CHARS) {
+            alert(`Content cannot exceed ${MAX_CHARS} characters`);
+            return;
+        }
+        const submitBtn = document.getElementById('submitTaloBtn');
+        const progressDiv = document.getElementById('uploadProgress');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Uploading...';
+        progressDiv.style.display = 'block';
+        try {
+            const photoUrls = [];
+            for (let i = 0; i < photoFiles.length; i++) {
+                progressBar.style.width = `${((i + 1) / (photoFiles.length + 1)) * 100}%`;
+                progressText.textContent = `Uploading photo ${i + 1}/${photoFiles.length}...`;
+                const file = photoFiles[i];
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${loggedInUserId}/${Date.now()}/${i}_${Date.now()}.${fileExt}`;
+                const storageRef = window.firebaseRef(window.firebaseStorage, `talos/${fileName}`);
+                const snapshot = await window.uploadBytes(storageRef, file);
+                const downloadURL = await window.getDownloadURL(snapshot.ref);
+                photoUrls.push({ url: downloadURL, path: `talos/${fileName}`, type: file.type });
             }
-            
-            if (photoFile) {
-                try {
-                    const uploadResult = await window.uploadProfilePhotoToFirebase(photoFile, loggedInUserId);
-                    formData.append('profile_photo_url', uploadResult.url);
-                    formData.append('profile_photo_path', uploadResult.path);
-                } catch (error) {
-                    alert('Error uploading photo: ' + error.message);
-                    return;
-                }
-            }
-            
-            formData.append('first_name', document.getElementById('editFirstName').value);
-            formData.append('last_name', document.getElementById('editLastName').value);
-            formData.append('bio', document.getElementById('editBio').value);
-            
-            try {
-                const response = await fetch('/api/update_profile', { 
-                    method: 'POST', 
-                    body: formData 
-                });
-                
-                const result = await response.json();
-                
-                if (response.ok) {
-                    if (result.password_changed) {
-                        if (passwordSuccess) {
-                            passwordSuccess.textContent = result.message || 'Profile and password updated successfully!';
-                            passwordSuccess.style.display = 'block';
-                        }
-                        setTimeout(() => {
-                            alert('Profile updated successfully! Please log in again with your new password.');
-                            window.location.href = '/logout';
-                        }, 2000);
-                    } else {
-                        alert(result.message || 'Profile updated successfully!');
-                        location.reload();
-                    }
-                } else {
-                    alert(result.detail || 'Failed to update profile');
-                }
-            } catch (error) {
-                console.error('Error updating profile:', error);
-                alert('Error updating profile. Please try again.');
-            }
-        }
-        
-        // ========== FOLLOW FUNCTIONS ==========
-        async function checkFollowStatus(profileUserId) {
-            try {
-                const response = await fetch(`/api/get_follow_status/${profileUserId}`);
-                const data = await response.json();
-                const container = document.getElementById('followButtonContainer');
-                if (container) {
-                    container.innerHTML = data.following ? 
-                        '<button class="follow-btn following" onclick="toggleFollow(\'' + profileUserId + '\')">✓ Following</button>' :
-                        '<button class="follow-btn" onclick="toggleFollow(\'' + profileUserId + '\')">+ Follow</button>';
-                }
-            } catch (error) {
-                console.error('Error checking follow status:', error);
-            }
-        }
-        
-        async function toggleFollow(userIdToFollow) {
-            try {
-                const response = await fetch(`/api/follow/${userIdToFollow}`, { method: 'POST' });
-                const data = await response.json();
-                const followersCountSpan = document.getElementById('followersCountDesktop');
-                if (followersCountSpan) followersCountSpan.textContent = data.followers_count;
-                const btn = document.querySelector('.follow-btn');
-                if (btn) {
-                    if (data.following) {
-                        btn.textContent = '✓ Following';
-                        btn.classList.add('following');
-                    } else {
-                        btn.textContent = '+ Follow';
-                        btn.classList.remove('following');
-                    }
-                }
-            } catch (error) {
-                alert('Failed to update follow status');
-            }
-        }
-        
-        // ========== FOLLOWERS/FOLLOWING MODALS ==========
-        async function showFollowersModal(userId) {
-            const modal = document.getElementById('followersModal');
-            const listContainer = document.getElementById('followersList');
-            modal.style.display = 'flex';
-            listContainer.innerHTML = '<div class="loading-spinner"></div> Loading...';
-            try {
-                const response = await fetch(`/api/get_followers/${userId}`);
-                const data = await response.json();
-                if (data.followers.length === 0) {
-                    listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No followers yet</div>';
-                } else {
-                    listContainer.innerHTML = data.followers.map(follower => `
-                        <div class="user-list-item" onclick="viewProfile('${follower.user_id}')">
-                            <div class="user-list-avatar">${follower.name ? follower.name.charAt(0) : '👤'}</div>
-                            <div class="user-list-info"><div class="user-list-name">${follower.name}</div><div class="user-list-id">@${follower.user_id}</div></div>
-                        </div>
-                    `).join('');
-                }
-            } catch (error) {
-                listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Error loading followers</div>';
-            }
-        }
-        
-        async function showFollowingModal(userId) {
-            const modal = document.getElementById('followingModal');
-            const listContainer = document.getElementById('followingList');
-            modal.style.display = 'flex';
-            listContainer.innerHTML = '<div class="loading-spinner"></div> Loading...';
-            try {
-                const response = await fetch(`/api/get_following/${userId}`);
-                const data = await response.json();
-                if (data.following.length === 0) {
-                    listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Not following anyone yet</div>';
-                } else {
-                    listContainer.innerHTML = data.following.map(following => `
-                        <div class="user-list-item" onclick="viewProfile('${following.user_id}')">
-                            <div class="user-list-avatar">${following.name ? following.name.charAt(0) : '👤'}</div>
-                            <div class="user-list-info"><div class="user-list-name">${following.name}</div><div class="user-list-id">@${following.user_id}</div></div>
-                        </div>
-                    `).join('');
-                }
-            } catch (error) {
-                listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Error loading following list</div>';
-            }
-        }
-        
-        function closeFollowersModal() { document.getElementById('followersModal').style.display = 'none'; }
-        function closeFollowingModal() { document.getElementById('followingModal').style.display = 'none'; }
-        
-        // ========== NOTIFICATIONS ==========
-        async function loadNotifications() {
-            try {
-                const response = await fetch('/api/get_notifications');
-                const data = await response.json();
-                const notificationsList = document.getElementById('notificationsList');
-                const notificationCountSpan = document.getElementById('notificationCount');
-                if (data.notifications && data.notifications.length > 0) {
-                    const unreadCount = data.notifications.filter(n => !n.read).length;
-                    if (unreadCount > 0) {
-                        notificationCountSpan.style.display = 'inline-block';
-                        notificationCountSpan.textContent = unreadCount;
-                        unreadNotifications = unreadCount;
-                    } else {
-                        notificationCountSpan.style.display = 'none';
-                    }
-                    notificationsList.innerHTML = data.notifications.map(notif => `
-                        <div class="notification-item ${notif.read ? '' : 'unread'}" onclick="markNotificationRead('${notif.id}')">
-                            <strong>${notif.type === 'retalo' ? '🔄 Repost' : notif.type === 'like' ? '💎 Like' : notif.type === 'follow' ? '👥 Follow' : '💬 Reply'}</strong><br>
-                            <small>${notif.message}</small><br>
-                            <small style="color: #999;">${new Date(notif.created_at).toLocaleString()}</small>
-                        </div>
-                    `).join('');
-                } else {
-                    notificationsList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No notifications</div>';
-                    notificationCountSpan.style.display = 'none';
-                }
-            } catch (error) {
-                document.getElementById('notificationsList').innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">Error loading notifications</div>';
-            }
-        }
-        
-        async function markNotificationRead(notificationId) {
-            try {
-                await fetch(`/api/mark_notification_read/${notificationId}`, { method: 'POST' });
-                unreadNotifications--;
-                if (unreadNotifications <= 0) {
-                    document.getElementById('notificationCount').style.display = 'none';
-                } else {
-                    document.getElementById('notificationCount').textContent = unreadNotifications;
-                }
-                loadNotifications();
-            } catch (error) {
-                console.error('Error marking notification read:', error);
-            }
-        }
-        
-        function toggleNotifications() {
-            const panel = document.getElementById('notificationsPanel');
-            panel.classList.toggle('show');
-            if (panel.classList.contains('show')) {
-                loadNotifications();
-                fetch('/api/mark_all_notifications_read', { method: 'POST' }).catch(console.error);
-                document.getElementById('notificationCount').style.display = 'none';
-                unreadNotifications = 0;
-            }
-        }
-        
-        // ========== MOBILE MENU ==========
-        function toggleMobileMenu() {
-            const overlay = document.getElementById('mobileMenuOverlay');
-            const menu = document.getElementById('mobileMenu');
-            overlay.classList.toggle('active');
-            menu.classList.toggle('active');
-            if (menu.classList.contains('active')) populateMobileMenu();
-        }
-        
-        function closeMobileMenu() {
-            document.getElementById('mobileMenuOverlay').classList.remove('active');
-            document.getElementById('mobileMenu').classList.remove('active');
-        }
-        
-        function closeTrendingModal() {
-            document.getElementById('trendingModal').classList.remove('active');
-        }
-        
-        function populateMobileMenu() {
-            const mobileProfileDiv = document.getElementById('mobileProfileCard');
-            const profilePhotoHtml = userData.profile_photo ? 
-                `<img class="profile-photo" src="${userData.profile_photo}" alt="Profile" style="cursor: pointer;" onclick="openProfileEditModal(); closeMobileMenu();">` :
-                `<div class="profile-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto; cursor: pointer;" onclick="openProfileEditModal(); closeMobileMenu();">👤</div>`;
-            mobileProfileDiv.innerHTML = `
-                <div class="profile-card" style="margin-bottom: 20px;">
-                    <button class="edit-profile-btn" onclick="openProfileEditModal(); closeMobileMenu();">✏️ Edit</button>
-                    ${profilePhotoHtml}
-                    <h3>${userData.first_name} ${userData.last_name}</h3>
-                    <p>@${userData.user_id}</p>
-                    ${userData.bio ? `<p style="font-size: 12px; color: #666; margin-top: 8px;">${userData.bio}</p>` : ''}
-                    ${userData.is_premium ? '<div class="premium-badge">🐏 PREMIUM</div>' : ''}
-                    <div class="stats">
-                        <div class="stat" onclick="showFollowersModal('${userData.user_id}'); closeMobileMenu();">
-                            <div class="stat-number">${userData.followers_count}</div>
-                            <div>Followers</div>
-                        </div>
-                        <div class="stat" onclick="showFollowingModal('${userData.user_id}'); closeMobileMenu();">
-                            <div class="stat-number">${userData.following_count}</div>
-                            <div>Following</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-number">${userData.talos_count}</div>
-                            <div>Talos</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            const mobileTrendingDiv = document.getElementById('mobileTrendingCard');
-            let trendingHtml = '<div class="trending-card"><h4>🔥 Trending Today</h4>';
-            if (trendingData.length > 0) {
-                trendingData.forEach(item => {
-                    trendingHtml += `<div class="trending-item" onclick="searchHashtag('${item.word}'); closeMobileMenu();">${item.word} (${item.count})</div>`;
-                });
-            } else {
-                trendingHtml += '<div class="trending-item">No trending topics yet</div>';
-            }
-            trendingHtml += '</div>';
-            mobileTrendingDiv.innerHTML = trendingHtml;
-        }
-        
-        // ========== PROMOTION FUNCTIONS ==========
-        let currentPromotionTalo = null;
-        
-        function openPromotionModal(taloId) {
-            currentPromotionTalo = taloId;
-            document.getElementById('promotionModal').style.display = 'flex';
-        }
-        
-        function closePromotionModal() {
-            document.getElementById('promotionModal').style.display = 'none';
-            currentPromotionTalo = null;
-        }
-        
-        function selectPaymentMethod(method) {
-            document.querySelectorAll('.payment-option').forEach(opt => opt.classList.remove('selected'));
-            document.getElementById(`option-${method}`).classList.add('selected');
-        }
-        
-        async function initiatePromotion() {
-            const selectedOption = document.querySelector('.payment-option.selected');
-            if (!selectedOption) {
-                alert('Please select a payment method');
-                return;
-            }
-            const paymentMethod = selectedOption.dataset.method;
-            const amount = parseFloat(document.getElementById('promotionAmount').value);
-            if (!amount || amount < 100) {
-                alert('Minimum promotion amount is $100');
-                return;
-            }
-            const response = await fetch('/api/promote_post', {
+            progressBar.style.width = '100%';
+            progressText.textContent = 'Creating post...';
+            const response = await fetch('/api/create_talo', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ talo_id: currentPromotionTalo, amount: amount, payment_method: paymentMethod })
+                body: JSON.stringify({ content: content, photos: photoUrls })
             });
             if (response.ok) {
                 const data = await response.json();
-                if (paymentMethod === 'paystack') {
-                    const paystack = new PaystackPop();
-                    paystack.newTransaction({
-                        key: '{{ paystack_public_key }}',
-                        amount: amount * 100,
-                        email: '{{ user.email }}',
-                        onSuccess: async (transaction) => {
-                            await fetch(`/api/confirm_promotion_payment/${data.promotion_id}`, { method: 'POST' });
-                            alert('Promotion activated successfully!');
-                            closePromotionModal();
-                            location.reload();
-                        },
-                        onCancel: () => alert('Payment cancelled')
-                    });
-                } else {
-                    await fetch(`/api/confirm_promotion_payment/${data.promotion_id}`, { method: 'POST' });
-                    alert('Promotion request submitted! Admin will verify.');
-                    closePromotionModal();
+                latestTaloTimestamp = new Date().toISOString();
+                localStorage.setItem('lastSeenTimestamp', latestTaloTimestamp);
+                
+                const newPostHtml = await createNewPostHtml(content, photoUrls, data.talo_id);
+                const feedDiv = document.getElementById('talosFeed');
+                feedDiv.insertAdjacentHTML('afterbegin', newPostHtml);
+                const newPost = feedDiv.firstElementChild;
+                const timeElement = newPost.querySelector('.talo-time');
+                if (timeElement && timeElement.dataset.time) {
+                    timeElement.textContent = formatTimeAgo(timeElement.dataset.time);
                 }
+                const contentDiv = newPost.querySelector('.talo-content');
+                if (contentDiv) {
+                    contentDiv.innerHTML = formatHashtagLinks(contentDiv.innerText);
+                }
+                document.getElementById('taloContent').value = '';
+                photoFiles = [];
+                document.getElementById('photoPreview').innerHTML = '';
+                updateCharCounter();
+                
+                showFlashNotification('Post created successfully!', 'success');
             } else {
-                alert('Failed to initiate promotion');
+                const error = await response.json();
+                alert('Failed to create post: ' + (error.detail || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('Failed to create post. Please try again.');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Talo →';
+            progressDiv.style.display = 'none';
+            progressBar.style.width = '0%';
+        }
+    }
+    
+    function updateCharCounter() {
+        const textarea = document.getElementById('taloContent');
+        const counterDiv = document.getElementById('charCounter');
+        const submitBtn = document.getElementById('submitTaloBtn');
+        const currentLength = textarea.value.length;
+        const remaining = MAX_CHARS - currentLength;
+        if (remaining >= 0) {
+            counterDiv.textContent = `${remaining} characters remaining`;
+            counterDiv.classList.remove('exceed');
+            if (remaining <= 20) counterDiv.classList.add('warning');
+            else counterDiv.classList.remove('warning');
+            submitBtn.disabled = false;
+        } else {
+            counterDiv.textContent = `${Math.abs(remaining)} characters over limit`;
+            counterDiv.classList.add('exceed');
+            submitBtn.disabled = true;
+        }
+    }
+    
+    // ========== PROFILE EDIT FUNCTIONS ==========
+    function openProfileEditModal() {
+        document.getElementById('profileEditModal').classList.add('active');
+    }
+    
+    function closeProfileEditModal() {
+        document.getElementById('profileEditModal').classList.remove('active');
+    }
+    
+    function previewProfilePhoto(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('editProfilePhotoPreview').src = e.target.result;
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+    
+    async function saveProfileChanges() {
+        const formData = new FormData();
+        const photoFile = document.getElementById('editProfilePhoto').files[0];
+        
+        const passwordError = document.getElementById('passwordError');
+        const passwordSuccess = document.getElementById('passwordSuccess');
+        if (passwordError) passwordError.style.display = 'none';
+        if (passwordSuccess) passwordSuccess.style.display = 'none';
+        
+        const currentPassword = document.getElementById('editCurrentPassword')?.value || '';
+        const newPassword = document.getElementById('editNewPassword')?.value || '';
+        const confirmPassword = document.getElementById('editConfirmPassword')?.value || '';
+        
+        if (newPassword || confirmPassword || currentPassword) {
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                if (passwordError) {
+                    passwordError.textContent = 'Please fill in all password fields to change your password';
+                    passwordError.style.display = 'block';
+                }
+                return;
+            }
+            
+            if (newPassword.length < 6) {
+                if (passwordError) {
+                    passwordError.textContent = 'New password must be at least 6 characters';
+                    passwordError.style.display = 'block';
+                }
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                if (passwordError) {
+                    passwordError.textContent = 'New passwords do not match';
+                    passwordError.style.display = 'block';
+                }
+                return;
+            }
+            
+            formData.append('current_password', currentPassword);
+            formData.append('new_password', newPassword);
+        }
+        
+        if (photoFile) {
+            try {
+                const uploadResult = await window.uploadProfilePhotoToFirebase(photoFile, loggedInUserId);
+                formData.append('profile_photo_url', uploadResult.url);
+                formData.append('profile_photo_path', uploadResult.path);
+            } catch (error) {
+                alert('Error uploading photo: ' + error.message);
+                return;
             }
         }
         
-        // ========== PULL TO REFRESH ==========
-        const scrollableContent = document.getElementById('scrollableContent');
-        const pullToRefreshEl = document.getElementById('pullToRefresh');
-        const refreshText = pullToRefreshEl ? pullToRefreshEl.querySelector('.refresh-text') : null;
+        formData.append('first_name', document.getElementById('editFirstName').value);
+        formData.append('last_name', document.getElementById('editLastName').value);
+        formData.append('bio', document.getElementById('editBio').value);
         
-        function initPullToRefresh() {
-            if (!scrollableContent) return;
-            if (window.innerWidth > 768) return;
-            
-            let startY = 0;
-            let isAtTop = false;
-            let isRefreshingPull = false;
-            
-            scrollableContent.addEventListener('touchstart', function(e) {
-                if (scrollableContent.scrollTop <= 0 && !isRefreshingPull) {
-                    startY = e.touches[0].clientY;
-                    isAtTop = true;
-                } else {
-                    isAtTop = false;
-                }
+        try {
+            const response = await fetch('/api/update_profile', { 
+                method: 'POST', 
+                body: formData 
             });
             
-            scrollableContent.addEventListener('touchmove', function(e) {
-                if (!isAtTop || isRefreshingPull) return;
-                
-                const currentY = e.touches[0].clientY;
-                const pullDistance = currentY - startY;
-                
-                if (pullDistance > 0) {
-                    e.preventDefault();
-                    const translateY = Math.min(pullDistance, 80);
-                    
-                    if (pullToRefreshEl) {
-                        pullToRefreshEl.style.transform = `translateY(${translateY}px)`;
-                        
-                        if (pullDistance >= 80) {
-                            if (refreshText) refreshText.textContent = 'Release to refresh...';
-                            pullToRefreshEl.classList.add('active');
-                        } else {
-                            if (refreshText) refreshText.textContent = 'Pull to refresh...';
-                        }
-                    }
-                }
-            });
+            const result = await response.json();
             
-            scrollableContent.addEventListener('touchend', function(e) {
-                if (!isAtTop || isRefreshingPull) {
-                    if (pullToRefreshEl) {
-                        pullToRefreshEl.style.transform = '';
+            if (response.ok) {
+                if (result.password_changed) {
+                    if (passwordSuccess) {
+                        passwordSuccess.textContent = result.message || 'Profile and password updated successfully!';
+                        passwordSuccess.style.display = 'block';
                     }
-                    return;
-                }
-                
-                const currentY = e.changedTouches[0].clientY;
-                const pullDistance = currentY - startY;
-                
-                if (pullDistance >= 80 && !isRefreshingPull) {
-                    isRefreshingPull = true;
-                    if (pullToRefreshEl) {
-                        pullToRefreshEl.style.transform = '';
-                        if (refreshText) refreshText.textContent = 'Refreshing...';
-                        pullToRefreshEl.classList.add('active');
-                    }
-                    
-                    const now = new Date().toISOString();
-                    latestTaloTimestamp = now;
-                    localStorage.setItem('lastSeenTimestamp', now);
-                    location.reload();
-                    
                     setTimeout(() => {
-                        isRefreshingPull = false;
-                        if (pullToRefreshEl) {
-                            pullToRefreshEl.classList.remove('active');
-                        }
+                        alert('Profile updated successfully! Please log in again with your new password.');
+                        window.location.href = '/logout';
                     }, 2000);
                 } else {
-                    if (pullToRefreshEl) {
-                        pullToRefreshEl.style.transform = '';
-                        pullToRefreshEl.classList.remove('active');
+                    alert(result.message || 'Profile updated successfully!');
+                    location.reload();
+                }
+            } else {
+                alert(result.detail || 'Failed to update profile');
+            }
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            alert('Error updating profile. Please try again.');
+        }
+    }
+    
+    // ========== FOLLOW FUNCTIONS ==========
+    async function checkFollowStatus(profileUserId) {
+        try {
+            const response = await fetch(`/api/get_follow_status/${profileUserId}`);
+            const data = await response.json();
+            const container = document.getElementById('followButtonContainer');
+            if (container) {
+                container.innerHTML = data.following ? 
+                    '<button class="follow-btn following" onclick="toggleFollow(\'' + profileUserId + '\')">✓ Following</button>' :
+                    '<button class="follow-btn" onclick="toggleFollow(\'' + profileUserId + '\')">+ Follow</button>';
+            }
+        } catch (error) {
+            console.error('Error checking follow status:', error);
+        }
+    }
+    
+    async function toggleFollow(userIdToFollow) {
+        try {
+            const response = await fetch(`/api/follow/${userIdToFollow}`, { method: 'POST' });
+            const data = await response.json();
+            const followersCountSpan = document.getElementById('followersCountDesktop');
+            if (followersCountSpan) followersCountSpan.textContent = data.followers_count;
+            const btn = document.querySelector('.follow-btn');
+            if (btn) {
+                if (data.following) {
+                    btn.textContent = '✓ Following';
+                    btn.classList.add('following');
+                } else {
+                    btn.textContent = '+ Follow';
+                    btn.classList.remove('following');
+                }
+            }
+        } catch (error) {
+            alert('Failed to update follow status');
+        }
+    }
+    
+    // ========== FOLLOWERS/FOLLOWING MODALS ==========
+    async function showFollowersModal(userId) {
+        const modal = document.getElementById('followersModal');
+        const listContainer = document.getElementById('followersList');
+        modal.style.display = 'flex';
+        listContainer.innerHTML = '<div class="loading-spinner"></div> Loading...';
+        try {
+            const response = await fetch(`/api/get_followers/${userId}`);
+            const data = await response.json();
+            if (data.followers.length === 0) {
+                listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No followers yet</div>';
+            } else {
+                listContainer.innerHTML = data.followers.map(follower => `
+                    <div class="user-list-item" onclick="viewProfile('${follower.user_id}')">
+                        <div class="user-list-avatar">${follower.name ? follower.name.charAt(0) : '👤'}</div>
+                        <div class="user-list-info"><div class="user-list-name">${follower.name}</div><div class="user-list-id">@${follower.user_id}</div></div>
+                    </div>
+                `).join('');
+            }
+        } catch (error) {
+            listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Error loading followers</div>';
+        }
+    }
+    
+    async function showFollowingModal(userId) {
+        const modal = document.getElementById('followingModal');
+        const listContainer = document.getElementById('followingList');
+        modal.style.display = 'flex';
+        listContainer.innerHTML = '<div class="loading-spinner"></div> Loading...';
+        try {
+            const response = await fetch(`/api/get_following/${userId}`);
+            const data = await response.json();
+            if (data.following.length === 0) {
+                listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Not following anyone yet</div>';
+            } else {
+                listContainer.innerHTML = data.following.map(following => `
+                    <div class="user-list-item" onclick="viewProfile('${following.user_id}')">
+                        <div class="user-list-avatar">${following.name ? following.name.charAt(0) : '👤'}</div>
+                        <div class="user-list-info"><div class="user-list-name">${following.name}</div><div class="user-list-id">@${following.user_id}</div></div>
+                    </div>
+                `).join('');
+            }
+        } catch (error) {
+            listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">Error loading following list</div>';
+        }
+    }
+    
+    function closeFollowersModal() { document.getElementById('followersModal').style.display = 'none'; }
+    function closeFollowingModal() { document.getElementById('followingModal').style.display = 'none'; }
+    
+    // ========== NOTIFICATIONS ==========
+    async function loadNotifications() {
+        try {
+            const response = await fetch('/api/get_notifications');
+            const data = await response.json();
+            const notificationsList = document.getElementById('notificationsList');
+            const notificationCountSpan = document.getElementById('notificationCount');
+            if (data.notifications && data.notifications.length > 0) {
+                const unreadCount = data.notifications.filter(n => !n.read).length;
+                if (unreadCount > 0) {
+                    notificationCountSpan.style.display = 'inline-block';
+                    notificationCountSpan.textContent = unreadCount;
+                    unreadNotifications = unreadCount;
+                } else {
+                    notificationCountSpan.style.display = 'none';
+                }
+                notificationsList.innerHTML = data.notifications.map(notif => `
+                    <div class="notification-item ${notif.read ? '' : 'unread'}" onclick="markNotificationRead('${notif.id}')">
+                        <strong>${notif.type === 'retalo' ? '🔄 Repost' : notif.type === 'like' ? '💎 Like' : notif.type === 'follow' ? '👥 Follow' : '💬 Reply'}</strong><br>
+                        <small>${notif.message}</small><br>
+                        <small style="color: #999;">${new Date(notif.created_at).toLocaleString()}</small>
+                    </div>
+                `).join('');
+            } else {
+                notificationsList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No notifications</div>';
+                notificationCountSpan.style.display = 'none';
+            }
+        } catch (error) {
+            document.getElementById('notificationsList').innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">Error loading notifications</div>';
+        }
+    }
+    
+    async function markNotificationRead(notificationId) {
+        try {
+            await fetch(`/api/mark_notification_read/${notificationId}`, { method: 'POST' });
+            unreadNotifications--;
+            if (unreadNotifications <= 0) {
+                document.getElementById('notificationCount').style.display = 'none';
+            } else {
+                document.getElementById('notificationCount').textContent = unreadNotifications;
+            }
+            loadNotifications();
+        } catch (error) {
+            console.error('Error marking notification read:', error);
+        }
+    }
+    
+    function toggleNotifications() {
+        const panel = document.getElementById('notificationsPanel');
+        panel.classList.toggle('show');
+        if (panel.classList.contains('show')) {
+            loadNotifications();
+            fetch('/api/mark_all_notifications_read', { method: 'POST' }).catch(console.error);
+            document.getElementById('notificationCount').style.display = 'none';
+            unreadNotifications = 0;
+        }
+    }
+    
+    // ========== MOBILE MENU ==========
+    function toggleMobileMenu() {
+        const overlay = document.getElementById('mobileMenuOverlay');
+        const menu = document.getElementById('mobileMenu');
+        overlay.classList.toggle('active');
+        menu.classList.toggle('active');
+        if (menu.classList.contains('active')) populateMobileMenu();
+    }
+    
+    function closeMobileMenu() {
+        document.getElementById('mobileMenuOverlay').classList.remove('active');
+        document.getElementById('mobileMenu').classList.remove('active');
+    }
+    
+    function closeTrendingModal() {
+        document.getElementById('trendingModal').classList.remove('active');
+    }
+    
+    function populateMobileMenu() {
+        const mobileProfileDiv = document.getElementById('mobileProfileCard');
+        const profilePhotoHtml = userData.profile_photo ? 
+            `<img class="profile-photo" src="${userData.profile_photo}" alt="Profile" style="cursor: pointer;" onclick="openProfileEditModal(); closeMobileMenu();">` :
+            `<div class="profile-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto; cursor: pointer;" onclick="openProfileEditModal(); closeMobileMenu();">👤</div>`;
+        mobileProfileDiv.innerHTML = `
+            <div class="profile-card" style="margin-bottom: 20px;">
+                <button class="edit-profile-btn" onclick="openProfileEditModal(); closeMobileMenu();">✏️ Edit</button>
+                ${profilePhotoHtml}
+                <h3>${userData.first_name} ${userData.last_name}</h3>
+                <p>@${userData.user_id}</p>
+                ${userData.bio ? `<p style="font-size: 12px; color: #666; margin-top: 8px;">${userData.bio}</p>` : ''}
+                ${userData.is_premium ? '<div class="premium-badge">🐏 PREMIUM</div>' : ''}
+                <div class="stats">
+                    <div class="stat" onclick="showFollowersModal('${userData.user_id}'); closeMobileMenu();">
+                        <div class="stat-number">${userData.followers_count}</div>
+                        <div>Followers</div>
+                    </div>
+                    <div class="stat" onclick="showFollowingModal('${userData.user_id}'); closeMobileMenu();">
+                        <div class="stat-number">${userData.following_count}</div>
+                        <div>Following</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">${userData.talos_count}</div>
+                        <div>Talos</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        const mobileTrendingDiv = document.getElementById('mobileTrendingCard');
+        let trendingHtml = '<div class="trending-card"><h4>🔥 Trending Today</h4>';
+        if (trendingData.length > 0) {
+            trendingData.forEach(item => {
+                trendingHtml += `<div class="trending-item" onclick="searchHashtag('${item.word}'); closeMobileMenu();">${item.word} (${item.count})</div>`;
+            });
+        } else {
+            trendingHtml += '<div class="trending-item">No trending topics yet</div>';
+        }
+        trendingHtml += '</div>';
+        mobileTrendingDiv.innerHTML = trendingHtml;
+    }
+    
+    // ========== PROMOTION FUNCTIONS ==========
+    let currentPromotionTalo = null;
+    
+    function openPromotionModal(taloId) {
+        currentPromotionTalo = taloId;
+        document.getElementById('promotionModal').style.display = 'flex';
+    }
+    
+    function closePromotionModal() {
+        document.getElementById('promotionModal').style.display = 'none';
+        currentPromotionTalo = null;
+    }
+    
+    function selectPaymentMethod(method) {
+        document.querySelectorAll('.payment-option').forEach(opt => opt.classList.remove('selected'));
+        document.getElementById(`option-${method}`).classList.add('selected');
+    }
+    
+    async function initiatePromotion() {
+        const selectedOption = document.querySelector('.payment-option.selected');
+        if (!selectedOption) {
+            alert('Please select a payment method');
+            return;
+        }
+        const paymentMethod = selectedOption.dataset.method;
+        const amount = parseFloat(document.getElementById('promotionAmount').value);
+        if (!amount || amount < 100) {
+            alert('Minimum promotion amount is $100');
+            return;
+        }
+        const response = await fetch('/api/promote_post', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ talo_id: currentPromotionTalo, amount: amount, payment_method: paymentMethod })
+        });
+        if (response.ok) {
+            const data = await response.json();
+            if (paymentMethod === 'paystack') {
+                const paystack = new PaystackPop();
+                paystack.newTransaction({
+                    key: '{{ paystack_public_key }}',
+                    amount: amount * 100,
+                    email: '{{ user.email }}',
+                    onSuccess: async (transaction) => {
+                        await fetch(`/api/confirm_promotion_payment/${data.promotion_id}`, { method: 'POST' });
+                        alert('Promotion activated successfully!');
+                        closePromotionModal();
+                        location.reload();
+                    },
+                    onCancel: () => alert('Payment cancelled')
+                });
+            } else {
+                await fetch(`/api/confirm_promotion_payment/${data.promotion_id}`, { method: 'POST' });
+                alert('Promotion request submitted! Admin will verify.');
+                closePromotionModal();
+            }
+        } else {
+            alert('Failed to initiate promotion');
+        }
+    }
+    
+    // ========== PULL TO REFRESH ==========
+    const scrollableContent = document.getElementById('scrollableContent');
+    const pullToRefreshEl = document.getElementById('pullToRefresh');
+    const refreshText = pullToRefreshEl ? pullToRefreshEl.querySelector('.refresh-text') : null;
+    
+    function initPullToRefresh() {
+        if (!scrollableContent) return;
+        if (window.innerWidth > 768) return;
+        
+        let startY = 0;
+        let isAtTop = false;
+        let isRefreshingPull = false;
+        
+        scrollableContent.addEventListener('touchstart', function(e) {
+            if (scrollableContent.scrollTop <= 0 && !isRefreshingPull) {
+                startY = e.touches[0].clientY;
+                isAtTop = true;
+            } else {
+                isAtTop = false;
+            }
+        });
+        
+        scrollableContent.addEventListener('touchmove', function(e) {
+            if (!isAtTop || isRefreshingPull) return;
+            
+            const currentY = e.touches[0].clientY;
+            const pullDistance = currentY - startY;
+            
+            if (pullDistance > 0) {
+                e.preventDefault();
+                const translateY = Math.min(pullDistance, 80);
+                
+                if (pullToRefreshEl) {
+                    pullToRefreshEl.style.transform = `translateY(${translateY}px)`;
+                    
+                    if (pullDistance >= 80) {
+                        if (refreshText) refreshText.textContent = 'Release to refresh...';
+                        pullToRefreshEl.classList.add('active');
+                    } else {
+                        if (refreshText) refreshText.textContent = 'Pull to refresh...';
                     }
+                }
+            }
+        });
+        
+        scrollableContent.addEventListener('touchend', function(e) {
+            if (!isAtTop || isRefreshingPull) {
+                if (pullToRefreshEl) {
+                    pullToRefreshEl.style.transform = '';
+                }
+                return;
+            }
+            
+            const currentY = e.changedTouches[0].clientY;
+            const pullDistance = currentY - startY;
+            
+            if (pullDistance >= 80 && !isRefreshingPull) {
+                isRefreshingPull = true;
+                if (pullToRefreshEl) {
+                    pullToRefreshEl.style.transform = '';
+                    if (refreshText) refreshText.textContent = 'Refreshing...';
+                    pullToRefreshEl.classList.add('active');
                 }
                 
-                isAtTop = false;
-            });
-        }
-        
-        // ========== REAL-TIME NOTIFICATIONS ==========
-        let notificationPollInterval = null;
-        let lastNotificationCheck = localStorage.getItem('lastNotificationCheck') || new Date().toISOString();
-        
-        function initRealTimeNotifications() {
-            if (notificationPollInterval) clearInterval(notificationPollInterval);
-            notificationPollInterval = setInterval(checkForNewNotifications, 10000);
-            document.addEventListener('visibilitychange', () => {
-                if (!document.hidden) checkForNewNotifications();
-            });
-        }
-        
-        async function checkForNewNotifications() {
-            try {
-                const response = await fetch('/api/check_new_notifications', {
-                    headers: { 'X-Last-Checked': lastNotificationCheck }
-                });
-                const data = await response.json();
-                if (data.has_new) {
-                    const badge = document.getElementById('notificationCount');
-                    const currentCount = parseInt(badge.textContent) || 0;
-                    const newCount = currentCount + data.count;
-                    if (newCount > 0) {
-                        badge.style.display = 'inline-block';
-                        badge.textContent = newCount;
-                    }
-                    const notifBtn = document.querySelector('.icon-btn');
-                    if (notifBtn) {
-                        notifBtn.style.animation = 'pulse 0.5s ease-in-out 3';
-                        setTimeout(() => { notifBtn.style.animation = ''; }, 1500);
-                    }
-                }
-            } catch (error) {
-                console.error('Error checking notifications:', error);
-            }
-        }
-        
-
-	// Add periodic cache refresh (every 2 minutes)
-	setInterval(async () => {
-   	 try {
-        	await fetch('/api/refresh_cache', { method: 'POST' });
-    		} catch(e) {
-        	console.log('Cache refresh failed');
-    		}
-	}, 120000);
-
-
-        // ========== INITIALIZATION ==========
-        document.querySelectorAll('.talo-time').forEach(el => {
-            if (el.dataset.time) el.textContent = formatTimeAgo(el.dataset.time);
-        });
-        
-        document.querySelectorAll('.like-btn').forEach(btn => {
-            btn.addEventListener('click', () => likeTalo(btn.dataset.id, btn));
-        });
-        
-        document.querySelectorAll('.retalo-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const taloId = btn.dataset.id;
-                const userId = btn.dataset.userId;
-                const content = btn.dataset.content;
-                let photos = [];
-                if (btn.dataset.photos && btn.dataset.photos !== '[]') {
-                    try { photos = JSON.parse(btn.dataset.photos); } catch(e) { photos = []; }
-                }
-                retalo(taloId, userId, content, photos);
-            });
-        });
-        
-        const taloTextarea = document.getElementById('taloContent');
-        if (taloTextarea) {
-            taloTextarea.addEventListener('input', updateCharCounter);
-            updateCharCounter();
-        }
-        
-        applyHashtagLinks();
-        
-        loadLastSeenTimestamp();
-        setInterval(checkForNewTalos, 30000);
-        initRealTimeNotifications();
-        initPullToRefresh();
-        initFabVisibilityControl();
-        
-        const currentProfileUserId = '{{ user.user_id }}';
-        if (currentProfileUserId !== loggedInUserId) {
-            checkFollowStatus(currentProfileUserId);
-        } else {
-            const followContainer = document.getElementById('followButtonContainer');
-            if (followContainer) followContainer.style.display = 'none';
-        }
-        
-        window.onclick = function(event) {
-            if (event.target === document.getElementById('followersModal')) closeFollowersModal();
-            if (event.target === document.getElementById('followingModal')) closeFollowingModal();
-        };
-    </script>
-
-<script>
-// ========== POST ACTIONS FUNCTIONS - FIXED ==========
-function togglePostActions(btn) {
-    // Prevent event bubbling
-    if (event) {
-        event.stopPropagation();
-    }
-    
-    // Get the menu element (next sibling of the button)
-    const menu = btn.nextElementSibling;
-    
-    // Close all other menus first
-    document.querySelectorAll('.post-actions-menu').forEach(m => {
-        if (m !== menu) {
-            m.classList.remove('show');
-        }
-    });
-    
-    // Toggle the clicked menu
-    if (menu) {
-        menu.classList.toggle('show');
-    }
-}
-
-async function deletePost(taloId) {
-    if (!confirm('⚠️ Are you sure you want to delete this post? This action cannot be undone.')) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/api/delete_talo/${taloId}`, {
-            method: 'DELETE'
-        });
-        
-        if (response.ok) {
-            showFlashNotification('✓ Post deleted successfully', 'success');
-            // Remove the post from DOM
-            const postCard = document.querySelector(`.talo-card[data-talo-id="${taloId}"]`);
-            if (postCard) {
-                postCard.remove();
-            } else {
+                const now = new Date().toISOString();
+                latestTaloTimestamp = now;
+                localStorage.setItem('lastSeenTimestamp', now);
                 location.reload();
+                
+                setTimeout(() => {
+                    isRefreshingPull = false;
+                    if (pullToRefreshEl) {
+                        pullToRefreshEl.classList.remove('active');
+                    }
+                }, 2000);
+            } else {
+                if (pullToRefreshEl) {
+                    pullToRefreshEl.style.transform = '';
+                    pullToRefreshEl.classList.remove('active');
+                }
             }
-        } else {
-            const error = await response.json();
-            showFlashNotification(error.detail || 'Failed to delete post', 'error');
-        }
-    } catch (error) {
-        console.error('Error deleting post:', error);
-        showFlashNotification('Network error. Please try again.', 'error');
-    }
-}
-
-// Close dropdown when clicking anywhere else
-document.addEventListener('click', function(e) {
-    // Check if click target is NOT inside a post-actions-menu and NOT a post-actions-btn
-    if (!e.target.closest('.post-actions-menu') && !e.target.closest('.post-actions-btn')) {
-        document.querySelectorAll('.post-actions-menu').forEach(menu => {
-            menu.classList.remove('show');
-        });
-    }
-});
-
-// ========== FIXED RETALO FUNCTION ==========
-async function retalo(taloId, originalUserId, originalContent, originalPhotos = []) {
-    const btn = document.querySelector(`.retalo-btn[data-id="${taloId}"]`);
-    const originalText = btn.innerHTML;
-    if (btn) {
-        btn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px;"></span> Reposting...';
-        btn.disabled = true;
-    }
-    try {
-        const response = await fetch('/api/retalo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                original_talo_id: taloId,
-                original_user_id: originalUserId,
-                original_content: originalContent,
-                original_photos: originalPhotos
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            if (btn) {
-                const countSpan = btn.querySelector('.retalo-count');
-                if (countSpan) countSpan.textContent = parseInt(countSpan.textContent) + 1;
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-            showFlashNotification('✓ Post reposted successfully!', 'success');
-            setTimeout(() => location.reload(), 1500);
-        } else {
-            showFlashNotification(data.detail || 'Failed to repost', 'error');
-            if (btn) {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-        }
-    } catch (error) {
-        console.error('Retalo error:', error);
-        showFlashNotification('Network error. Please try again.', 'error');
-        if (btn) {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        }
-    }
-}
-
-function retaloHandler(e) {
-    e.stopPropagation();
-    const btn = e.currentTarget;
-    const taloId = btn.dataset.id;
-    const userId = btn.dataset.userId;
-    const content = btn.dataset.content;
-    let photos = [];
-    if (btn.dataset.photos && btn.dataset.photos !== '[]') {
-        try { photos = JSON.parse(btn.dataset.photos); } catch(e) { photos = []; }
-    }
-    retalo(taloId, userId, content, photos);
-}
-</script>
-
-<script>
-// ========== NOTIFICATION SYSTEM ==========
-let unviewedPostsCount = 0;
-let lastViewedTimestamp = localStorage.getItem('lastViewedPostsTimestamp') || null;
-let followedUserIds = new Set();
-let notificationSound = null;
-
-function initNotificationSound() {
-    try {
-        notificationSound = {
-            play: function() {
-                try {
-                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    const oscillator = audioContext.createOscillator();
-                    const gainNode = audioContext.createGain();
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioContext.destination);
-                    oscillator.frequency.value = 880;
-                    gainNode.gain.value = 0.1;
-                    oscillator.start();
-                    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.3);
-                    oscillator.stop(audioContext.currentTime + 0.3);
-                } catch(e) {}
-            }
-        };
-    } catch(e) {
-        console.log('Notification sound not supported');
-    }
-}
-
-function playNotificationBeep() {
-    if (notificationSound) {
-        notificationSound.play();
-    }
-}
-
-async function loadFollowedUsers() {
-    try {
-        const response = await fetch('/api/get_followed_users');
-        const data = await response.json();
-        followedUserIds.clear();
-        data.followed_users.forEach(id => followedUserIds.add(id));
-        return followedUserIds;
-    } catch (error) {
-        console.error('Error loading followed users:', error);
-        return followedUserIds;
-    }
-}
-
-async function fetchUnviewedPostsCount() {
-    try {
-        await loadFollowedUsers();
-        const response = await fetch('/api/get_unviewed_posts_count', {
-            headers: { 'X-Last-Viewed': lastViewedTimestamp || '' }
-        });
-        const data = await response.json();
-        
-        const oldCount = unviewedPostsCount;
-        unviewedPostsCount = data.count;
-        const badge = document.getElementById('activityBadge');
-        const homeIndicator = document.getElementById('homeIndicator');
-        
-        if (unviewedPostsCount > 0) {
-            badge.style.display = 'inline-block';
-            badge.textContent = unviewedPostsCount > 99 ? '99+' : unviewedPostsCount;
-            homeIndicator.classList.remove('gray');
-            homeIndicator.style.background = '#28a745';
             
-            if (unviewedPostsCount > oldCount && oldCount > 0) {
-                playNotificationBeep();
-                const bellBtn = document.getElementById('activityBellBtn');
-                if (bellBtn) {
-                    bellBtn.style.animation = 'pulse 0.5s ease-in-out 3';
-                    setTimeout(() => { bellBtn.style.animation = ''; }, 1500);
+            isAtTop = false;
+        });
+    }
+    
+    // ========== REAL-TIME NOTIFICATIONS ==========
+    let notificationPollInterval = null;
+    let lastNotificationCheck = localStorage.getItem('lastNotificationCheck') || new Date().toISOString();
+    
+    function initRealTimeNotifications() {
+        if (notificationPollInterval) clearInterval(notificationPollInterval);
+        notificationPollInterval = setInterval(checkForNewNotifications, 10000);
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) checkForNewNotifications();
+        });
+    }
+    
+    async function checkForNewNotifications() {
+        try {
+            const response = await fetch('/api/check_new_notifications', {
+                headers: { 'X-Last-Checked': lastNotificationCheck }
+            });
+            const data = await response.json();
+            if (data.has_new) {
+                const badge = document.getElementById('notificationCount');
+                const currentCount = parseInt(badge.textContent) || 0;
+                const newCount = currentCount + data.count;
+                if (newCount > 0) {
+                    badge.style.display = 'inline-block';
+                    badge.textContent = newCount;
                 }
-            } else if (unviewedPostsCount > 0 && oldCount === 0) {
-                playNotificationBeep();
-                const bellBtn = document.getElementById('activityBellBtn');
-                if (bellBtn) {
-                    bellBtn.style.animation = 'pulse 0.5s ease-in-out 3';
-                    setTimeout(() => { bellBtn.style.animation = ''; }, 1500);
-                }
-            }
-        } else {
-            badge.style.display = 'none';
-            badge.textContent = '0';
-            homeIndicator.classList.add('gray');
-            homeIndicator.style.background = '#888';
-        }
-        
-        return data.count;
-    } catch (error) {
-        console.error('Error fetching unviewed posts count:', error);
-        return 0;
-    }
-}
-
-async function markAllPostsAsViewed() {
-    if (isRefreshing) return;
-    isRefreshing = true;
-    
-    const now = new Date().toISOString();
-    lastViewedTimestamp = now;
-    localStorage.setItem('lastViewedPostsTimestamp', now);
-    
-    try {
-        const response = await fetch('/api/mark_posts_viewed', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ timestamp: now })
-        });
-        
-        if (response.ok) {
-            unviewedPostsCount = 0;
-            const badge = document.getElementById('activityBadge');
-            const homeIndicator = document.getElementById('homeIndicator');
-            badge.style.display = 'none';
-            badge.textContent = '0';
-            homeIndicator.classList.add('gray');
-            homeIndicator.style.background = '#888';
-            location.reload();
-        }
-    } catch (error) {
-        console.error('Error marking posts as viewed:', error);
-    } finally {
-        isRefreshing = false;
-    }
-}
-
-async function checkForNewPosts() {
-    if (isRefreshing) return;
-    await fetchUnviewedPostsCount();
-}
-
-async function loadActivityNotifications() {
-    try {
-        const response = await fetch('/api/get_activity_notifications');
-        const data = await response.json();
-        const notificationsList = document.getElementById('notificationsList');
-        
-        if (data.notifications && data.notifications.length > 0) {
-            notificationsList.innerHTML = data.notifications.map(notif => `
-                <div class="notification-item" data-notif-id="${notif.id}" data-related-id="${notif.related_talo_id || ''}" data-type="${notif.type}">
-                    <div style="flex: 1;" onclick="viewActivityNotification('${notif.id}', '${notif.type}', '${notif.related_talo_id || ''}')">
-                        <strong>${notif.type === 'retalo' ? '🔄 Repost' : notif.type === 'like' ? '💎 Like' : notif.type === 'follow' ? '👥 Follow' : '💬 Reply'}</strong><br>
-                        <small>${escapeHtml(notif.message)}</small><br>
-                        <small style="color: #999;">${formatTimeAgo(notif.created_at)}</small>
-                    </div>
-                    <button class="delete-notification-btn" onclick="event.stopPropagation(); deleteActivityNotification('${notif.id}')">✖</button>
-                </div>
-            `).join('');
-            initSwipeToDelete();
-        } else {
-            notificationsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No activity notifications</div>';
-        }
-    } catch (error) {
-        console.error('Error loading activity notifications:', error);
-        document.getElementById('notificationsList').innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">Error loading notifications</div>';
-    }
-}
-
-async function viewActivityNotification(notificationId, type, relatedTaloId) {
-    try {
-        await fetch(`/api/delete_activity_notification/${notificationId}`, { method: 'DELETE' });
-        
-        const notifItem = document.querySelector(`.notification-item[data-notif-id="${notificationId}"]`);
-        if (notifItem) {
-            notifItem.classList.add('deleting');
-            setTimeout(() => notifItem.remove(), 300);
-        }
-        
-        if (type === 'follow') {
-            const match = document.querySelector(`.notification-item[data-notif-id="${notificationId}"] small`)?.textContent;
-            const usernameMatch = match?.match(/@(\w+)/);
-            if (usernameMatch) {
-                window.location.href = `/profile/${usernameMatch[1]}`;
-            }
-        } else if (relatedTaloId) {
-            window.location.href = `/post/${relatedTaloId}`;
-        }
-    } catch (error) {
-        console.error('Error viewing notification:', error);
-    }
-}
-
-async function deleteActivityNotification(notificationId) {
-    try {
-        await fetch(`/api/delete_activity_notification/${notificationId}`, { method: 'DELETE' });
-        const notifItem = document.querySelector(`.notification-item[data-notif-id="${notificationId}"]`);
-        if (notifItem) {
-            notifItem.classList.add('deleting');
-            setTimeout(() => notifItem.remove(), 300);
-        }
-    } catch (error) {
-        console.error('Error deleting notification:', error);
-    }
-}
-
-function toggleActivityPanel() {
-    const panel = document.getElementById('notificationsPanel');
-    const isVisible = panel.classList.contains('show');
-    
-    if (!isVisible) {
-        loadActivityNotifications();
-        panel.classList.add('show');
-    } else {
-        panel.classList.remove('show');
-    }
-}
-
-document.addEventListener('click', function(e) {
-    const panel = document.getElementById('notificationsPanel');
-    const bellBtn = document.getElementById('activityBellBtn');
-    if (panel && panel.classList.contains('show') && 
-        !panel.contains(e.target) && 
-        bellBtn && !bellBtn.contains(e.target)) {
-        panel.classList.remove('show');
-    }
-});
-
-function initSwipeToDelete() {
-    const notificationItems = document.querySelectorAll('.notification-item');
-    let touchStartX = 0;
-    let currentItem = null;
-    
-    notificationItems.forEach(item => {
-        item.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
-            currentItem = item;
-        });
-        
-        item.addEventListener('touchmove', (e) => {
-            if (!currentItem) return;
-            const touchX = e.touches[0].clientX;
-            const diff = touchStartX - touchX;
-            if (diff > 50) {
-                e.preventDefault();
-                currentItem.classList.add('swiping');
-            }
-        });
-        
-        item.addEventListener('touchend', (e) => {
-            if (!currentItem) return;
-            const touchX = e.changedTouches[0].clientX;
-            const diff = touchStartX - touchX;
-            if (diff > 100) {
-                const notifId = currentItem.dataset.notifId;
-                if (notifId) {
-                    deleteActivityNotification(notifId);
+                const notifBtn = document.querySelector('.icon-btn');
+                if (notifBtn) {
+                    notifBtn.style.animation = 'pulse 0.5s ease-in-out 3';
+                    setTimeout(() => { notifBtn.style.animation = ''; }, 1500);
                 }
             }
-            currentItem.classList.remove('swiping');
-            currentItem = null;
-        });
+        } catch (error) {
+            console.error('Error checking notifications:', error);
+        }
+    }
+    
+    // Add periodic cache refresh (every 2 minutes)
+    setInterval(async () => {
+        try {
+            await fetch('/api/refresh_cache', { method: 'POST' });
+        } catch(e) {
+            console.log('Cache refresh failed');
+        }
+    }, 120000);
+    
+    // ========== INITIALIZATION ==========
+    document.querySelectorAll('.talo-time').forEach(el => {
+        if (el.dataset.time) el.textContent = formatTimeAgo(el.dataset.time);
     });
-}
-
-const originalRefreshTimeline = window.refreshTimeline;
-window.refreshTimeline = markAllPostsAsViewed;
-
-async function initNotificationSystem() {
-    initNotificationSound();
-    await loadFollowedUsers();
-    await fetchUnviewedPostsCount();
-    setInterval(checkForNewPosts, 30000);
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    const homeBtn = document.getElementById('homeBtn');
-    if (homeBtn) {
-        homeBtn.onclick = markAllPostsAsViewed;
+    
+    document.querySelectorAll('.like-btn').forEach(btn => {
+        btn.addEventListener('click', () => likeTalo(btn.dataset.id, btn));
+    });
+    
+    document.querySelectorAll('.dislike-btn').forEach(btn => {
+        btn.addEventListener('click', () => dislikeTalo(btn.dataset.id, btn));
+    });
+    
+    // Re-attach retalo event listeners
+    document.querySelectorAll('.retalo-btn').forEach(btn => {
+        btn.removeEventListener('click', retaloHandler);
+        btn.addEventListener('click', retaloHandler);
+    });
+    
+    function retaloHandler(e) {
+        e.stopPropagation();
+        const btn = e.currentTarget;
+        const taloId = btn.dataset.id;
+        const userId = btn.dataset.userId;
+        const content = btn.dataset.content;
+        let photos = [];
+        if (btn.dataset.photos && btn.dataset.photos !== '[]') {
+            try { photos = JSON.parse(btn.dataset.photos); } catch(e) { photos = []; }
+        }
+        retalo(taloId, userId, content, photos);
     }
-});
-
-initNotificationSystem();
+    
+    const taloTextarea = document.getElementById('taloContent');
+    if (taloTextarea) {
+        taloTextarea.addEventListener('input', updateCharCounter);
+        updateCharCounter();
+    }
+    
+    applyHashtagLinks();
+    
+    loadLastSeenTimestamp();
+    setInterval(checkForNewTalos, 30000);
+    initRealTimeNotifications();
+    initPullToRefresh();
+    initFabVisibilityControl();
+    
+    const currentProfileUserId = '{{ user.user_id }}';
+    if (currentProfileUserId !== loggedInUserId) {
+        checkFollowStatus(currentProfileUserId);
+    } else {
+        const followContainer = document.getElementById('followButtonContainer');
+        if (followContainer) followContainer.style.display = 'none';
+    }
+    
+    window.onclick = function(event) {
+        if (event.target === document.getElementById('followersModal')) closeFollowersModal();
+        if (event.target === document.getElementById('followingModal')) closeFollowingModal();
+    };
 </script>
+
+
 
 </body>
 </html>
