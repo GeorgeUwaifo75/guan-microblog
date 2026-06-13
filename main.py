@@ -786,6 +786,10 @@ async def dashboard(request: Request):
     
     # Combine: Selected promoted posts first, then regular posts
     personal_talos = selected_promoted_talos + regular_talos
+
+    # Ensure all posts are sorted by created_at descending (newest first)
+    # This is already done but let's reinforce
+    personal_talos.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     
     # Store which promoted posts were shown in session for consistency? (optional)
     # This ensures the same promoted posts appear until next refresh
@@ -3045,6 +3049,19 @@ async def delete_talo(talo_id: str, request: Request):
     await save_jsonbin_data(data)
     
     return {"message": "Post deleted successfully"}
+
+
+# Add this endpoint to main.py to check for banned words
+@app.post("/api/check_banned_words")
+async def check_banned_words(request: Request):
+    """Check if content contains banned words"""
+    try:
+        body = await request.json()
+        content = body.get("content", "")
+        contains = contains_banned_words(content)
+        return {"contains_banned": contains}
+    except Exception as e:
+        return {"contains_banned": False, "error": str(e)}
 
 
 @app.get("/api/health")

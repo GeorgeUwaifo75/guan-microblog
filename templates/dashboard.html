@@ -2727,16 +2727,17 @@ window.openPromotionModalFromPost = function(taloId) {
     }
     
     async function refreshTimeline() {
-        if (isRefreshing) return;
-        isRefreshing = true;
-        const indicator = document.getElementById('homeIndicator');
-        indicator.classList.add('gray');
-        indicator.style.background = '#888';
-        const now = new Date().toISOString();
-        latestTaloTimestamp = now;
-        localStorage.setItem('lastSeenTimestamp', now);
-        location.reload();
-    }
+    			if (isRefreshing) return;
+    				isRefreshing = true;
+   				 const indicator = document.getElementById('homeIndicator');
+   				 indicator.classList.add('gray');
+    				indicator.style.background = '#888';
+    				const now = new Date().toISOString();
+    				latestTaloTimestamp = now;
+    				localStorage.setItem('lastSeenTimestamp', now);
+    				// Force a full page reload to get properly sorted posts
+   				 location.reload();
+	}
     
     // ========== HASHTAG FUNCTIONS ==========
     function formatHashtagLinks(content) {
@@ -2947,78 +2948,107 @@ window.openPromotionModalFromPost = function(taloId) {
     }
     
     async function createTaloWithFirebase() {
-        const content = document.getElementById('taloContent').value;
-        if (!content.trim()) {
-            alert('Please enter some content');
-            return;
-        }
-        if (content.length > MAX_CHARS) {
-            alert(`Content cannot exceed ${MAX_CHARS} characters`);
-            return;
-        }
-        const submitBtn = document.getElementById('submitTaloBtn');
-        const progressDiv = document.getElementById('uploadProgress');
-        const progressBar = document.getElementById('progressBar');
-        const progressText = document.getElementById('progressText');
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Uploading...';
-        progressDiv.style.display = 'block';
-        try {
-            const photoUrls = [];
-            for (let i = 0; i < photoFiles.length; i++) {
-                progressBar.style.width = `${((i + 1) / (photoFiles.length + 1)) * 100}%`;
-                progressText.textContent = `Uploading photo ${i + 1}/${photoFiles.length}...`;
-                const file = photoFiles[i];
-                const fileExt = file.name.split('.').pop();
-                const fileName = `${loggedInUserId}/${Date.now()}/${i}_${Date.now()}.${fileExt}`;
-                const storageRef = window.firebaseRef(window.firebaseStorage, `talos/${fileName}`);
-                const snapshot = await window.uploadBytes(storageRef, file);
-                const downloadURL = await window.getDownloadURL(snapshot.ref);
-                photoUrls.push({ url: downloadURL, path: `talos/${fileName}`, type: file.type });
-            }
-            progressBar.style.width = '100%';
-            progressText.textContent = 'Creating post...';
-            const response = await fetch('/api/create_talo', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: content, photos: photoUrls })
-            });
-            if (response.ok) {
-                const data = await response.json();
-                latestTaloTimestamp = new Date().toISOString();
-                localStorage.setItem('lastSeenTimestamp', latestTaloTimestamp);
-                
-                const newPostHtml = await createNewPostHtml(content, photoUrls, data.talo_id);
-                const feedDiv = document.getElementById('talosFeed');
-                feedDiv.insertAdjacentHTML('afterbegin', newPostHtml);
-                const newPost = feedDiv.firstElementChild;
-                const timeElement = newPost.querySelector('.talo-time');
-                if (timeElement && timeElement.dataset.time) {
-                    timeElement.textContent = formatTimeAgo(timeElement.dataset.time);
-                }
-                const contentDiv = newPost.querySelector('.talo-content');
-                if (contentDiv) {
-                    contentDiv.innerHTML = formatHashtagLinks(contentDiv.innerText);
-                }
-                document.getElementById('taloContent').value = '';
-                photoFiles = [];
-                document.getElementById('photoPreview').innerHTML = '';
-                updateCharCounter();
-                
-                showFlashNotification('Post created successfully!', 'success');
-            } else {
-                const error = await response.json();
-                alert('Failed to create post: ' + (error.detail || 'Unknown error'));
-            }
-        } catch (error) {
-            alert('Failed to create post. Please try again.');
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Talo →';
-            progressDiv.style.display = 'none';
-            progressBar.style.width = '0%';
-        }
+    const content = document.getElementById('taloContent').value;
+    if (!content.trim()) {
+        alert('Please enter some content');
+        return;
     }
+    if (content.length > MAX_CHARS) {
+        alert(`Content cannot exceed ${MAX_CHARS} characters`);
+        return;
+    }
+    
+    // Check for banned words
+    const bannedCheck = await checkForBannedWords(content);
+    if (bannedCheck && bannedCheck.contains_banned) {
+        alert('Your post contains inappropriate language. Please review and try again.');
+        return;
+    }
+    
+    const submitBtn = document.getElementById('submitTaloBtn');
+    const progressDiv = document.getElementById('uploadProgress');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Uploading...';
+    progressDiv.style.display = 'block';
+    
+    try {
+        const photoUrls = [];
+        for (let i = 0; i < photoFiles.length; i++) {
+            progressBar.style.width = `${((i + 1) / (photoFiles.length + 1)) * 100}%`;
+            progressText.textContent = `Uploading photo ${i + 1}/${photoFiles.length}...`;
+            const file = photoFiles[i];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${loggedInUserId}/${Date.now()}/${i}_${Date.now()}.${fileExt}`;
+            const storageRef = window.firebaseRef(window.firebaseStorage, `talos/${fileName}`);
+            const snapshot = await window.uploadBytes(storageRef, file);
+            const downloadURL = await window.getDownloadURL(snapshot.ref);
+            photoUrls.push({ url: downloadURL, path: `talos/${fileName}`, type: file.type });
+        }
+        
+        progressBar.style.width = '100%';
+        progressText.textContent = 'Creating post...';
+        
+        const response = await fetch('/api/create_talo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: content, photos: photoUrls })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const newPostId = data.talo_id;
+            
+            // Update timestamp
+            latestTaloTimestamp = new Date().toISOString();
+            localStorage.setItem('lastSeenTimestamp', latestTaloTimestamp);
+            
+            // Clear the form
+            document.getElementById('taloContent').value = '';
+            photoFiles = [];
+            document.getElementById('photoPreview').innerHTML = '';
+            updateCharCounter();
+            
+            // Show success message
+            showFlashNotification('✓ Post created successfully!', 'success');
+            
+            // Reload the page to show all posts in correct order
+            // This ensures proper sorting with the server's timestamp
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+            
+        } else {
+            const error = await response.json();
+            alert('Failed to create post: ' + (error.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error creating post:', error);
+        alert('Failed to create post. Please try again.');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Talo →';
+        progressDiv.style.display = 'none';
+        progressBar.style.width = '0%';
+    }
+}
+
+// Helper function to check for banned words
+async function checkForBannedWords(content) {
+    try {
+        const response = await fetch('/api/check_banned_words', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: content })
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('Error checking banned words:', error);
+        return { contains_banned: false };
+    }
+}
+
     
     function updateCharCounter() {
         const textarea = document.getElementById('taloContent');
@@ -3517,6 +3547,34 @@ window.markAllPostsAsViewed = async function() {
 
 // --- Start everything ---
 startNotificationPolling();
+
+
+// ========== PERIODIC TIMELINE UPDATE ==========
+let lastPostCheckTime = localStorage.getItem('lastSeenTimestamp') || new Date().toISOString();
+
+async function checkForNewPostsAndUpdate() {
+    try {
+        const response = await fetch('/api/get_latest_talo_timestamp');
+        const data = await response.json();
+        
+        if (data.latest_timestamp && data.latest_timestamp > lastPostCheckTime) {
+            // New posts exist, show indicator
+            const indicator = document.getElementById('homeIndicator');
+            if (indicator) {
+                indicator.classList.remove('gray');
+                indicator.style.background = '#28a745';
+            }
+            
+            // Check if we should auto-refresh (optional, uncomment if desired)
+            // showFlashNotification('📢 New posts available! Pull to refresh.', 'info');
+        }
+    } catch (error) {
+        console.error('Error checking for new posts:', error);
+    }
+}
+
+// Check for new posts every 30 seconds
+setInterval(checkForNewPostsAndUpdate, 30000);
 
     
     // ========== MOBILE MENU ==========
