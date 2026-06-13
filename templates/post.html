@@ -834,14 +834,27 @@
     </script>
 
 <script>
-// ========== POST ACTIONS ==========
+// ========== POST ACTIONS - FIXED ==========
 function togglePostActions(btn) {
-    event.stopPropagation();
+    // Prevent event bubbling
+    if (event) {
+        event.stopPropagation();
+    }
+    
+    // Get the menu element (next sibling of the button)
     const menu = btn.nextElementSibling;
+    
+    // Close all other menus first
     document.querySelectorAll('.post-actions-menu').forEach(m => {
-        if (m !== menu) m.classList.remove('show');
+        if (m !== menu) {
+            m.classList.remove('show');
+        }
     });
-    menu.classList.toggle('show');
+    
+    // Toggle the clicked menu
+    if (menu) {
+        menu.classList.toggle('show');
+    }
 }
 
 async function deletePost(taloId) {
@@ -869,10 +882,14 @@ async function deletePost(taloId) {
     }
 }
 
-document.addEventListener('click', function() {
-    document.querySelectorAll('.post-actions-menu').forEach(menu => {
-        menu.classList.remove('show');
-    });
+// Close dropdown when clicking anywhere else
+document.addEventListener('click', function(e) {
+    // Check if click target is NOT inside a post-actions-menu and NOT a post-actions-btn
+    if (!e.target.closest('.post-actions-menu') && !e.target.closest('.post-actions-btn')) {
+        document.querySelectorAll('.post-actions-menu').forEach(menu => {
+            menu.classList.remove('show');
+        });
+    }
 });
 
 // Fix retalo function in post.html
