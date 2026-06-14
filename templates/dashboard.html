@@ -2788,6 +2788,7 @@ function formatTimeAgo(dateStr) {
 }
 
 // Debug function to verify the deduction is working
+/*
 function debugTimestampWithDeduction(dateStr) {
     const date = new Date(dateStr);
     const now = new Date();
@@ -2806,23 +2807,8 @@ function debugTimestampWithDeduction(dateStr) {
     
     return adjustedDiff;
 }
+*/
 
-
-// Debug function to check timestamp issues (remove after fixing)
-function debugTimestamp(dateStr, elementId) {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = (now - date) / 1000;
-    console.log(`Timestamp debug for ${elementId || 'unknown'}:`);
-    console.log(`  Raw string: "${dateStr}"`);
-    console.log(`  Parsed date: ${date.toString()}`);
-    console.log(`  Current time: ${now.toString()}`);
-    console.log(`  Difference (seconds): ${diff}`);
-    console.log(`  Formatted: ${formatTimeAgo(dateStr)}`);
-    return diff;
-}
-
-//END of TIME UTILITIES
 
 //LIVE TIMER for Format
 
@@ -3195,11 +3181,11 @@ async function createTaloWithFirebase() {
            // }
             
      // DEBUG: Log the timestamp to see the effect
-    		console.log('=== NEW POST CREATED ===');
-               debugTimestampWithDeduction(serverTimestamp);
+    		//console.log('=== NEW POST CREATED ===');
+              // debugTimestampWithDeduction(serverTimestamp);
     
-            console.log('Server timestamp:', serverTimestamp);
-            console.log('Formatted time:', formatTimeAgo(serverTimestamp));
+           // console.log('Server timestamp:', serverTimestamp);
+           // console.log('Formatted time:', formatTimeAgo(serverTimestamp));
             
             // Update timestamp with server time
             latestTaloTimestamp = serverTimestamp;

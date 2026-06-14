@@ -1019,7 +1019,8 @@ function showFlashNotification(message, type = 'success') {
         const loggedInUserId = '{{ user.user_id }}';
         
         // Time formatting function
-        function formatTimeAgo(dateStr) {
+     /* 
+       function formatTimeAgo(dateStr) {
             const date = new Date(dateStr);
             const now = new Date();
             const diff = Math.floor((now - date) / 1000);
@@ -1028,7 +1029,116 @@ function showFlashNotification(message, type = 'success') {
             if (diff < 3600) return `${Math.floor(diff / 60)}m`;
             if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
             return date.toLocaleDateString();
+        } */
+
+// HARDCODED DEDUCTION: Subtract 59 minutes and 40 seconds (3580 seconds total)
+// This compensates for server/client timezone differences
+const TIME_DEDUCTION_SECONDS = 3580; // 59 minutes * 60 + 40 seconds = 3540 + 40 = 3580
+
+function formatTimeAgo(dateStr) {
+    if (!dateStr) return 'just now';
+    
+    let date = new Date(dateStr);
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+        // Try parsing as UTC
+        date = new Date(dateStr + 'Z');
+    }
+    if (isNaN(date.getTime())) {
+        console.warn('Invalid date:', dateStr);
+        return 'just now';
+    }
+    
+    const now = new Date();
+    // Calculate difference and apply hardcoded deduction
+    let diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000) - TIME_DEDUCTION_SECONDS;
+    
+    // If after deduction it's negative, treat as just now
+    if (diffSeconds < 0) {
+        // If it's within 60 seconds of being negative, show as just now
+        if (diffSeconds > -60) {
+            return 'just now';
         }
+        // Otherwise, use absolute value for very old posts? No, just set to 0
+        diffSeconds = 0;
+    }
+    
+    // Less than 5 seconds
+    if (diffSeconds < 5) return 'just now';
+    
+    // Seconds (5 to 59 seconds)
+    if (diffSeconds < 60) {
+        return `${diffSeconds}s`;
+    }
+    
+    // Minutes with seconds (1 minute to 59 minutes 59 seconds)
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    const remainingSeconds = diffSeconds % 60;
+    
+    if (diffMinutes < 60) {
+        if (remainingSeconds > 0 && remainingSeconds <= 59) {
+            return `${diffMinutes}m ${remainingSeconds}s`;
+        }
+        return `${diffMinutes}m`;
+    }
+    
+    // Hours with minutes (1 hour to 23 hours 59 minutes)
+    const diffHours = Math.floor(diffMinutes / 60);
+    const remainingMinutes = diffMinutes % 60;
+    
+    if (diffHours < 24) {
+        if (remainingMinutes > 0) {
+            return `${diffHours}h ${remainingMinutes}m`;
+        }
+        return `${diffHours}h`;
+    }
+    
+    // Days with hours (1 day to 6 days 23 hours)
+    const diffDays = Math.floor(diffHours / 24);
+    const remainingHours = diffHours % 24;
+    
+    if (diffDays < 7) {
+        if (remainingHours > 0) {
+            return `${diffDays}d ${remainingHours}h`;
+        }
+        return `${diffDays}d`;
+    }
+    
+    // Weeks with days (1 week to 3 weeks 6 days)
+    const diffWeeks = Math.floor(diffDays / 7);
+    const remainingDays = diffDays % 7;
+    
+    if (diffWeeks < 4) {
+        if (remainingDays > 0) {
+            return `${diffWeeks}w ${remainingDays}d`;
+        }
+        return `${diffWeeks}w`;
+    }
+    
+    // Months with days (1 month to 11 months 29 days)
+    const diffMonths = Math.floor(diffDays / 30);
+    const remainingDaysAfterMonths = diffDays % 30;
+    
+    if (diffMonths < 12) {
+        if (remainingDaysAfterMonths > 0) {
+            return `${diffMonths}mo ${remainingDaysAfterMonths}d`;
+        }
+        return `${diffMonths}mo`;
+    }
+    
+    // Years with months (1 year+)
+    const diffYears = Math.floor(diffDays / 365);
+    const remainingMonths = Math.floor((diffDays % 365) / 30);
+    
+    if (remainingMonths > 0) {
+        return `${diffYears}y ${remainingMonths}mo`;
+    }
+    return `${diffYears}y`;
+}
+
+
+
         
         // Format time for all elements
         document.querySelectorAll('[data-time]').forEach(el => {
