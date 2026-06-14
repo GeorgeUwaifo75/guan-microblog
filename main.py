@@ -1060,7 +1060,7 @@ async def create_talo(request: Request):
         "dislikes": 0,
         "retalos": 0,
         "reply_count": 0,
-        "created_at": created_at,  # Use the variable
+        "created_at": datetime.now().isoformat(),  
         "promoted": False,
         "promotion_level": 0
     }
@@ -1097,8 +1097,7 @@ async def create_talo(request: Request):
     await save_jsonbin_data(data)
     
     return {"message": "Talo created successfully", "talo_id": talo["id"]}
-    #return {"message": "Talo created successfully", "talo_id": talo["id"], "created_at": created_at}
-
+   
 @app.post("/api/create_reply/{parent_talo_id}")
 async def create_reply(request: Request, parent_talo_id: str):
     session_token = request.cookies.get("session_token")
