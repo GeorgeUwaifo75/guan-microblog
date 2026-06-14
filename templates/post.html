@@ -703,6 +703,11 @@
             color: white;
         }
 
+        /* Recursive reply styling */
+        .reply-card .reply-card {
+            margin-top: 12px;
+        }
+
         @media (max-width: 768px) {
             .scrollable-content {
                 padding: 12px;
@@ -847,13 +852,14 @@
                 </div>
             </div>
 
-            <!-- Replies Section -->
+            <!-- Replies Section - Recursive Macro -->
             <div class="replies-section">
                 <h3 class="replies-title">Replies ({{ replies|length }})</h3>
                 <div id="repliesContainer">
                     {% if replies %}
-                        {% for reply in replies recursive %}
-                        <div class="reply-card" id="reply-{{ reply.id }}" data-reply-id="{{ reply.id }}">
+                        <!-- Recursive macro for rendering replies -->
+                        {% macro render_reply(reply, depth=0) %}
+                        <div class="reply-card {% if depth > 0 %}nested{% endif %}" id="reply-{{ reply.id }}" data-reply-id="{{ reply.id }}" data-depth="{{ depth }}">
                             <div class="reply-header">
                                 {% if reply.user_photo %}
                                 <img class="reply-avatar" src="{{ reply.user_photo }}" alt="">
@@ -900,48 +906,16 @@
                                 </button>
                                 <div class="child-replies-container" id="childRepliesContainer-{{ reply.id }}" style="display: none;">
                                     {% for child_reply in reply.child_replies %}
-                                    <div class="reply-card nested" id="reply-{{ child_reply.id }}" data-reply-id="{{ child_reply.id }}">
-                                        <div class="reply-header">
-                                            {% if child_reply.user_photo %}
-                                            <img class="reply-avatar" src="{{ child_reply.user_photo }}" alt="">
-                                            {% else %}
-                                            <div class="reply-avatar" style="background: #ddd; display: flex; align-items: center; justify-content: center;">👤</div>
-                                            {% endif %}
-                                            <div class="reply-user-info">
-                                                <a href="/profile/{{ child_reply.user_id }}" style="text-decoration: none; color: inherit;">
-                                                    <span class="reply-user-name">{{ child_reply.user_name }}</span>
-                                                    <span class="reply-user-id">@{{ child_reply.user_id }}</span>
-                                                </a>
-                                                <div class="reply-time" data-time="{{ child_reply.created_at }}"></div>
-                                            </div>
-                                        </div>
-                                        <div class="reply-content">{{ child_reply.content }}</div>
-                                        {% if child_reply.photos %}
-                                            {% for photo in child_reply.photos %}
-                                                <img src="{{ photo.url }}" class="reply-image" alt="Reply image">
-                                            {% endfor %}
-                                        {% endif %}
-                                        <div class="reply-actions-row">
-                                            <button class="reply-like-btn" onclick="likeReply('{{ child_reply.id }}', this)">
-                                                ❤️ <span class="like-count">{{ child_reply.likes }}</span>
-                                            </button>
-                                            <button class="reply-reply-btn" onclick="showNestedReplyForm('{{ child_reply.id }}', '{{ child_reply.user_id }}')">
-                                                💬 Reply
-                                            </button>
-                                        </div>
-                                        <div class="nested-reply-form" id="nestedForm-{{ child_reply.id }}">
-                                            <textarea id="nestedReplyContent-{{ child_reply.id }}" class="nested-reply-textarea" rows="2" placeholder="Write a reply to @{{ child_reply.user_id }}... (max 250 characters)" maxlength="250"></textarea>
-                                            <div class="nested-reply-actions">
-                                                <button class="nested-cancel-btn" onclick="hideNestedReplyForm('{{ child_reply.id }}')">Cancel</button>
-                                                <button class="nested-submit-btn" onclick="submitNestedReply('{{ child_reply.id }}', '{{ child_reply.user_id }}')">Reply</button>
-                                            </div>
-                                        </div>
-                                    </div>
+                                        {{ render_reply(child_reply, depth + 1) }}
                                     {% endfor %}
                                 </div>
                             </div>
                             {% endif %}
                         </div>
+                        {% endmacro %}
+                        
+                        {% for reply in replies %}
+                            {{ render_reply(reply, 0) }}
                         {% endfor %}
                     {% else %}
                         <div class="no-replies">
@@ -1342,6 +1316,7 @@
 
         // ========== NESTED REPLY FUNCTIONS ==========
         function showNestedReplyForm(replyId, userId) {
+            // Close all other nested forms first
             document.querySelectorAll('.nested-reply-form').forEach(form => {
                 if (form.id !== `nestedForm-${replyId}`) {
                     form.classList.remove('show');
