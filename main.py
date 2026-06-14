@@ -451,6 +451,39 @@ def verify_password(password: str, hashed: str) -> bool:
 def generate_token():
     return secrets.token_urlsafe(32)
 
+# Add this helper function to organize replies hierarchically:
+def organize_replies_hierarchically(replies):
+    reply_dict = {}
+    top_level_replies = []
+    
+    # First, index all replies by ID
+    for reply in replies:
+        reply["child_replies"] = []
+        reply["child_reply_count"] = 0
+        reply_dict[reply["id"]] = reply
+    
+    # Then organize them
+    for reply in replies:
+        parent_id = reply.get("parent_reply_id")
+        if parent_id and parent_id in reply_dict:
+            reply_dict[parent_id]["child_replies"].append(reply)
+            reply_dict[parent_id]["child_reply_count"] = len(reply_dict[parent_id]["child_replies"])
+        elif not parent_id:  # Top-level reply (direct to post)
+            top_level_replies.append(reply)
+    
+    # Sort each level by created_at (oldest first for replies)
+    top_level_replies.sort(key=lambda x: x.get("created_at", ""))
+    for reply in reply_dict.values():
+        reply["child_replies"].sort(key=lambda x: x.get("created_at", ""))
+    
+    return top_level_replies
+
+# Then in the view_post function, replace:
+# replies = [r for r in data.get("replies", []) if r.get("parent_talo_id") == talo_id]
+# With:
+all_replies = [r for r in data.get("replies", []) if r.get("parent_talo_id") == talo_id]
+replies = organize_replies_hierarchically(all_replies)
+
 # Models
 class UserSignup(BaseModel):
     email: str
@@ -1065,7 +1098,6 @@ async def create_talo(request: Request):
         "promotion_level": 0
     }
     
-    #"created_at": datetime.now().isoformat(),
         
     if "talos" not in data:
         data["talos"] = []
@@ -3064,6 +3096,169 @@ async def check_banned_words(request: Request):
         return {"contains_banned": contains}
     except Exception as e:
         return {"contains_banned": False, "error": str(e)}
+
+@app.post("/api/like_reply/{reply_id}")
+async def like_reply(reply_id: str, request: Request):
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    if "reply_likes" not in data:
+        data["reply_likes"] = []
+    
+    like_index = None
+    for i, like in enumerate(data["reply_likes"]):
+        if like.get("reply_id") == reply_id and like.get("user_id") == user["user_id"]:
+            like_index = i
+            break
+    
+    # Find the reply to update like count
+    reply = None
+    for r in data.get("replies", []):
+        if r["id"] == reply_id:
+            reply = r
+            break
+    
+    if not reply:
+        raise HTTPException(status_code=404, detail="Reply not found")
+    
+    if like_index is not None:
+        data["reply_likes"].pop(like_index)
+        reply["likes"] = max(0, reply.get("likes", 0) - 1)
+        await save_jsonbin_data(data)
+        return {"liked": False, "count": reply["likes"]}
+    else:
+        data["reply_likes"].append({
+            "reply_id": reply_id,
+            "user_id": user["user_id"],
+            "created_at": datetime.now().isoformat()
+        })
+        reply["likes"] = reply.get("likes", 0) + 1
+        
+        # Send notification to reply owner if they follow the liker
+        reply_owner_id = reply.get("user_id")
+        if reply_owner_id and reply_owner_id != user["user_id"]:
+            follows_liker = False
+            for follow in data.get("follows", []):
+                if follow.get("follower_id") == reply_owner_id and follow.get("following_id") == user["user_id"]:
+                    follows_liker = True
+                    break
+            
+            if follows_liker:
+                if "notifications" not in data:
+                    data["notifications"] = []
+                data["notifications"].append({
+                    "id": str(uuid.uuid4()),
+                    "user_id": reply_owner_id,
+                    "type": "reply_like",
+                    "message": f"@{user['user_id']} liked your reply",
+                    "reply_id": reply_id,
+                    "from_user_id": user["user_id"],
+                    "read": False,
+                    "created_at": datetime.now().isoformat()
+                })
+        
+        await save_jsonbin_data(data)
+        return {"liked": True, "count": reply["likes"]}
+
+
+# Endpoint to create a nested reply (reply to a reply)
+@app.post("/api/create_nested_reply/{parent_reply_id}")
+async def create_nested_reply(parent_reply_id: str, request: Request):
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    body = await request.json()
+    content = body.get("content", "")
+    talo_id = body.get("talo_id")
+    parent_user_id = body.get("parent_user_id")
+    
+    if contains_banned_words(content):
+        raise HTTPException(status_code=400, detail="Your reply contains inappropriate language. Please review and try again.")
+    
+    if not content or len(content) > 250:
+        raise HTTPException(status_code=400, detail="Reply must be between 1 and 250 characters")
+    
+    # Find the parent reply
+    parent_reply = None
+    for r in data.get("replies", []):
+        if r["id"] == parent_reply_id:
+            parent_reply = r
+            break
+    
+    if not parent_reply:
+        raise HTTPException(status_code=404, detail="Parent reply not found")
+    
+    # Create the nested reply
+    nested_reply = {
+        "id": str(uuid.uuid4()),
+        "parent_reply_id": parent_reply_id,
+        "parent_talo_id": talo_id,
+        "user_id": user["user_id"],
+        "content": content,
+        "photos": [],
+        "likes": 0,
+        "created_at": datetime.now().isoformat()
+    }
+    
+    if "replies" not in data:
+        data["replies"] = []
+    data["replies"].append(nested_reply)
+    
+    # Update parent reply's child count (optional, can be calculated on the fly)
+    parent_reply["child_reply_count"] = parent_reply.get("child_reply_count", 0) + 1
+    
+    # Send notification to parent reply owner if they follow the replier
+    if parent_user_id and parent_user_id != user["user_id"]:
+        follows_replier = False
+        for follow in data.get("follows", []):
+            if follow.get("follower_id") == parent_user_id and follow.get("following_id") == user["user_id"]:
+                follows_replier = True
+                break
+        
+        if follows_replier:
+            if "notifications" not in data:
+                data["notifications"] = []
+            
+            notification = {
+                "id": str(uuid.uuid4()),
+                "user_id": parent_user_id,
+                "type": "reply_to_reply",
+                "message": f"@{user['user_id']} replied to your comment: {content[:50]}...",
+                "related_reply_id": parent_reply_id,
+                "nested_reply_id": nested_reply["id"],
+                "from_user_id": user["user_id"],
+                "read": False,
+                "created_at": datetime.now().isoformat()
+            }
+            data["notifications"].append(notification)
+    
+    await save_jsonbin_data(data)
+    
+    return {"message": "Reply posted successfully", "reply_id": nested_reply["id"]}
 
 
 @app.get("/api/health")
