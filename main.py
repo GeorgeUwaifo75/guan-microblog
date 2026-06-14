@@ -3267,7 +3267,7 @@ async def create_nested_reply(parent_reply_id: str, request: Request):
     parent_reply["child_reply_count"] = parent_reply.get("child_reply_count", 0) + 1
     
     # Send notification to parent reply owner if they follow the replier
-   if parent_user_id and parent_user_id != user["user_id"]:
+    if parent_user_id and parent_user_id != user["user_id"]:
     follows_replier = False
     for follow in data.get("follows", []):
         if follow.get("follower_id") == parent_user_id and follow.get("following_id") == user["user_id"]:
