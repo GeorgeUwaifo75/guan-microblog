@@ -1238,6 +1238,50 @@ function showFlashNotification(message, type = 'success') {
     document.body.appendChild(notification);
     setTimeout(() => notification.remove(), 2500);
 }
+
+
+// Add this to the post.html script section
+// Highlight a specific reply when coming from notification
+function highlightReply(replyId) {
+    if (replyId) {
+        // Scroll to the reply
+        const replyElement = document.getElementById(`reply-${replyId}`);
+        if (replyElement) {
+            replyElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            replyElement.style.transition = 'background-color 0.5s';
+            replyElement.style.backgroundColor = '#fff8e8';
+            setTimeout(() => {
+                replyElement.style.backgroundColor = '';
+            }, 2000);
+        }
+    }
+}
+
+// Check URL for reply parameter
+//const urlParams = new URLSearchParams(window.location.search);
+//const highlightReplyId = urlParams.get('reply');
+//if (highlightReplyId) {
+//    setTimeout(() => {
+//        highlightReply(highlightReplyId);
+//    }, 500);
+//}
+
+
+// At the bottom of post.html script
+const highlightReplyId = '{{ highlight_reply_id }}';
+if (highlightReplyId) {
+    setTimeout(() => {
+        const replyElement = document.getElementById(`reply-${highlightReplyId}`);
+        if (replyElement) {
+            replyElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            replyElement.style.backgroundColor = '#fff8e8';
+            setTimeout(() => {
+                replyElement.style.backgroundColor = '';
+            }, 2000);
+        }
+    }, 500);
+}
+
 </script>
 
     <script>

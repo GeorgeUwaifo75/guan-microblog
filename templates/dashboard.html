@@ -3533,25 +3533,54 @@ async function loadNotifications() {
         updateNotificationBadge(unreadCount);
         
         if (data.notifications && data.notifications.length > 0) {
-            // Inside loadNotifications function, update the notification HTML to include the original timestamp
-
-   notificationsList.innerHTML = data.notifications.map(notif => `
-    <div class="notification-item ${notif.read ? '' : 'unread'}"
-         data-notif-id="${notif.id}"
-         data-related-id="${notif.related_talo_id || ''}"
-         data-type="${notif.type}"
-         data-created-at="${notif.created_at}"
-         onclick="viewAndMarkNotification('${notif.id}', '${notif.type}', '${notif.related_talo_id || ''}')">
-        <div style="flex: 1;">
-            <strong>${notif.type === 'retalo' ? '🔄 Repost' : notif.type === 'like' ? '💎 Like' : notif.type === 'follow' ? '👥 Follow' : '💬 Reply'}</strong><br>
-            <small>${escapeHtml(notif.message)}</small><br>
-            <small style="color: #999;">${formatTimeAgo(notif.created_at)}</small>
-        </div>
-        <button class="delete-notification-btn" onclick="event.stopPropagation(); deleteNotification('${notif.id}')">✖</button>
-    </div>
-`).join('');
-
-initSwipeToDelete();
+            notificationsList.innerHTML = data.notifications.map(notif => {
+                // Determine display text based on notification type
+                let displayText = '';
+                let displayIcon = '';
+                
+                switch(notif.type) {
+                    case 'retalo':
+                        displayIcon = '🔄';
+                        displayText = 'Reposted your post';
+                        break;
+                    case 'like':
+                        displayIcon = '💎';
+                        displayText = 'Liked your post';
+                        break;
+                    case 'reply':
+                        displayIcon = '💬';
+                        displayText = 'Replied to your post';
+                        break;
+                    case 'reply_to_reply':
+                        displayIcon = '💬';
+                        displayText = 'Replied to your comment';
+                        break;
+                    case 'follow':
+                        displayIcon = '👥';
+                        displayText = 'Started following you';
+                        break;
+                    default:
+                        displayIcon = '📢';
+                        displayText = notif.message || 'New notification';
+                }
+                
+                return `
+                    <div class="notification-item ${notif.read ? '' : 'unread'}"
+                         data-notif-id="${notif.id}"
+                         data-related-id="${notif.related_talo_id || ''}"
+                         data-type="${notif.type}"
+                         data-created-at="${notif.created_at}"
+                         onclick="viewAndMarkNotification('${notif.id}', '${notif.type}', '${notif.related_talo_id || ''}')">
+                        <div style="flex: 1;">
+                            <strong>${displayIcon} ${displayText}</strong><br>
+                            <small>from <strong>@${escapeHtml(notif.from_user_id || 'unknown')}</strong></small><br>
+                            <small style="color: #999;">${formatTimeAgo(notif.created_at)}</small>
+                        </div>
+                        <button class="delete-notification-btn" onclick="event.stopPropagation(); deleteNotification('${notif.id}')">✖</button>
+                    </div>
+                `;
+            }).join('');
+            initSwipeToDelete();
         } else {
             notificationsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No notifications yet</div>';
         }
@@ -3565,6 +3594,7 @@ initSwipeToDelete();
 }
 
 // --- Mark notification as read and navigate ---
+// In dashboard.html, update the viewAndMarkNotification function
 window.viewAndMarkNotification = async function(notificationId, type, relatedTaloId) {
     try {
         // Mark as read on server
@@ -3587,8 +3617,15 @@ window.viewAndMarkNotification = async function(notificationId, type, relatedTal
                 if (match) username = match[1];
             }
             if (username) window.location.href = `/profile/${username}`;
-        } else if (relatedTaloId) {
-            window.location.href = `/post/${relatedTaloId}`;
+        } else if (type === 'reply' || type === 'reply_to_reply') {
+            // Navigate to the post
+            if (relatedTaloId) {
+                window.location.href = `/post/${relatedTaloId}`;
+            }
+        } else if (type === 'like' || type === 'retalo') {
+            if (relatedTaloId) {
+                window.location.href = `/post/${relatedTaloId}`;
+            }
         }
     } catch (error) {
         console.error('Error marking notification read:', error);

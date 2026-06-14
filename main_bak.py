@@ -997,7 +997,7 @@ async def view_profile(request: Request, user_id: str):
     })
 
 @app.get("/post/{talo_id}", response_class=HTMLResponse)
-async def view_post(request: Request, talo_id: str, reply_id: str = None):
+async def view_post(request: Request, talo_id: str):
     session_token = request.cookies.get("session_token")
     if not session_token:
         return RedirectResponse(url="/", status_code=303)
@@ -1080,8 +1080,7 @@ async def view_post(request: Request, talo_id: str, reply_id: str = None):
         "request": request,
         "user": user,
         "talo": talo,
-        "replies": replies,
-        "highlight_reply_id": reply_id  # Pass this to template
+        "replies": replies
     })
 
 @app.post("/api/create_talo")
@@ -1212,30 +1211,22 @@ async def create_reply(request: Request, parent_talo_id: str):
     parent_talo["reply_count"] = len([r for r in data["replies"] if r.get("parent_talo_id") == parent_talo_id])
     
     if talo_owner_id != user["user_id"]:
-      follows_replier = False
-      for follow in data.get("follows", []):
-          if follow.get("follower_id") == talo_owner_id and follow.get("following_id") == user["user_id"]:
-              follows_replier = True
-              break
-      
-      if follows_replier:
-          if "notifications" not in data:
-              data["notifications"] = []
-          
-          # Create a clickable link in the notification
-          notification = {
-              "id": str(uuid.uuid4()),
-              "user_id": talo_owner_id,
-              "type": "reply",
-              "message": f"@{user['user_id']} replied to your post",
-              "related_talo_id": parent_talo_id,  # This is the post ID
-              "reply_id": reply["id"],  # This is the reply ID
-              "from_user_id": user["user_id"],
-              "read": False,
-              "created_at": datetime.now().isoformat()
-          }
-          data["notifications"].append(notification)
-
+        if "notifications" not in data:
+            data["notifications"] = []
+        
+        notification = {
+            "id": str(uuid.uuid4()),
+            "user_id": talo_owner_id,
+            "type": "reply",
+            "message": f"@{user['user_id']} replied to your post: {content[:50]}...",
+            "related_talo_id": parent_talo_id,
+            "reply_id": reply["id"],
+            "from_user_id": user["user_id"],
+            "read": False,
+            "created_at": datetime.now().isoformat()
+        }
+        data["notifications"].append(notification)
+    
     await save_jsonbin_data(data)
     
     return {"message": "Reply created successfully", "reply_id": reply["id"]}
@@ -3267,31 +3258,29 @@ async def create_nested_reply(parent_reply_id: str, request: Request):
     parent_reply["child_reply_count"] = parent_reply.get("child_reply_count", 0) + 1
     
     # Send notification to parent reply owner if they follow the replier
-   if parent_user_id and parent_user_id != user["user_id"]:
-    follows_replier = False
-    for follow in data.get("follows", []):
-        if follow.get("follower_id") == parent_user_id and follow.get("following_id") == user["user_id"]:
-            follows_replier = True
-            break
-    
-    if follows_replier:
-        if "notifications" not in data:
-            data["notifications"] = []
+    if parent_user_id and parent_user_id != user["user_id"]:
+        follows_replier = False
+        for follow in data.get("follows", []):
+            if follow.get("follower_id") == parent_user_id and follow.get("following_id") == user["user_id"]:
+                follows_replier = True
+                break
         
-        # Create a clickable link in the notification
-        notification = {
-            "id": str(uuid.uuid4()),
-            "user_id": parent_user_id,
-            "type": "reply_to_reply",
-            "message": f"@{user['user_id']} replied to your comment",
-            "related_talo_id": talo_id,  # This is the post ID
-            "parent_reply_id": parent_reply_id,  # The parent reply ID
-            "reply_id": nested_reply["id"],  # The new nested reply ID
-            "from_user_id": user["user_id"],
-            "read": False,
-            "created_at": datetime.now().isoformat()
-        }
-        data["notifications"].append(notification)
+        if follows_replier:
+            if "notifications" not in data:
+                data["notifications"] = []
+            
+            notification = {
+                "id": str(uuid.uuid4()),
+                "user_id": parent_user_id,
+                "type": "reply_to_reply",
+                "message": f"@{user['user_id']} replied to your comment: {content[:50]}...",
+                "related_reply_id": parent_reply_id,
+                "nested_reply_id": nested_reply["id"],
+                "from_user_id": user["user_id"],
+                "read": False,
+                "created_at": datetime.now().isoformat()
+            }
+            data["notifications"].append(notification)
     
     await save_jsonbin_data(data)
     
