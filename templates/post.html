@@ -912,14 +912,13 @@
                     <button type="button" class="submit-btn" id="replySubmitBtn" onclick="submitReplyWithFirebase()">Post Reply</button>
                 </div>
             </div>
-
-            <!-- Replies Section -->
+<!-- Replies Section -->
             <div class="replies-section">
                 <h3 class="replies-title">Replies ({{ replies|length }})</h3>
                 <div id="repliesContainer">
                     {% if replies %}
                         {% for reply in replies %}
-                        <div class="reply-card" id="reply-{{ reply.id }}">
+                        <div class="reply-card" id="reply-{{ reply.id }}" data-reply-id="{{ reply.id }}">
                             <div class="reply-header">
                                 {% if reply.user_photo %}
                                 <img class="reply-avatar" src="{{ reply.user_photo }}" alt="">
@@ -940,7 +939,7 @@
                                     <img src="{{ photo.url }}" class="reply-image" alt="Reply image">
                                 {% endfor %}
                             {% endif %}
-                             <div class="reply-actions-row">
+                            <div class="reply-actions-row">
                                 <button class="reply-like-btn" onclick="likeReply('{{ reply.id }}', this)">
                                     ❤️ <span class="like-count">{{ reply.likes }}</span>
                                 </button>
@@ -948,7 +947,8 @@
                                     💬 Reply
                                 </button>
                             </div>
-                            <!-- Nested reply form (hidden by default) -->
+                            
+                            <!-- Nested reply form -->
                             <div class="nested-reply-form" id="nestedForm-{{ reply.id }}">
                                 <textarea id="nestedReplyContent-{{ reply.id }}" class="nested-reply-textarea" rows="2" placeholder="Write a reply to @{{ reply.user_id }}... (max 250 characters)" maxlength="250"></textarea>
                                 <div class="nested-reply-actions">
@@ -956,11 +956,12 @@
                                     <button class="nested-submit-btn" onclick="submitNestedReply('{{ reply.id }}', '{{ reply.user_id }}')">Reply</button>
                                 </div>
                             </div>
+                            
                             <!-- Child replies container -->
                             <div class="child-replies" id="childReplies-{{ reply.id }}">
                                 {% if reply.child_replies %}
                                     {% for child_reply in reply.child_replies %}
-                                    <div class="reply-card nested" id="reply-{{ child_reply.id }}">
+                                    <div class="reply-card nested" id="reply-{{ child_reply.id }}" data-reply-id="{{ child_reply.id }}" style="margin-left: 30px;">
                                         <div class="reply-header">
                                             {% if child_reply.user_photo %}
                                             <img class="reply-avatar" src="{{ child_reply.user_photo }}" alt="">
@@ -996,12 +997,54 @@
                                                 <button class="nested-submit-btn" onclick="submitNestedReply('{{ child_reply.id }}', '{{ child_reply.user_id }}')">Reply</button>
                                             </div>
                                         </div>
+                                        <!-- Deeper nested replies (recursive) -->
+                                        {% if child_reply.child_replies %}
+                                            {% for deeper_reply in child_reply.child_replies %}
+                                            <div class="reply-card nested" id="reply-{{ deeper_reply.id }}" data-reply-id="{{ deeper_reply.id }}" style="margin-left: 30px;">
+                                                <div class="reply-header">
+                                                    {% if deeper_reply.user_photo %}
+                                                    <img class="reply-avatar" src="{{ deeper_reply.user_photo }}" alt="">
+                                                    {% else %}
+                                                    <div class="reply-avatar" style="background: #ddd; display: flex; align-items: center; justify-content: center;">👤</div>
+                                                    {% endif %}
+                                                    <div class="reply-user-info">
+                                                        <a href="/profile/{{ deeper_reply.user_id }}" style="text-decoration: none; color: inherit;">
+                                                            <span class="reply-user-name">{{ deeper_reply.user_name }}</span>
+                                                            <span class="reply-user-id">@{{ deeper_reply.user_id }}</span>
+                                                        </a>
+                                                        <div class="reply-time" data-time="{{ deeper_reply.created_at }}"></div>
+                                                    </div>
+                                                </div>
+                                                <div class="reply-content">{{ deeper_reply.content }}</div>
+                                                {% if deeper_reply.photos %}
+                                                    {% for photo in deeper_reply.photos %}
+                                                        <img src="{{ photo.url }}" class="reply-image" alt="Reply image">
+                                                    {% endfor %}
+                                                {% endif %}
+                                                <div class="reply-actions-row">
+                                                    <button class="reply-like-btn" onclick="likeReply('{{ deeper_reply.id }}', this)">
+                                                        ❤️ <span class="like-count">{{ deeper_reply.likes }}</span>
+                                                    </button>
+                                                    <button class="reply-reply-btn" onclick="showNestedReplyForm('{{ deeper_reply.id }}', '{{ deeper_reply.user_id }}')">
+                                                        💬 Reply
+                                                    </button>
+                                                </div>
+                                                <div class="nested-reply-form" id="nestedForm-{{ deeper_reply.id }}">
+                                                    <textarea id="nestedReplyContent-{{ deeper_reply.id }}" class="nested-reply-textarea" rows="2" placeholder="Write a reply to @{{ deeper_reply.user_id }}... (max 250 characters)" maxlength="250"></textarea>
+                                                    <div class="nested-reply-actions">
+                                                        <button class="nested-cancel-btn" onclick="hideNestedReplyForm('{{ deeper_reply.id }}')">Cancel</button>
+                                                        <button class="nested-submit-btn" onclick="submitNestedReply('{{ deeper_reply.id }}', '{{ deeper_reply.user_id }}')">Reply</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        {% endif %}
                                     </div>
                                     {% endfor %}
                                 {% endif %}
                                 {% if reply.child_reply_count > 0 %}
                                 <button class="view-replies-btn" onclick="toggleChildReplies('{{ reply.id }}')">
-                                    View {{ reply.child_reply_count }} replies ↓
+                                    ↓ View {{ reply.child_reply_count }} replies
                                 </button>
                                 {% endif %}
                             </div>
@@ -1208,46 +1251,84 @@ function showFlashNotification(message, type = 'success') {
         // ========== NESTED REPLY FUNCTIONS ==========
         
         function showNestedReplyForm(replyId, userId) {
-            // Hide all other nested forms first
-            document.querySelectorAll('.nested-reply-form').forEach(form => {
-                if (form.id !== `nestedForm-${replyId}`) {
-                    form.classList.remove('show');
-                }
+    // Hide all other nested forms first
+    document.querySelectorAll('.nested-reply-form').forEach(form => {
+        if (form.id !== `nestedForm-${replyId}`) {
+            form.classList.remove('show');
+        }
+    });
+    const form = document.getElementById(`nestedForm-${replyId}`);
+    if (form) {
+        form.classList.toggle('show');
+        const textarea = document.getElementById(`nestedReplyContent-${replyId}`);
+        if (textarea && form.classList.contains('show')) {
+            textarea.focus();
+        }
+    }
+}
+
+function hideNestedReplyForm(replyId) {
+    const form = document.getElementById(`nestedForm-${replyId}`);
+    if (form) {
+        form.classList.remove('show');
+        const textarea = document.getElementById(`nestedReplyContent-${replyId}`);
+        if (textarea) textarea.value = '';
+    }
+}
+
+function toggleChildReplies(replyId) {
+    const container = document.getElementById(`childReplies-${replyId}`);
+    if (!container) return;
+    
+    const btn = container.querySelector('.view-replies-btn');
+    const childReplies = container.querySelectorAll('.reply-card.nested');
+    
+    if (container.classList.contains('show')) {
+        container.classList.remove('show');
+        childReplies.forEach(reply => {
+            reply.style.display = 'none';
+        });
+        if (btn) {
+            const count = btn.textContent.match(/\d+/);
+            btn.textContent = `↓ View ${count} replies`;
+        }
+    } else {
+        container.classList.add('show');
+        childReplies.forEach(reply => {
+            reply.style.display = 'block';
+        });
+        if (btn) {
+            const count = btn.textContent.match(/\d+/);
+            btn.textContent = `↑ Hide ${count} replies`;
+        }
+    }
+}
+
+// Initialize all child replies as hidden on page load
+function initializeChildReplies() {
+    document.querySelectorAll('.child-replies').forEach(container => {
+        const childReplies = container.querySelectorAll('.reply-card.nested');
+        if (childReplies.length > 0) {
+            childReplies.forEach(reply => {
+                reply.style.display = 'none';
             });
-            const form = document.getElementById(`nestedForm-${replyId}`);
-            if (form) {
-                form.classList.toggle('show');
-                const textarea = document.getElementById(`nestedReplyContent-${replyId}`);
-                if (textarea && form.classList.contains('show')) {
-                    textarea.focus();
-                }
-            }
+            container.classList.remove('show');
         }
-        
-        function hideNestedReplyForm(replyId) {
-            const form = document.getElementById(`nestedForm-${replyId}`);
-            if (form) {
-                form.classList.remove('show');
-                const textarea = document.getElementById(`nestedReplyContent-${replyId}`);
-                if (textarea) textarea.value = '';
-            }
-        }
-        
-        function toggleChildReplies(replyId) {
-            const container = document.getElementById(`childReplies-${replyId}`);
-            const btn = container?.querySelector('.view-replies-btn');
-            if (container) {
-                container.classList.toggle('show');
-                if (btn) {
-                    if (container.classList.contains('show')) {
-                        btn.textContent = btn.textContent.replace('↓', '↑');
-                    } else {
-                        btn.textContent = btn.textContent.replace('↑', '↓');
-                    }
-                }
-            }
-        }
-        
+    });
+}
+
+// Call this after the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initializeChildReplies();
+    
+    // Also re-initialize after any dynamic content updates
+    const observer = new MutationObserver(function(mutations) {
+        initializeChildReplies();
+    });
+    observer.observe(document.getElementById('repliesContainer'), { childList: true, subtree: true });
+});
+
+
         async function submitNestedReply(parentReplyId, parentUserId) {
             const textarea = document.getElementById(`nestedReplyContent-${parentReplyId}`);
             const content = textarea?.value.trim();
