@@ -3076,7 +3076,7 @@ startLiveTimestampUpdates();
         input.click();
     }
     
-    async function createTaloWithFirebase() {
+async function createTaloWithFirebase() {
     const content = document.getElementById('taloContent').value;
     if (!content.trim()) {
         alert('Please enter some content');
@@ -3128,13 +3128,14 @@ startLiveTimestampUpdates();
         if (response.ok) {
             const data = await response.json();
             const newPostId = data.talo_id;
-        
-             const createdAt = data.created_at || new Date().toISOString(); // Use server timestamp if available
-
             
-            // Update timestamp
-            latestTaloTimestamp = new Date().toISOString();
-            localStorage.setItem('lastSeenTimestamp', latestTaloTimestamp);
+            // IMPORTANT: Use the server's timestamp, not client timestamp
+            // The server returns ISO string which should be used directly
+            const serverTimestamp = data.created_at || new Date().toISOString();
+            
+            // Update timestamp with server time
+            latestTaloTimestamp = serverTimestamp;
+            localStorage.setItem('lastSeenTimestamp', serverTimestamp);
             
             // Clear the form
             document.getElementById('taloContent').value = '';
@@ -3146,7 +3147,6 @@ startLiveTimestampUpdates();
             showFlashNotification('✓ Post created successfully!', 'success');
             
             // Reload the page to show all posts in correct order
-            // This ensures proper sorting with the server's timestamp
             setTimeout(() => {
                 location.reload();
             }, 1000);

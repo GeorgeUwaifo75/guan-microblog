@@ -1060,11 +1060,13 @@ async def create_talo(request: Request):
         "dislikes": 0,
         "retalos": 0,
         "reply_count": 0,
-        "created_at": datetime.now().isoformat(),
+        "created_at": created_at,  # Use the variable
         "promoted": False,
         "promotion_level": 0
     }
     
+    #"created_at": datetime.now().isoformat(),
+        
     if "talos" not in data:
         data["talos"] = []
     data["talos"].insert(0, talo)
@@ -1094,7 +1096,8 @@ async def create_talo(request: Request):
     
     await save_jsonbin_data(data)
     
-    return {"message": "Talo created successfully", "talo_id": talo["id"]}
+   # return {"message": "Talo created successfully", "talo_id": talo["id"]}
+    return {"message": "Talo created successfully", "talo_id": talo["id"], "created_at": created_at}
 
 @app.post("/api/create_reply/{parent_talo_id}")
 async def create_reply(request: Request, parent_talo_id: str):
