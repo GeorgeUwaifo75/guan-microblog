@@ -482,7 +482,12 @@ def organize_replies_hierarchically(replies):
             sort_children_recursively(reply["child_replies"])
     
     sort_children_recursively(top_level_replies)
+    # Debug logging
+    print(f"Top level replies: {len(top_level_replies)}")
+    for reply in top_level_replies:
+        print(f"Reply {reply['id']} has {len(reply.get('child_replies', []))} child replies")
     
+
     return top_level_replies
 
 # Models
