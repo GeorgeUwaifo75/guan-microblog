@@ -1033,18 +1033,48 @@ async def view_post(request: Request, talo_id: str):
             talo["user_photo"] = u.get("profile_photo")
             break
     
-    #replies = [r for r in data.get("replies", []) if r.get("parent_talo_id") == talo_id]
-    all_replies = [r for r in data.get("replies", []) if r.get("parent_talo_id") == talo_id]
-    replies = organize_replies_hierarchically(all_replies)
+    # Get all replies for this post
+    all_replies = []
+    for r in data.get("replies", []):
+        if r.get("parent_talo_id") == talo_id:
+            # Add user info to each reply
+            for u in data.get("users", []):
+                if u["user_id"] == r["user_id"]:
+                    r["user_name"] = f"{u['first_name']} {u['last_name']}"
+                    r["user_photo"] = u.get("profile_photo")
+                    break
+            all_replies.append(r)
     
-    for reply in replies:
-        for u in data.get("users", []):
-            if u["user_id"] == reply["user_id"]:
-                reply["user_name"] = f"{u['first_name']} {u['last_name']}"
-                reply["user_photo"] = u.get("profile_photo")
-                break
+    # Organize replies hierarchically
+    def organize_replies(reply_list):
+        reply_dict = {}
+        top_level = []
+        
+        # First, index all replies by ID
+        for reply in reply_list:
+            reply["child_replies"] = []
+            reply["child_reply_count"] = 0
+            reply_dict[reply["id"]] = reply
+        
+        # Then organize them
+        for reply in reply_list:
+            parent_id = reply.get("parent_reply_id")
+            if parent_id and parent_id in reply_dict:
+                reply_dict[parent_id]["child_replies"].append(reply)
+                reply_dict[parent_id]["child_reply_count"] = len(reply_dict[parent_id]["child_replies"])
+            elif not parent_id:  # Top-level reply
+                top_level.append(reply)
+        
+        # Sort top-level replies by created_at (oldest first)
+        top_level.sort(key=lambda x: x.get("created_at", ""))
+        
+        # Sort child replies by created_at
+        for reply in reply_dict.values():
+            reply["child_replies"].sort(key=lambda x: x.get("created_at", ""))
+        
+        return top_level
     
-    replies.sort(key=lambda x: x.get("created_at", ""))
+    replies = organize_replies(all_replies)
     
     return templates.TemplateResponse("post.html", {
         "request": request,
