@@ -3267,33 +3267,32 @@ async def create_nested_reply(parent_reply_id: str, request: Request):
     parent_reply["child_reply_count"] = parent_reply.get("child_reply_count", 0) + 1
     
     # Send notification to parent reply owner if they follow the replier
+    # In create_nested_reply endpoint, update the notification:
     if parent_user_id and parent_user_id != user["user_id"]:
-    follows_replier = False
-    for follow in data.get("follows", []):
-        if follow.get("follower_id") == parent_user_id and follow.get("following_id") == user["user_id"]:
-            follows_replier = True
-            break
-    
-    if follows_replier:
-        if "notifications" not in data:
-            data["notifications"] = []
-        
-        # Create a clickable link in the notification
-        notification = {
-            "id": str(uuid.uuid4()),
-            "user_id": parent_user_id,
-            "type": "reply_to_reply",
-            "message": f"@{user['user_id']} replied to your comment",
-            "related_talo_id": talo_id,  # This is the post ID
-            "parent_reply_id": parent_reply_id,  # The parent reply ID
-            "reply_id": nested_reply["id"],  # The new nested reply ID
-            "from_user_id": user["user_id"],
-            "read": False,
-            "created_at": datetime.now().isoformat()
-        }
-        data["notifications"].append(notification)
-    
-    await save_jsonbin_data(data)
+      follows_replier = False
+      for follow in data.get("follows", []):
+          if follow.get("follower_id") == parent_user_id and follow.get("following_id") == user["user_id"]:
+              follows_replier = True
+              break
+      
+      if follows_replier:
+          if "notifications" not in data:
+              data["notifications"] = []
+          
+          # Create a clickable link in the notification
+          notification = {
+              "id": str(uuid.uuid4()),
+              "user_id": parent_user_id,
+              "type": "reply_to_reply",
+              "message": f"@{user['user_id']} replied to your comment",
+              "related_talo_id": talo_id,  # This is the post ID
+              "parent_reply_id": parent_reply_id,  # The parent reply ID
+              "reply_id": nested_reply["id"],  # The new nested reply ID
+              "from_user_id": user["user_id"],
+              "read": False,
+              "created_at": datetime.now().isoformat()
+          }
+          data["notifications"].append(notification)
     
     return {"message": "Reply posted successfully", "reply_id": nested_reply["id"]}
 
