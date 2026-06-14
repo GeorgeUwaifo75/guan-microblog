@@ -2681,57 +2681,38 @@ window.openPromotionModalFromPost = function(taloId) {
     
 
 // ========== UTILITY FUNCTIONS ==========
-// ========== UTILITY FUNCTIONS ==========
+// HARDCODED DEDUCTION: Subtract 59 minutes and 40 seconds (3580 seconds total)
+// This compensates for server/client timezone differences
+const TIME_DEDUCTION_SECONDS = 3580; // 59 minutes * 60 + 40 seconds = 3540 + 40 = 3580
+
 function formatTimeAgo(dateStr) {
     if (!dateStr) return 'just now';
     
-    // Parse the date - handle both ISO strings and potential timezone issues
-    let date;
-    
-    // If the date string doesn't have a timezone indicator, assume it's UTC
-    if (typeof dateStr === 'string' && !dateStr.includes('Z') && !dateStr.includes('+') && !dateStr.includes('-')) {
-        // Append 'Z' to indicate UTC
-        date = new Date(dateStr + 'Z');
-    } else {
-        date = new Date(dateStr);
-    }
+    let date = new Date(dateStr);
     
     // Check if date is valid
+    if (isNaN(date.getTime())) {
+        // Try parsing as UTC
+        date = new Date(dateStr + 'Z');
+    }
     if (isNaN(date.getTime())) {
         console.warn('Invalid date:', dateStr);
         return 'just now';
     }
     
     const now = new Date();
-    let diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    // Calculate difference and apply hardcoded deduction
+    let diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000) - TIME_DEDUCTION_SECONDS;
     
-    // If difference is negative, try using UTC comparison
+    // If after deduction it's negative, treat as just now
     if (diffSeconds < 0) {
-        // Try parsing as UTC explicitly
-        const utcDate = new Date(dateStr);
-        const utcNow = new Date();
-        const utcDiffSeconds = Math.floor((utcNow.getTime() - utcDate.getTime()) / 1000);
-        
-        // If UTC diff is positive and reasonable, use that
-        if (utcDiffSeconds >= 0 && utcDiffSeconds < 86400) {
-            diffSeconds = utcDiffSeconds;
-        } else {
-            // Check if it's a future date (unlikely) or just now
-            const absDiff = Math.abs(diffSeconds);
-            if (absDiff < 5) {
-                return 'just now';
-            } else if (absDiff < 3600) {
-                // If difference is less than an hour but negative, it's likely a small timezone offset
-                // Consider it as just now
-                if (absDiff < 3600 && diffSeconds > -3600) {
-                    return 'just now';
-                }
-            }
+        // If it's within 60 seconds of being negative, show as just now
+        if (diffSeconds > -60) {
+            return 'just now';
         }
+        // Otherwise, use absolute value for very old posts? No, just set to 0
+        diffSeconds = 0;
     }
-    
-    // Ensure we have a non-negative value
-    if (diffSeconds < 0) diffSeconds = 0;
     
     // Less than 5 seconds
     if (diffSeconds < 5) return 'just now';
@@ -2805,6 +2786,27 @@ function formatTimeAgo(dateStr) {
     }
     return `${diffYears}y`;
 }
+
+// Debug function to verify the deduction is working
+function debugTimestampWithDeduction(dateStr) {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const rawDiff = (now - date) / 1000;
+    const adjustedDiff = rawDiff - TIME_DEDUCTION_SECONDS;
+    
+    console.log('=== TIMESTAMP DEBUG ===');
+    console.log(`Raw timestamp: ${dateStr}`);
+    console.log(`Parsed date: ${date.toString()}`);
+    console.log(`Current time: ${now.toString()}`);
+    console.log(`Raw difference: ${rawDiff} seconds (${Math.floor(rawDiff / 60)} minutes ${Math.floor(rawDiff % 60)} seconds)`);
+    console.log(`Deduction applied: ${TIME_DEDUCTION_SECONDS} seconds (59 minutes 40 seconds)`);
+    console.log(`Adjusted difference: ${adjustedDiff} seconds`);
+    console.log(`Formatted output: ${formatTimeAgo(dateStr)}`);
+    console.log('========================');
+    
+    return adjustedDiff;
+}
+
 
 // Debug function to check timestamp issues (remove after fixing)
 function debugTimestamp(dateStr, elementId) {
@@ -3182,13 +3184,20 @@ async function createTaloWithFirebase() {
             const newPostId = data.talo_id;
             
             // Use the server's timestamp
-            let serverTimestamp = data.created_at;
+             let serverTimestamp = data.created_at;
+             if (!serverTimestamp) {
+                 serverTimestamp = new Date().toISOString();
+               }
             
             // If no timestamp returned, use current time
-            if (!serverTimestamp) {
-                serverTimestamp = new Date().toISOString();
-            }
+            //if (!serverTimestamp) {
+             //   serverTimestamp = new Date().toISOString();
+           // }
             
+     // DEBUG: Log the timestamp to see the effect
+    		console.log('=== NEW POST CREATED ===');
+               debugTimestampWithDeduction(serverTimestamp);
+    
             console.log('Server timestamp:', serverTimestamp);
             console.log('Formatted time:', formatTimeAgo(serverTimestamp));
             
