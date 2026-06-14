@@ -2681,19 +2681,57 @@ window.openPromotionModalFromPost = function(taloId) {
     
 
 // ========== UTILITY FUNCTIONS ==========
+// ========== UTILITY FUNCTIONS ==========
 function formatTimeAgo(dateStr) {
     if (!dateStr) return 'just now';
     
-    const date = new Date(dateStr);
-    const now = new Date();
+    // Parse the date - handle both ISO strings and potential timezone issues
+    let date;
+    
+    // If the date string doesn't have a timezone indicator, assume it's UTC
+    if (typeof dateStr === 'string' && !dateStr.includes('Z') && !dateStr.includes('+') && !dateStr.includes('-')) {
+        // Append 'Z' to indicate UTC
+        date = new Date(dateStr + 'Z');
+    } else {
+        date = new Date(dateStr);
+    }
     
     // Check if date is valid
-    if (isNaN(date.getTime())) return 'just now';
+    if (isNaN(date.getTime())) {
+        console.warn('Invalid date:', dateStr);
+        return 'just now';
+    }
     
-    const diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    const now = new Date();
+    let diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
     
-    // Handle negative differences (future dates - should not happen but just in case)
-    if (diffSeconds < 0) return 'just now';
+    // If difference is negative, try using UTC comparison
+    if (diffSeconds < 0) {
+        // Try parsing as UTC explicitly
+        const utcDate = new Date(dateStr);
+        const utcNow = new Date();
+        const utcDiffSeconds = Math.floor((utcNow.getTime() - utcDate.getTime()) / 1000);
+        
+        // If UTC diff is positive and reasonable, use that
+        if (utcDiffSeconds >= 0 && utcDiffSeconds < 86400) {
+            diffSeconds = utcDiffSeconds;
+        } else {
+            // Check if it's a future date (unlikely) or just now
+            const absDiff = Math.abs(diffSeconds);
+            if (absDiff < 5) {
+                return 'just now';
+            } else if (absDiff < 3600) {
+                // If difference is less than an hour but negative, it's likely a small timezone offset
+                // Consider it as just now
+                if (absDiff < 3600 && diffSeconds > -3600) {
+                    return 'just now';
+                }
+            }
+        }
+    }
+    
+    // Ensure we have a non-negative value
+    if (diffSeconds < 0) diffSeconds = 0;
     
     // Less than 5 seconds
     if (diffSeconds < 5) return 'just now';
@@ -2766,6 +2804,20 @@ function formatTimeAgo(dateStr) {
         return `${diffYears}y ${remainingMonths}mo`;
     }
     return `${diffYears}y`;
+}
+
+// Debug function to check timestamp issues (remove after fixing)
+function debugTimestamp(dateStr, elementId) {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = (now - date) / 1000;
+    console.log(`Timestamp debug for ${elementId || 'unknown'}:`);
+    console.log(`  Raw string: "${dateStr}"`);
+    console.log(`  Parsed date: ${date.toString()}`);
+    console.log(`  Current time: ${now.toString()}`);
+    console.log(`  Difference (seconds): ${diff}`);
+    console.log(`  Formatted: ${formatTimeAgo(dateStr)}`);
+    return diff;
 }
 
 //END of TIME UTILITIES
@@ -3129,9 +3181,16 @@ async function createTaloWithFirebase() {
             const data = await response.json();
             const newPostId = data.talo_id;
             
-            // IMPORTANT: Use the server's timestamp, not client timestamp
-            // The server returns ISO string which should be used directly
-            const serverTimestamp = data.created_at || new Date().toISOString();
+            // Use the server's timestamp
+            let serverTimestamp = data.created_at;
+            
+            // If no timestamp returned, use current time
+            if (!serverTimestamp) {
+                serverTimestamp = new Date().toISOString();
+            }
+            
+            console.log('Server timestamp:', serverTimestamp);
+            console.log('Formatted time:', formatTimeAgo(serverTimestamp));
             
             // Update timestamp with server time
             latestTaloTimestamp = serverTimestamp;
