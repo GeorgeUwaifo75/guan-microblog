@@ -1034,8 +1034,8 @@ async def view_post(request: Request, talo_id: str):
             break
     
     #replies = [r for r in data.get("replies", []) if r.get("parent_talo_id") == talo_id]
-     all_replies = [r for r in data.get("replies", []) if r.get("parent_talo_id") == talo_id]
-     replies = organize_replies_hierarchically(all_replies)
+    all_replies = [r for r in data.get("replies", []) if r.get("parent_talo_id") == talo_id]
+    replies = organize_replies_hierarchically(all_replies)
     
     for reply in replies:
         for u in data.get("users", []):
