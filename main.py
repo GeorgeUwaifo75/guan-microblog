@@ -453,6 +453,7 @@ def generate_token():
 
 # Add this helper function to organize replies hierarchically:
 def organize_replies_hierarchically(replies):
+    """Organize replies into a hierarchical tree structure"""
     reply_dict = {}
     top_level_replies = []
     
@@ -466,6 +467,7 @@ def organize_replies_hierarchically(replies):
     for reply in replies:
         parent_id = reply.get("parent_reply_id")
         if parent_id and parent_id in reply_dict:
+            # This is a child reply
             reply_dict[parent_id]["child_replies"].append(reply)
             reply_dict[parent_id]["child_reply_count"] = len(reply_dict[parent_id]["child_replies"])
         elif not parent_id:  # Top-level reply (direct to post)
@@ -473,8 +475,13 @@ def organize_replies_hierarchically(replies):
     
     # Sort each level by created_at (oldest first for replies)
     top_level_replies.sort(key=lambda x: x.get("created_at", ""))
-    for reply in reply_dict.values():
-        reply["child_replies"].sort(key=lambda x: x.get("created_at", ""))
+    
+    def sort_children_recursively(reply_list):
+        for reply in reply_list:
+            reply["child_replies"].sort(key=lambda x: x.get("created_at", ""))
+            sort_children_recursively(reply["child_replies"])
+    
+    sort_children_recursively(top_level_replies)
     
     return top_level_replies
 
@@ -1033,7 +1040,7 @@ async def view_post(request: Request, talo_id: str, reply_id: str = None):
             talo["user_photo"] = u.get("profile_photo")
             break
     
-    # Get all replies for this post
+    # Get ALL replies for this post (including nested ones)
     all_replies = []
     for r in data.get("replies", []):
         if r.get("parent_talo_id") == talo_id:
@@ -1046,42 +1053,14 @@ async def view_post(request: Request, talo_id: str, reply_id: str = None):
             all_replies.append(r)
     
     # Organize replies hierarchically
-    def organize_replies(reply_list):
-        reply_dict = {}
-        top_level = []
-        
-        # First, index all replies by ID
-        for reply in reply_list:
-            reply["child_replies"] = []
-            reply["child_reply_count"] = 0
-            reply_dict[reply["id"]] = reply
-        
-        # Then organize them
-        for reply in reply_list:
-            parent_id = reply.get("parent_reply_id")
-            if parent_id and parent_id in reply_dict:
-                reply_dict[parent_id]["child_replies"].append(reply)
-                reply_dict[parent_id]["child_reply_count"] = len(reply_dict[parent_id]["child_replies"])
-            elif not parent_id:  # Top-level reply
-                top_level.append(reply)
-        
-        # Sort top-level replies by created_at (oldest first)
-        top_level.sort(key=lambda x: x.get("created_at", ""))
-        
-        # Sort child replies by created_at
-        for reply in reply_dict.values():
-            reply["child_replies"].sort(key=lambda x: x.get("created_at", ""))
-        
-        return top_level
-    
-    replies = organize_replies(all_replies)
+    replies = organize_replies_hierarchically(all_replies)
     
     return templates.TemplateResponse("post.html", {
         "request": request,
         "user": user,
         "talo": talo,
         "replies": replies,
-        "highlight_reply_id": reply_id  # Pass this to template
+        "highlight_reply_id": reply_id
     })
 
 @app.post("/api/create_talo")
@@ -3247,11 +3226,11 @@ async def create_nested_reply(parent_reply_id: str, request: Request):
     if not parent_reply:
         raise HTTPException(status_code=404, detail="Parent reply not found")
     
-    # Create the nested reply
+    # Create the nested reply - CRITICAL: Set parent_talo_id to the main post ID
     nested_reply = {
         "id": str(uuid.uuid4()),
         "parent_reply_id": parent_reply_id,
-        "parent_talo_id": talo_id,
+        "parent_talo_id": talo_id,  # This links to the main post
         "user_id": user["user_id"],
         "content": content,
         "photos": [],
@@ -3263,39 +3242,35 @@ async def create_nested_reply(parent_reply_id: str, request: Request):
         data["replies"] = []
     data["replies"].append(nested_reply)
     
-    # Update parent reply's child count (optional, can be calculated on the fly)
-    parent_reply["child_reply_count"] = parent_reply.get("child_reply_count", 0) + 1
-    
     # Send notification to parent reply owner if they follow the replier
-    # In create_nested_reply endpoint, update the notification:
     if parent_user_id and parent_user_id != user["user_id"]:
-      follows_replier = False
-      for follow in data.get("follows", []):
-          if follow.get("follower_id") == parent_user_id and follow.get("following_id") == user["user_id"]:
-              follows_replier = True
-              break
-      
-      if follows_replier:
-          if "notifications" not in data:
-              data["notifications"] = []
-          
-          # Create a clickable link in the notification
-          notification = {
-              "id": str(uuid.uuid4()),
-              "user_id": parent_user_id,
-              "type": "reply_to_reply",
-              "message": f"@{user['user_id']} replied to your comment",
-              "related_talo_id": talo_id,  # This is the post ID
-              "parent_reply_id": parent_reply_id,  # The parent reply ID
-              "reply_id": nested_reply["id"],  # The new nested reply ID
-              "from_user_id": user["user_id"],
-              "read": False,
-              "created_at": datetime.now().isoformat()
-          }
-          data["notifications"].append(notification)
+        follows_replier = False
+        for follow in data.get("follows", []):
+            if follow.get("follower_id") == parent_user_id and follow.get("following_id") == user["user_id"]:
+                follows_replier = True
+                break
+        
+        if follows_replier:
+            if "notifications" not in data:
+                data["notifications"] = []
+            
+            notification = {
+                "id": str(uuid.uuid4()),
+                "user_id": parent_user_id,
+                "type": "reply_to_reply",
+                "message": f"@{user['user_id']} replied to your comment",
+                "related_talo_id": talo_id,
+                "parent_reply_id": parent_reply_id,
+                "reply_id": nested_reply["id"],
+                "from_user_id": user["user_id"],
+                "read": False,
+                "created_at": datetime.now().isoformat()
+            }
+            data["notifications"].append(notification)
+    
+    await save_jsonbin_data(data)
     
     return {"message": "Reply posted successfully", "reply_id": nested_reply["id"]}
-
 
 @app.get("/api/health")
 async def health_check():
