@@ -12,7 +12,6 @@
             box-sizing: border-box;
         }
 
-        /* Make body full height for flex layout */
         html, body {
             height: 100%;
         }
@@ -24,7 +23,6 @@
             flex-direction: column;
         }
 
-        /* Header styles - matching dashboard */
         .header {
             background: #cc0000;
             padding: 12px 16px;
@@ -84,7 +82,6 @@
             padding: 5px;
         }
 
-        /* Scrollable content area */
         .scrollable-content {
             flex: 1;
             overflow-y: auto;
@@ -113,7 +110,6 @@
             background: #990000;
         }
 
-        /* Post Card - matching dashboard talo-card */
         .post-card {
             background: white;
             border-radius: 15px;
@@ -160,7 +156,6 @@
             line-height: 1.4;
         }
 
-        /* Hashtag links */
         .hashtag-link {
             color: inherit;
             text-decoration: none;
@@ -171,7 +166,6 @@
             text-decoration: underline;
         }
 
-        /* Photo Grid - matching dashboard */
         .post-photos {
             display: grid;
             gap: 8px;
@@ -258,7 +252,6 @@
             transform: scale(1.02);
         }
 
-        /* Post Stats - matching dashboard */
         .post-stats {
             display: flex;
             gap: 20px;
@@ -304,7 +297,6 @@
             color: #cc0000;
         }
 
-        /* Reply Form */
         .reply-form {
             background: white;
             border-radius: 15px;
@@ -384,7 +376,6 @@
             transform: none;
         }
 
-        /* Replies Section */
         .replies-section {
             margin-top: 20px;
             margin-bottom: 20px;
@@ -403,6 +394,114 @@
             padding: 15px;
             margin-bottom: 15px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .reply-card.nested {
+            margin-left: 40px;
+            background: #fafafa;
+            border-left: 3px solid #cc0000;
+        }
+
+        .reply-actions-row {
+            display: flex;
+            gap: 15px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #eee;
+        }
+
+        .reply-reply-btn {
+            background: none;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #666;
+            transition: color 0.2s;
+        }
+
+        .reply-reply-btn:hover {
+            color: #cc0000;
+        }
+
+        .nested-reply-form {
+            margin-top: 12px;
+            padding: 12px;
+            background: #f5f5f5;
+            border-radius: 12px;
+            display: none;
+        }
+
+        .nested-reply-form.show {
+            display: block;
+        }
+
+        .nested-reply-textarea {
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 13px;
+            font-family: inherit;
+            resize: vertical;
+            margin-bottom: 8px;
+        }
+
+        .nested-reply-textarea:focus {
+            outline: none;
+            border-color: #cc0000;
+        }
+
+        .nested-reply-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .nested-submit-btn {
+            background: #cc0000;
+            color: white;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .nested-cancel-btn {
+            background: #ccc;
+            color: #333;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .reply-like-btn.liked {
+            color: #ffcc00;
+        }
+
+        .view-replies-btn {
+            background: none;
+            border: none;
+            color: #cc0000;
+            font-size: 12px;
+            cursor: pointer;
+            margin-top: 10px;
+            padding: 5px 0;
+            font-weight: bold;
+        }
+
+        .view-replies-btn:hover {
+            text-decoration: underline;
+        }
+
+        .child-replies-container {
+            margin-top: 12px;
         }
 
         .reply-header {
@@ -453,34 +552,6 @@
             margin-top: 8px;
         }
 
-        .reply-stats {
-            display: flex;
-            gap: 15px;
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid #eee;
-        }
-
-        .reply-like-btn {
-            background: none;
-            border: none;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            cursor: pointer;
-            font-size: 13px;
-            color: #666;
-            transition: color 0.2s;
-        }
-
-        .reply-like-btn:hover {
-            color: #cc0000;
-        }
-
-        .reply-like-btn.liked {
-            color: #ffcc00;
-        }
-
         .no-replies {
             text-align: center;
             padding: 40px;
@@ -518,7 +589,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Promoted badge */
         .promoted-badge {
             background: #ffcc00;
             color: #990000;
@@ -529,7 +599,6 @@
             margin-left: 8px;
         }
 
-        /* Fixed Footer - matching dashboard */
         .footer {
             background: #cc0000;
             color: white;
@@ -548,7 +617,6 @@
             margin: 0;
         }
 
-        /* Flash notification */
         .flash-notification {
             position: fixed;
             top: 80px;
@@ -561,6 +629,78 @@
             z-index: 2000;
             font-size: 14px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .post-actions-btn {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #666;
+            padding: 5px 8px;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+
+        .post-actions-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .post-actions-dropdown {
+            position: relative;
+        }
+
+        .post-actions-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 5px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: none !important;
+            z-index: 1000;
+            min-width: 140px;
+            overflow: hidden;
+        }
+
+        .post-actions-menu.show {
+            display: block !important;
+        }
+
+        .delete-post-btn {
+            background: none;
+            border: none;
+            padding: 10px 16px;
+            cursor: pointer;
+            color: #dc3545;
+            width: 100%;
+            text-align: left;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .delete-post-btn:hover {
+            background: #fff0f0;
+        }
+
+        .promote-post-btn {
+            background: none;
+            border: none;
+            padding: 10px 16px;
+            cursor: pointer;
+            color: #ffcc00;
+            background: linear-gradient(135deg, #990000 0%, #cc0000 100%);
+            width: 100%;
+            text-align: left;
+            font-size: 14px;
+            transition: background 0.2s;
+            font-weight: bold;
+        }
+
+        .promote-post-btn:hover {
+            background: linear-gradient(135deg, #cc0000 0%, #ff0000 100%);
+            color: white;
         }
 
         @media (max-width: 768px) {
@@ -611,210 +751,14 @@
                 font-size: 22px;
                 padding: 4px;
             }
-        }
 
-/* Post actions dropdown - FIXED */
-.post-actions-btn {
-    background: none;
-    border: none;
-    font-size: 18px;
-    cursor: pointer;
-    color: #666;
-    padding: 5px 8px;
-    border-radius: 50%;
-    transition: background 0.2s;
-}
-
-.post-actions-btn:hover {
-    background: #f0f0f0;
-}
-
-.post-actions-dropdown {
-    position: relative;
-}
-
-.post-actions-menu {
-    position: absolute;
-    right: 0;
-    top: 100%;
-    margin-top: 5px;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    display: none !important;
-    z-index: 1000;
-    min-width: 140px;
-    overflow: hidden;
-}
-
-.post-actions-menu.show {
-    display: block !important;
-}
-
-.delete-post-btn {
-    background: none;
-    border: none;
-    padding: 10px 16px;
-    cursor: pointer;
-    color: #dc3545;
-    width: 100%;
-    text-align: left;
-    font-size: 14px;
-    transition: background 0.2s;
-}
-
-.delete-post-btn:hover {
-    background: #fff0f0;
-}
-
-.promote-post-btn {
-    background: none;
-    border: none;
-    padding: 10px 16px;
-    cursor: pointer;
-    color: #ffcc00;
-    background: linear-gradient(135deg, #990000 0%, #cc0000 100%);
-    width: 100%;
-    text-align: left;
-    font-size: 14px;
-    transition: background 0.2s;
-    font-weight: bold;
-}
-
-.promote-post-btn:hover {
-    background: linear-gradient(135deg, #cc0000 0%, #ff0000 100%);
-    color: white;
-}
-
-.reply-card {
-            background: white;
-            border-radius: 15px;
-            padding: 15px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            position: relative;
-        }
-        
-        .reply-card.nested {
-            margin-left: 40px;
-            background: #fafafa;
-            border-left: 3px solid #cc0000;
-        }
-        
-        .reply-actions-row {
-            display: flex;
-            gap: 15px;
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid #eee;
-        }
-        
-        .reply-reply-btn {
-            background: none;
-            border: none;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            cursor: pointer;
-            font-size: 12px;
-            color: #666;
-            transition: color 0.2s;
-        }
-        
-        .reply-reply-btn:hover {
-            color: #cc0000;
-        }
-        
-        .nested-reply-form {
-            margin-top: 12px;
-            margin-left: 40px;
-            padding: 12px;
-            background: #f5f5f5;
-            border-radius: 12px;
-            display: none;
-        }
-        
-        .nested-reply-form.show {
-            display: block;
-        }
-        
-        .nested-reply-textarea {
-            width: 100%;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 10px;
-            font-size: 13px;
-            font-family: inherit;
-            resize: vertical;
-            margin-bottom: 8px;
-        }
-        
-        .nested-reply-textarea:focus {
-            outline: none;
-            border-color: #cc0000;
-        }
-        
-        .nested-reply-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-        
-        .nested-submit-btn {
-            background: #cc0000;
-            color: white;
-            border: none;
-            padding: 6px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        
-        .nested-cancel-btn {
-            background: #ccc;
-            color: #333;
-            border: none;
-            padding: 6px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        
-        .reply-like-btn.liked {
-            color: #ffcc00;
-        }
-        
-        .view-replies-btn {
-            background: none;
-            border: none;
-            color: #cc0000;
-            font-size: 11px;
-            cursor: pointer;
-            margin-top: 5px;
-            padding: 0;
-        }
-        
-        .child-replies {
-            margin-top: 12px;
-            display: none;
-        }
-        
-        .child-replies.show {
-            display: block;
-        }
-        
-        @media (max-width: 768px) {
             .reply-card.nested {
-                margin-left: 20px;
-            }
-            .nested-reply-form {
                 margin-left: 20px;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Fixed Header - matching dashboard -->
     <div class="header">
         <div class="logo-area">
             <div class="ram-icon">🐏</div>
@@ -829,49 +773,39 @@
         </div>
     </div>
 
-    <!-- Scrollable Main Content -->
     <div class="scrollable-content">
         <div class="container">
             <a href="/dashboard" class="back-btn">← Back to Dashboard</a>
             
-            <!-- Main Post - matching dashboard talo-card style -->
+            <!-- Main Post -->
             <div class="post-card" data-talo-id="{{ talo.id }}">
-                <!-- Replace the post-header div in post.html -->
-	<div class="post-header">
-    		{% if talo.user_photo %}
-    		<img class="post-user-photo" src="{{ talo.user_photo }}" alt="">
-    		{% else %}
-    		<div class="post-user-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center;">👤</div>
-    		{% endif %}
-    		<div class="post-user-info">
-        		<a href="/profile/{{ talo.user_id }}" style="text-decoration: none; color: inherit;">
-            		<span class="post-user-name">{{ talo.user_name }}</span>
-            		<span class="post-user-id">@{{ talo.user_id }}</span>
-            		{% if talo.promoted %}
-            		<span class="promoted-badge">⭐ Promoted</span>
-            		{% endif %}
-        		</a>
-        		<div class="post-time" data-time="{{ talo.created_at }}"></div>
-    		</div>
-    		{% if user.user_id == talo.user_id %}
-        <div class="post-actions-dropdown">
-            <button class="post-actions-btn" onclick="event.stopPropagation(); window.togglePostActions(this)">⋮</button>
-            <div class="post-actions-menu">
-                
-                {% if not talo.promoted %}
-                <!--
-                <button class="promote-post-btn" onclick="event.stopPropagation(); window.openPromotionModalFromPost('{{ talo.id }}')">⭐ Promote Post</button>
-                //-->
-                <button class="promote-post-btn" >⭐ Promote Post</button>
-                {% endif %}
-                <button class="delete-post-btn" onclick="event.stopPropagation(); window.deletePost('{{ talo.id }}')">🗑️ Delete Post</button>
-            </div>
-        </div>
-        {% endif %}
+                <div class="post-header">
+                    {% if talo.user_photo %}
+                    <img class="post-user-photo" src="{{ talo.user_photo }}" alt="">
+                    {% else %}
+                    <div class="post-user-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center;">👤</div>
+                    {% endif %}
+                    <div class="post-user-info">
+                        <a href="/profile/{{ talo.user_id }}" style="text-decoration: none; color: inherit;">
+                            <span class="post-user-name">{{ talo.user_name }}</span>
+                            <span class="post-user-id">@{{ talo.user_id }}</span>
+                            {% if talo.promoted %}
+                            <span class="promoted-badge">⭐ Promoted</span>
+                            {% endif %}
+                        </a>
+                        <div class="post-time" data-time="{{ talo.created_at }}"></div>
+                    </div>
+                    {% if user.user_id == talo.user_id %}
+                    <div class="post-actions-dropdown">
+                        <button class="post-actions-btn" onclick="event.stopPropagation(); togglePostActions(this)">⋮</button>
+                        <div class="post-actions-menu">
+                            <button class="delete-post-btn" onclick="event.stopPropagation(); deletePost('{{ talo.id }}')">🗑️ Delete Post</button>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="post-content" id="postContent">{{ talo.content }}</div>
 
-		</div><div class="post-content" id="postContent">{{ talo.content }}</div>
-
-                <!-- Enhanced Photo Display with 4:5 Aspect Ratio -->
                 {% if talo.photos and talo.photos|length > 0 %}
                 <div class="post-photos photo-count-{{ talo.photos|length }}">
                     {% for photo in talo.photos %}
@@ -912,7 +846,8 @@
                     <button type="button" class="submit-btn" id="replySubmitBtn" onclick="submitReplyWithFirebase()">Post Reply</button>
                 </div>
             </div>
-           <!-- Replies Section -->
+
+            <!-- Replies Section -->
             <div class="replies-section">
                 <h3 class="replies-title">Replies ({{ replies|length }})</h3>
                 <div id="repliesContainer">
@@ -957,13 +892,13 @@
                                 </div>
                             </div>
                             
-                            <!-- Child replies container -->
+                            <!-- Child replies - RECURSIVE -->
                             {% if reply.child_replies %}
-                            <div class="child-replies" id="childReplies-{{ reply.id }}" style="margin-top: 12px;">
+                            <div class="child-replies-wrapper" style="margin-top: 12px;">
                                 <button class="view-replies-btn" onclick="toggleChildReplies('{{ reply.id }}')">
                                     ↓ View {{ reply.child_replies|length }} replies
                                 </button>
-                                <div class="child-replies-container" id="childRepliesContainer-{{ reply.id }}" style="display: none; margin-top: 12px;">
+                                <div class="child-replies-container" id="childRepliesContainer-{{ reply.id }}" style="display: none;">
                                     {{ loop(reply.child_replies) }}
                                 </div>
                             </div>
@@ -980,9 +915,6 @@
         </div>
     </div>
 
-
-
-    <!-- Fixed Footer -->
     <div class="footer">
         <p>&copy; 2026 GuAn Microblogging Platform. All rights reserved.</p>
     </div>
@@ -1018,549 +950,140 @@
         window.getDownloadURL = getDownloadURL;
     </script>
 
-<script>
-// ========== POST ACTIONS - FIXED ==========
-window.togglePostActions = function(btn) {
-    // Prevent event bubbling
-    if (window.event) {
-        window.event.stopPropagation();
-    }
-    
-    console.log('Toggle post actions called'); // Debug log
-    
-    // Get the parent dropdown container
-    const dropdown = btn.closest('.post-actions-dropdown');
-    if (!dropdown) {
-        console.log('Dropdown container not found');
-        return;
-    }
-    
-    // Get the menu element inside this dropdown
-    const menu = dropdown.querySelector('.post-actions-menu');
-    
-    if (!menu) {
-        console.log('Menu not found');
-        return;
-    }
-    
-    // Close all other menus first
-    document.querySelectorAll('.post-actions-menu').forEach(m => {
-        if (m !== menu) {
-            m.classList.remove('show');
-        }
-    });
-    
-    // Toggle the clicked menu
-    menu.classList.toggle('show');
-    console.log('Menu toggled, now has class show:', menu.classList.contains('show'));
-};
-
-window.deletePost = async function(taloId) {
-    if (!confirm('⚠️ Are you sure you want to delete this post? This action cannot be undone.')) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/api/delete_talo/${taloId}`, {
-            method: 'DELETE'
-        });
-        
-        if (response.ok) {
-            showFlashNotification('✓ Post deleted successfully', 'success');
-            setTimeout(() => {
-                window.location.href = '/dashboard';
-            }, 1000);
-        } else {
-            const error = await response.json();
-            alert(error.detail || 'Failed to delete post');
-        }
-    } catch (error) {
-        console.error('Error deleting post:', error);
-        alert('Network error. Please try again.');
-    }
-};
-
-window.openPromotionModalFromPost = function(taloId) {
-    window.currentPromotionTalo = taloId;
-    const promotionModal = document.getElementById('promotionModal');
-    if (promotionModal) {
-        promotionModal.style.display = 'flex';
-    } else {
-        // If modal doesn't exist on post page, redirect to dashboard with promotion intent
-        window.location.href = `/dashboard?promote=${taloId}`;
-    }
-};
-
-// Close dropdown when clicking anywhere else
-document.addEventListener('click', function(e) {
-    // Check if click target is NOT inside a post-actions-menu and NOT a post-actions-btn
-    if (!e.target.closest('.post-actions-menu') && !e.target.closest('.post-actions-btn')) {
-        document.querySelectorAll('.post-actions-menu').forEach(menu => {
-            menu.classList.remove('show');
-        });
-    }
-});
-
-// Fix retalo function in post.html
-window.retalo = async function(taloId, originalUserId, originalContent, originalPhotos = []) {
-    const btn = document.querySelector(`.retalo-btn[data-id="${taloId}"]`);
-    const originalText = btn.innerHTML;
-    if (btn) {
-        btn.innerHTML = '<span class="loading-spinner"></span> Reposting...';
-        btn.disabled = true;
-    }
-    try {
-        const response = await fetch('/api/retalo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                original_talo_id: taloId,
-                original_user_id: originalUserId,
-                original_content: originalContent,
-                original_photos: originalPhotos
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            if (btn) {
-                const countSpan = btn.querySelector('.retalo-count');
-                if (countSpan) countSpan.textContent = parseInt(countSpan.textContent) + 1;
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-            showFlashNotification('✓ Post reposted successfully!', 'success');
-            setTimeout(() => location.reload(), 1500);
-        } else {
-            showFlashNotification(data.detail || 'Failed to repost', 'error');
-            if (btn) {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-        }
-    } catch (error) {
-        console.error('Retalo error:', error);
-        showFlashNotification('Network error. Please try again.', 'error');
-        if (btn) {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        }
-    }
-};
-
-function showFlashNotification(message, type = 'success') {
-    const existing = document.querySelector('.flash-notification');
-    if (existing) existing.remove();
-    const notification = document.createElement('div');
-    notification.className = 'flash-notification';
-    notification.innerHTML = message;
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 2500);
-}
-
-
-// Add this to the post.html script section
-// Highlight a specific reply when coming from notification
-function highlightReply(replyId) {
-    if (replyId) {
-        // Scroll to the reply
-        const replyElement = document.getElementById(`reply-${replyId}`);
-        if (replyElement) {
-            replyElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            replyElement.style.transition = 'background-color 0.5s';
-            replyElement.style.backgroundColor = '#fff8e8';
-            setTimeout(() => {
-                replyElement.style.backgroundColor = '';
-            }, 2000);
-        }
-    }
-}
-
-// Check URL for reply parameter
-//const urlParams = new URLSearchParams(window.location.search);
-//const highlightReplyId = urlParams.get('reply');
-//if (highlightReplyId) {
-//    setTimeout(() => {
-//        highlightReply(highlightReplyId);
-//    }, 500);
-//}
-
-
-// At the bottom of post.html script
-const highlightReplyId = '{{ highlight_reply_id }}';
-if (highlightReplyId) {
-    setTimeout(() => {
-        const replyElement = document.getElementById(`reply-${highlightReplyId}`);
-        if (replyElement) {
-            replyElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            replyElement.style.backgroundColor = '#fff8e8';
-            setTimeout(() => {
-                replyElement.style.backgroundColor = '';
-            }, 2000);
-        }
-    }, 500);
-}
-
-</script>
-
     <script>
-        let selectedPhotoFile = null;
-        let isSubmitting = false;
-        const taloId = '{{ talo.id }}';
-        const loggedInUserId = '{{ user.user_id }}';
-
-        let currentReplyPhotoFile = null;
-        
-       // ========== NESTED REPLY FUNCTIONS ==========
-
-              function showNestedReplyForm(replyId, userId) {
-                  // Hide all other nested forms first
-                  document.querySelectorAll('.nested-reply-form').forEach(form => {
-                      if (form.id !== `nestedForm-${replyId}`) {
-                          form.classList.remove('show');
-                      }
-                  });
-                  const form = document.getElementById(`nestedForm-${replyId}`);
-                  if (form) {
-                      form.classList.toggle('show');
-                      const textarea = document.getElementById(`nestedReplyContent-${replyId}`);
-                      if (textarea && form.classList.contains('show')) {
-                          textarea.focus();
-                      }
-                  }
-              }
-
-              function hideNestedReplyForm(replyId) {
-                  const form = document.getElementById(`nestedForm-${replyId}`);
-                  if (form) {
-                      form.classList.remove('show');
-                      const textarea = document.getElementById(`nestedReplyContent-${replyId}`);
-                      if (textarea) textarea.value = '';
-                  }
-              }
-
-              function toggleChildReplies(replyId) {
-                  const container = document.getElementById(`childRepliesContainer-${replyId}`);
-                  if (!container) return;
-                  
-                  const btn = document.querySelector(`#childReplies-${replyId} .view-replies-btn`);
-                  
-                  if (container.style.display === 'none') {
-                      container.style.display = 'block';
-                      if (btn) {
-                          const count = btn.textContent.match(/\d+/);
-                          btn.textContent = `↑ Hide ${count} replies`;
-                      }
-                  } else {
-                      container.style.display = 'none';
-                      if (btn) {
-                          const count = btn.textContent.match(/\d+/);
-                          btn.textContent = `↓ View ${count} replies`;
-                      }
-                  }
-              }
-
-              // Initialize all child replies as hidden on page load
-              function initializeChildReplies() {
-                  document.querySelectorAll('.child-replies-container').forEach(container => {
-                      container.style.display = 'none';
-                  });
-              }
-
-              // Call this after the page loads
-              document.addEventListener('DOMContentLoaded', function() {
-                  initializeChildReplies();
-                  
-                  // Also re-initialize after any dynamic content updates
-                  const observer = new MutationObserver(function(mutations) {
-                      initializeChildReplies();
-                  });
-                  const repliesContainer = document.getElementById('repliesContainer');
-                  if (repliesContainer) {
-                      observer.observe(repliesContainer, { childList: true, subtree: true });
-                  }
-              });
-
-              async function submitNestedReply(parentReplyId, parentUserId) {
-                  const textarea = document.getElementById(`nestedReplyContent-${parentReplyId}`);
-                  const content = textarea?.value.trim();
-                  
-                  if (!content) {
-                      alert('Please enter a reply');
-                      return;
-                  }
-                  
-                  if (content.length > 250) {
-                      alert('Reply cannot exceed 250 characters');
-                      return;
-                  }
-                  
-                  const submitBtn = document.querySelector(`#nestedForm-${parentReplyId} .nested-submit-btn`);
-                  const originalText = submitBtn.innerHTML;
-                  submitBtn.disabled = true;
-                  submitBtn.innerHTML = '<span class="loading-spinner"></span>';
-                  
-                  try {
-                      const response = await fetch(`/api/create_nested_reply/${parentReplyId}`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                              content: content,
-                              parent_user_id: parentUserId,
-                              talo_id: '{{ talo.id }}'
-                          })
-                      });
-                      
-                      if (response.ok) {
-                          // Reload the page to show the new reply
-                          location.reload();
-                      } else {
-                          const error = await response.json();
-                          alert('Failed to post reply: ' + (error.detail || 'Unknown error'));
-                      }
-                  } catch (error) {
-                      console.error('Error posting nested reply:', error);
-                      alert('Failed to post reply. Please try again.');
-                  } finally {
-                      submitBtn.disabled = false;
-                      submitBtn.innerHTML = originalText;
-                  }
-              } 
-
-
-              
-        // Reply Photo Preview
-        function previewReplyPhoto(input) {
-            const previewDiv = document.getElementById('replyPhotoPreview');
-            if (input.files && input.files[0]) {
-                currentReplyPhotoFile = input.files[0];
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    previewDiv.innerHTML = `
-                        <img src="${e.target.result}" class="photo-preview-img" alt="Preview">
-                        <button type="button" onclick="clearReplyPhoto()" style="margin-left: 5px; background: #dc3545; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer;">✖</button>
-                    `;
-                };
-                reader.readAsDataURL(currentReplyPhotoFile);
+        // ========== POST ACTIONS ==========
+        function togglePostActions(btn) {
+            if (window.event) {
+                window.event.stopPropagation();
             }
-        }
-        
-        function clearReplyPhoto() {
-            currentReplyPhotoFile = null;
-            document.getElementById('replyPhoto').value = '';
-            document.getElementById('replyPhotoPreview').innerHTML = '';
-        }
-        
-        // Submit Reply to main post
-        async function submitReplyWithFirebase() {
-            const content = document.getElementById('replyContent').value;
+            const dropdown = btn.closest('.post-actions-dropdown');
+            if (!dropdown) return;
+            const menu = dropdown.querySelector('.post-actions-menu');
+            if (!menu) return;
             
-            if (!content.trim()) {
-                alert('Please enter a reply');
+            document.querySelectorAll('.post-actions-menu').forEach(m => {
+                if (m !== menu) m.classList.remove('show');
+            });
+            menu.classList.toggle('show');
+        }
+
+        async function deletePost(taloId) {
+            if (!confirm('⚠️ Are you sure you want to delete this post? This action cannot be undone.')) {
                 return;
             }
-            
-            if (content.length > 250) {
-                alert('Reply cannot exceed 250 characters');
-                return;
-            }
-            
-            const submitBtn = document.getElementById('replySubmitBtn');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="loading-spinner"></span> Posting...';
-            
             try {
-                let photoData = null;
-                
-                if (currentReplyPhotoFile) {
-                    const fileExt = currentReplyPhotoFile.name.split('.').pop();
-                    const fileName = `${loggedInUserId}/replies/{{ talo.id }}/${Date.now()}.${fileExt}`;
-                    const storageRef = window.firebaseRef(window.firebaseStorage, `replies/${fileName}`);
-                    const snapshot = await window.uploadBytes(storageRef, currentReplyPhotoFile);
-                    const downloadURL = await window.getDownloadURL(snapshot.ref);
-                    photoData = {
-                        url: downloadURL,
-                        path: `replies/${fileName}`,
-                        type: currentReplyPhotoFile.type
-                    };
-                }
-                
-                const response = await fetch(`/api/create_reply/{{ talo.id }}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        content: content,
-                        photo: photoData
-                    })
+                const response = await fetch(`/api/delete_talo/${taloId}`, {
+                    method: 'DELETE'
                 });
-                
                 if (response.ok) {
-                    location.reload();
+                    showFlashNotification('✓ Post deleted successfully', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 1000);
                 } else {
                     const error = await response.json();
-                    alert('Failed to post reply: ' + (error.detail || 'Unknown error'));
+                    alert(error.detail || 'Failed to delete post');
                 }
             } catch (error) {
-                console.error('Error posting reply:', error);
-                alert('Failed to post reply. Please try again.');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-                currentReplyPhotoFile = null;
-                document.getElementById('replyPhotoPreview').innerHTML = '';
-                document.getElementById('replyPhoto').value = '';
+                console.error('Error deleting post:', error);
+                alert('Network error. Please try again.');
             }
         }
-        
-        // Like Reply function
-        async function likeReply(replyId, button) {
-            try {
-                const response = await fetch(`/api/like_reply/${replyId}`, {
-                    method: 'POST'
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.post-actions-menu') && !e.target.closest('.post-actions-btn')) {
+                document.querySelectorAll('.post-actions-menu').forEach(menu => {
+                    menu.classList.remove('show');
                 });
-                const data = await response.json();
-                
-                const likeSpan = button.querySelector('.like-count');
-                likeSpan.textContent = data.count;
-                
-                if (data.liked) {
-                    button.classList.add('liked');
-                } else {
-                    button.classList.remove('liked');
-                }
-            } catch (error) {
-                console.error('Error liking reply:', error);
             }
-        }  
+        });
 
+        // ========== TIME FORMATTING ==========
+        const TIME_DEDUCTION_SECONDS = 3580;
 
- //End of New additions
-
-      
-// HARDCODED DEDUCTION: Subtract 59 minutes and 40 seconds (3580 seconds total)
-// This compensates for server/client timezone differences
-const TIME_DEDUCTION_SECONDS = 3580; // 59 minutes * 60 + 40 seconds = 3540 + 40 = 3580
-
-function formatTimeAgo(dateStr) {
-    if (!dateStr) return 'just now';
-    
-    let date = new Date(dateStr);
-    
-    // Check if date is valid
-    if (isNaN(date.getTime())) {
-        // Try parsing as UTC
-        date = new Date(dateStr + 'Z');
-    }
-    if (isNaN(date.getTime())) {
-        console.warn('Invalid date:', dateStr);
-        return 'just now';
-    }
-    
-    const now = new Date();
-    // Calculate difference and apply hardcoded deduction
-    let diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000) - TIME_DEDUCTION_SECONDS;
-    
-    // If after deduction it's negative, treat as just now
-    if (diffSeconds < 0) {
-        // If it's within 60 seconds of being negative, show as just now
-        if (diffSeconds > -60) {
-            return 'just now';
+        function formatTimeAgo(dateStr) {
+            if (!dateStr) return 'just now';
+            let date = new Date(dateStr);
+            if (isNaN(date.getTime())) {
+                date = new Date(dateStr + 'Z');
+            }
+            if (isNaN(date.getTime())) {
+                return 'just now';
+            }
+            const now = new Date();
+            let diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000) - TIME_DEDUCTION_SECONDS;
+            if (diffSeconds < 0) {
+                if (diffSeconds > -60) return 'just now';
+                diffSeconds = 0;
+            }
+            if (diffSeconds < 5) return 'just now';
+            if (diffSeconds < 60) return `${diffSeconds}s`;
+            
+            const diffMinutes = Math.floor(diffSeconds / 60);
+            const remainingSeconds = diffSeconds % 60;
+            if (diffMinutes < 60) {
+                if (remainingSeconds > 0 && remainingSeconds <= 59) {
+                    return `${diffMinutes}m ${remainingSeconds}s`;
+                }
+                return `${diffMinutes}m`;
+            }
+            
+            const diffHours = Math.floor(diffMinutes / 60);
+            const remainingMinutes = diffMinutes % 60;
+            if (diffHours < 24) {
+                if (remainingMinutes > 0) {
+                    return `${diffHours}h ${remainingMinutes}m`;
+                }
+                return `${diffHours}h`;
+            }
+            
+            const diffDays = Math.floor(diffHours / 24);
+            const remainingHours = diffHours % 24;
+            if (diffDays < 7) {
+                if (remainingHours > 0) {
+                    return `${diffDays}d ${remainingHours}h`;
+                }
+                return `${diffDays}d`;
+            }
+            
+            const diffWeeks = Math.floor(diffDays / 7);
+            const remainingDays = diffDays % 7;
+            if (diffWeeks < 4) {
+                if (remainingDays > 0) {
+                    return `${diffWeeks}w ${remainingDays}d`;
+                }
+                return `${diffWeeks}w`;
+            }
+            
+            const diffMonths = Math.floor(diffDays / 30);
+            const remainingDaysAfterMonths = diffDays % 30;
+            if (diffMonths < 12) {
+                if (remainingDaysAfterMonths > 0) {
+                    return `${diffMonths}mo ${remainingDaysAfterMonths}d`;
+                }
+                return `${diffMonths}mo`;
+            }
+            
+            const diffYears = Math.floor(diffDays / 365);
+            const remainingMonths = Math.floor((diffDays % 365) / 30);
+            if (remainingMonths > 0) {
+                return `${diffYears}y ${remainingMonths}mo`;
+            }
+            return `${diffYears}y`;
         }
-        // Otherwise, use absolute value for very old posts? No, just set to 0
-        diffSeconds = 0;
-    }
-    
-    // Less than 5 seconds
-    if (diffSeconds < 5) return 'just now';
-    
-    // Seconds (5 to 59 seconds)
-    if (diffSeconds < 60) {
-        return `${diffSeconds}s`;
-    }
-    
-    // Minutes with seconds (1 minute to 59 minutes 59 seconds)
-    const diffMinutes = Math.floor(diffSeconds / 60);
-    const remainingSeconds = diffSeconds % 60;
-    
-    if (diffMinutes < 60) {
-        if (remainingSeconds > 0 && remainingSeconds <= 59) {
-            return `${diffMinutes}m ${remainingSeconds}s`;
-        }
-        return `${diffMinutes}m`;
-    }
-    
-    // Hours with minutes (1 hour to 23 hours 59 minutes)
-    const diffHours = Math.floor(diffMinutes / 60);
-    const remainingMinutes = diffMinutes % 60;
-    
-    if (diffHours < 24) {
-        if (remainingMinutes > 0) {
-            return `${diffHours}h ${remainingMinutes}m`;
-        }
-        return `${diffHours}h`;
-    }
-    
-    // Days with hours (1 day to 6 days 23 hours)
-    const diffDays = Math.floor(diffHours / 24);
-    const remainingHours = diffHours % 24;
-    
-    if (diffDays < 7) {
-        if (remainingHours > 0) {
-            return `${diffDays}d ${remainingHours}h`;
-        }
-        return `${diffDays}d`;
-    }
-    
-    // Weeks with days (1 week to 3 weeks 6 days)
-    const diffWeeks = Math.floor(diffDays / 7);
-    const remainingDays = diffDays % 7;
-    
-    if (diffWeeks < 4) {
-        if (remainingDays > 0) {
-            return `${diffWeeks}w ${remainingDays}d`;
-        }
-        return `${diffWeeks}w`;
-    }
-    
-    // Months with days (1 month to 11 months 29 days)
-    const diffMonths = Math.floor(diffDays / 30);
-    const remainingDaysAfterMonths = diffDays % 30;
-    
-    if (diffMonths < 12) {
-        if (remainingDaysAfterMonths > 0) {
-            return `${diffMonths}mo ${remainingDaysAfterMonths}d`;
-        }
-        return `${diffMonths}mo`;
-    }
-    
-    // Years with months (1 year+)
-    const diffYears = Math.floor(diffDays / 365);
-    const remainingMonths = Math.floor((diffDays % 365) / 30);
-    
-    if (remainingMonths > 0) {
-        return `${diffYears}y ${remainingMonths}mo`;
-    }
-    return `${diffYears}y`;
-}
 
-
-
-        
-        // Format time for all elements
         document.querySelectorAll('[data-time]').forEach(el => {
             if (el.dataset.time) el.textContent = formatTimeAgo(el.dataset.time);
         });
-        
-        // Hashtag linking
+
+        // ========== HASHTAG LINKING ==========
         function formatHashtagLinks(content) {
             const hashtagRegex = /(#\w+)/g;
             return content.replace(hashtagRegex, match => {
                 return `<span class="hashtag-link" onclick="event.stopPropagation(); searchHashtag('${match}')">${match}</span>`;
             });
         }
-        
+
         function searchHashtag(hashtag) {
             let cleanHashtag = String(hashtag).trim();
             if (!cleanHashtag.startsWith('#')) {
@@ -1568,33 +1091,31 @@ function formatTimeAgo(dateStr) {
             }
             window.location.href = `/search?q=${encodeURIComponent(cleanHashtag)}`;
         }
-        
-        // Apply hashtag links to post content
+
         const postContentDiv = document.getElementById('postContent');
         if (postContentDiv) {
             const originalContent = postContentDiv.innerText;
             postContentDiv.innerHTML = formatHashtagLinks(originalContent);
         }
-        
-        // Apply hashtag links to reply contents
+
         document.querySelectorAll('.reply-content').forEach(contentDiv => {
             const originalContent = contentDiv.innerText;
             contentDiv.innerHTML = formatHashtagLinks(originalContent);
         });
-        
-        // Photo Viewer
+
+        // ========== PHOTO VIEWER ==========
         function viewPhoto(url) {
             const modal = document.getElementById('photoViewerModal');
             const viewerImage = document.getElementById('viewerImage');
             viewerImage.src = url;
             modal.style.display = 'flex';
         }
-        
+
         function closePhotoViewer() {
             document.getElementById('photoViewerModal').style.display = 'none';
         }
-        
-        // Like Talo
+
+        // ========== LIKE FUNCTIONS ==========
         async function likeTalo(taloId, btn) {
             try {
                 const response = await fetch(`/api/like/${taloId}`, { method: 'POST' });
@@ -1607,8 +1128,7 @@ function formatTimeAgo(dateStr) {
                 console.error('Error liking talo:', error);
             }
         }
-        
-        // Dislike Talo
+
         async function dislikeTalo(taloId, btn) {
             try {
                 const response = await fetch(`/api/dislike/${taloId}`, { method: 'POST' });
@@ -1619,8 +1139,26 @@ function formatTimeAgo(dateStr) {
                 console.error('Error disliking talo:', error);
             }
         }
-        
-        // Retalo function
+
+        async function likeReply(replyId, button) {
+            try {
+                const response = await fetch(`/api/like_reply/${replyId}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                const likeSpan = button.querySelector('.like-count');
+                likeSpan.textContent = data.count;
+                if (data.liked) {
+                    button.classList.add('liked');
+                } else {
+                    button.classList.remove('liked');
+                }
+            } catch (error) {
+                console.error('Error liking reply:', error);
+            }
+        }
+
+        // ========== RETALO FUNCTION ==========
         async function retalo(taloId, originalUserId, originalContent, originalPhotos = []) {
             const btn = document.querySelector(`.retalo-btn[data-id="${taloId}"]`);
             const originalText = btn.innerHTML;
@@ -1648,7 +1186,7 @@ function formatTimeAgo(dateStr) {
                         btn.disabled = false;
                     }
                     showFlashNotification('✓ Post reposted successfully!', 'success');
-                    setTimeout(() => location.reload(), 2000);
+                    setTimeout(() => location.reload(), 1500);
                 } else {
                     showFlashNotification(data.detail || 'Failed to repost', 'error');
                     if (btn) {
@@ -1657,14 +1195,15 @@ function formatTimeAgo(dateStr) {
                     }
                 }
             } catch (error) {
-                showFlashNotification('Network error', 'error');
+                console.error('Retalo error:', error);
+                showFlashNotification('Network error. Please try again.', 'error');
                 if (btn) {
                     btn.innerHTML = originalText;
                     btn.disabled = false;
                 }
             }
         }
-        
+
         function showFlashNotification(message, type = 'success') {
             const existing = document.querySelector('.flash-notification');
             if (existing) existing.remove();
@@ -1674,8 +1213,13 @@ function formatTimeAgo(dateStr) {
             document.body.appendChild(notification);
             setTimeout(() => notification.remove(), 2500);
         }
-        
-        // Reply Photo Preview
+
+        // ========== REPLY FUNCTIONS ==========
+        let selectedPhotoFile = null;
+        let isSubmitting = false;
+        const taloId = '{{ talo.id }}';
+        const loggedInUserId = '{{ user.user_id }}';
+
         function previewReplyPhoto(input) {
             const previewDiv = document.getElementById('replyPhotoPreview');
             if (input.files && input.files[0]) {
@@ -1690,27 +1234,23 @@ function formatTimeAgo(dateStr) {
                 reader.readAsDataURL(selectedPhotoFile);
             }
         }
-        
+
         function clearReplyPhoto() {
             selectedPhotoFile = null;
             document.getElementById('replyPhoto').value = '';
             document.getElementById('replyPhotoPreview').innerHTML = '';
         }
-        
-        // Submit Reply
+
         async function submitReplyWithFirebase() {
             const content = document.getElementById('replyContent').value;
-            
             if (!content.trim()) {
                 alert('Please enter a reply');
                 return;
             }
-            
             if (content.length > 250) {
                 alert('Reply cannot exceed 250 characters');
                 return;
             }
-            
             if (isSubmitting) return;
             isSubmitting = true;
             
@@ -1721,8 +1261,6 @@ function formatTimeAgo(dateStr) {
             
             try {
                 let photoData = null;
-                
-                // Upload photo to Firebase if selected
                 if (selectedPhotoFile) {
                     const fileExt = selectedPhotoFile.name.split('.').pop();
                     const fileName = `${loggedInUserId}/replies/${taloId}/${Date.now()}.${fileExt}`;
@@ -1736,7 +1274,6 @@ function formatTimeAgo(dateStr) {
                     };
                 }
                 
-                // Send to backend
                 const response = await fetch(`/api/create_reply/${taloId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1759,31 +1296,127 @@ function formatTimeAgo(dateStr) {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalText;
                 isSubmitting = false;
+                selectedPhotoFile = null;
+                document.getElementById('replyPhotoPreview').innerHTML = '';
+                document.getElementById('replyPhoto').value = '';
             }
         }
-        
-        // Like Reply
-        async function likeReply(replyId, button) {
+
+        // ========== NESTED REPLY FUNCTIONS ==========
+        function showNestedReplyForm(replyId, userId) {
+            document.querySelectorAll('.nested-reply-form').forEach(form => {
+                if (form.id !== `nestedForm-${replyId}`) {
+                    form.classList.remove('show');
+                }
+            });
+            const form = document.getElementById(`nestedForm-${replyId}`);
+            if (form) {
+                form.classList.toggle('show');
+                const textarea = document.getElementById(`nestedReplyContent-${replyId}`);
+                if (textarea && form.classList.contains('show')) {
+                    textarea.focus();
+                }
+            }
+        }
+
+        function hideNestedReplyForm(replyId) {
+            const form = document.getElementById(`nestedForm-${replyId}`);
+            if (form) {
+                form.classList.remove('show');
+                const textarea = document.getElementById(`nestedReplyContent-${replyId}`);
+                if (textarea) textarea.value = '';
+            }
+        }
+
+        function toggleChildReplies(replyId) {
+            const container = document.getElementById(`childRepliesContainer-${replyId}`);
+            if (!container) return;
+            
+            const btn = document.querySelector(`#reply-${replyId} .view-replies-btn`);
+            
+            if (container.style.display === 'none') {
+                container.style.display = 'block';
+                if (btn) {
+                    const match = btn.textContent.match(/\d+/);
+                    if (match) {
+                        btn.textContent = `↑ Hide ${match[0]} replies`;
+                    }
+                }
+            } else {
+                container.style.display = 'none';
+                if (btn) {
+                    const match = btn.textContent.match(/\d+/);
+                    if (match) {
+                        btn.textContent = `↓ View ${match[0]} replies`;
+                    }
+                }
+            }
+        }
+
+        async function submitNestedReply(parentReplyId, parentUserId) {
+            const textarea = document.getElementById(`nestedReplyContent-${parentReplyId}`);
+            const content = textarea?.value.trim();
+            
+            if (!content) {
+                alert('Please enter a reply');
+                return;
+            }
+            
+            if (content.length > 250) {
+                alert('Reply cannot exceed 250 characters');
+                return;
+            }
+            
+            const submitBtn = document.querySelector(`#nestedForm-${parentReplyId} .nested-submit-btn`);
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading-spinner"></span>';
+            
             try {
-                const response = await fetch(`/api/like_reply/${replyId}`, {
-                    method: 'POST'
+                const response = await fetch(`/api/create_nested_reply/${parentReplyId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content: content,
+                        parent_user_id: parentUserId,
+                        talo_id: taloId
+                    })
                 });
-                const data = await response.json();
                 
-                const likeSpan = button.querySelector('.like-count');
-                likeSpan.textContent = data.count;
-                
-                if (data.liked) {
-                    button.classList.add('liked');
+                if (response.ok) {
+                    location.reload();
                 } else {
-                    button.classList.remove('liked');
+                    const error = await response.json();
+                    alert('Failed to post reply: ' + (error.detail || 'Unknown error'));
                 }
             } catch (error) {
-                console.error('Error liking reply:', error);
+                console.error('Error posting nested reply:', error);
+                alert('Failed to post reply. Please try again.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
             }
         }
-        
-        // Initialize like and retalo buttons
+
+        function initializeChildReplies() {
+            document.querySelectorAll('.child-replies-container').forEach(container => {
+                container.style.display = 'none';
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeChildReplies();
+            
+            const observer = new MutationObserver(function() {
+                initializeChildReplies();
+            });
+            const repliesContainer = document.getElementById('repliesContainer');
+            if (repliesContainer) {
+                observer.observe(repliesContainer, { childList: true, subtree: true });
+            }
+        });
+
+        // ========== INITIALIZE BUTTONS ==========
         document.querySelectorAll('.like-btn').forEach(btn => {
             btn.addEventListener('click', () => likeTalo(btn.dataset.id, btn));
         });
@@ -1802,34 +1435,24 @@ function formatTimeAgo(dateStr) {
                 if (btn.dataset.photos && btn.dataset.photos !== '[]') {
                     try { photos = JSON.parse(btn.dataset.photos); } catch(e) { photos = []; }
                 }
-                window.retalo(taloId, userId, content, photos);
+                retalo(taloId, userId, content, photos);
             });
         });
 
-        // Character counter for reply textarea
-        const replyTextarea = document.getElementById('replyContent');
-        if (replyTextarea) {
-            replyTextarea.addEventListener('input', function() {
-                const remaining = 250 - this.value.length;
-                if (remaining < 0) {
-                    this.style.borderColor = '#dc3545';
-                } else {
-                    this.style.borderColor = remaining < 20 ? '#ffcc00' : '#ddd';
+        // Highlight reply if specified
+        const highlightReplyId = '{{ highlight_reply_id }}';
+        if (highlightReplyId) {
+            setTimeout(() => {
+                const replyElement = document.getElementById(`reply-${highlightReplyId}`);
+                if (replyElement) {
+                    replyElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    replyElement.style.backgroundColor = '#fff8e8';
+                    setTimeout(() => {
+                        replyElement.style.backgroundColor = '';
+                    }, 2000);
                 }
-            });
+            }, 500);
         }
-
-
-     // At the end of the post.html script, add:
-       window.addEventListener('beforeunload', () => {
-    // Clear saved scroll position when leaving post page
-    // The dashboard will save a new position when navigating away
-      });
-
     </script>
-
-
-
-
 </body>
 </html>
