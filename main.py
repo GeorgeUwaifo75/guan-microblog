@@ -478,12 +478,6 @@ def organize_replies_hierarchically(replies):
     
     return top_level_replies
 
-# Then in the view_post function, replace:
-# replies = [r for r in data.get("replies", []) if r.get("parent_talo_id") == talo_id]
-# With:
-all_replies = [r for r in data.get("replies", []) if r.get("parent_talo_id") == talo_id]
-replies = organize_replies_hierarchically(all_replies)
-
 # Models
 class UserSignup(BaseModel):
     email: str
@@ -1039,7 +1033,9 @@ async def view_post(request: Request, talo_id: str):
             talo["user_photo"] = u.get("profile_photo")
             break
     
-    replies = [r for r in data.get("replies", []) if r.get("parent_talo_id") == talo_id]
+    #replies = [r for r in data.get("replies", []) if r.get("parent_talo_id") == talo_id]
+     all_replies = [r for r in data.get("replies", []) if r.get("parent_talo_id") == talo_id]
+     replies = organize_replies_hierarchically(all_replies)
     
     for reply in replies:
         for u in data.get("users", []):
