@@ -2231,15 +2231,37 @@
     <div id="promotionModal" class="promotion-modal">
         <div class="promotion-modal-content">
             <h3 style="color: #cc0000; margin-bottom: 20px;">⭐ Promote Your Post</h3>
-            <p style="margin-bottom: 15px;">Promoted posts get higher visibility in feeds and appear at the top!</p>
+            <p style="margin-bottom: 15px;">Boost your post visibility with our promotion packages!</p>
+            
             <div class="form-group">
-                <label>Amount ($USD)</label>
-                <input type="number" id="promotionAmount" class="form-control" placeholder="Minimum $100" min="100" step="1">
+                <label>Select Promotion Package</label>
+                <div class="payment-option" id="option-3days" data-days="3" data-amount="600" onclick="selectPromotionPackage('3days', 600, '3 days')">
+                    <strong>📅 3 Days Promotion</strong><br>
+                    <span style="font-size: 18px; color: #cc0000;">₦600</span>
+                    <small style="display: block; color: #666;">Get featured for 3 days</small>
+                </div>
+                <div class="payment-option" id="option-7days" data-days="7" data-amount="1100" onclick="selectPromotionPackage('7days', 1100, '7 days')">
+                    <strong>📅 7 Days Promotion</strong><br>
+                    <span style="font-size: 18px; color: #cc0000;">₦1,100</span>
+                    <small style="display: block; color: #666;">Get featured for 7 days (Best Value)</small>
+                </div>
+                <div class="payment-option" id="option-30days" data-days="30" data-amount="3000" onclick="selectPromotionPackage('30days', 3000, '30 days')">
+                    <strong>📅 30 Days Promotion</strong><br>
+                    <span style="font-size: 18px; color: #cc0000;">₦3,000</span>
+                    <small style="display: block; color: #666;">Get featured for 30 days (Premium)</small>
+                </div>
             </div>
-            <div class="payment-option" id="option-paystack" data-method="paystack" onclick="selectPaymentMethod('paystack')">
-                <strong>🇳🇬 Paystack</strong> - Pay with card, bank transfer, USSD
+            
+            <div class="form-group" style="margin-top: 15px;">
+                <label>Selected Package</label>
+                <div id="selectedPackageDisplay" style="background: #f5f5f5; padding: 10px; border-radius: 8px; text-align: center;">
+                    No package selected
+                </div>
             </div>
-            <button class="paystack-btn" onclick="initiatePromotion()">Continue to Payment →</button>
+            
+            <button class="paystack-btn" id="continuePaymentBtn" onclick="initiatePromotion()" disabled style="background: #ccc; cursor: not-allowed;">
+                Continue to Payment →
+            </button>
             <button style="width: 100%; padding: 10px; margin-top: 10px; background: #ccc; border: none; border-radius: 10px; cursor: pointer;" onclick="closePromotionModal()">Cancel</button>
         </div>
     </div>
@@ -3864,66 +3886,182 @@ setInterval(checkForNewPostsAndUpdate, 30000);
         mobileTrendingDiv.innerHTML = trendingHtml;
     }
     
-    // ========== PROMOTION FUNCTIONS ==========
-    let currentPromotionTalo = null;
+   // ========== PROMOTION FUNCTIONS ==========
+let currentPromotionTalo = null;
+let selectedPromotionPackage = {
+    days: null,
+    amount: null,
+    name: null
+};
+
+function selectPromotionPackage(packageId, amount, daysName) {
+    // Remove selected class from all options
+    document.querySelectorAll('.payment-option').forEach(opt => {
+        opt.classList.remove('selected');
+    });
     
-    function openPromotionModal(taloId) {
-        currentPromotionTalo = taloId;
-        document.getElementById('promotionModal').style.display = 'flex';
+    // Add selected class to clicked option
+    const selectedOption = document.getElementById(`option-${packageId}`);
+    if (selectedOption) {
+        selectedOption.classList.add('selected');
     }
     
-    function closePromotionModal() {
-        document.getElementById('promotionModal').style.display = 'none';
-        currentPromotionTalo = null;
+    // Store selected package details
+    selectedPromotionPackage = {
+        days: packageId === '3days' ? 3 : (packageId === '7days' ? 7 : 30),
+        amount: amount,
+        name: daysName
+    };
+    
+    // Update display
+    const displayDiv = document.getElementById('selectedPackageDisplay');
+    if (displayDiv) {
+        displayDiv.innerHTML = `<strong style="color: #cc0000;">${daysName} Package</strong> - ₦${amount.toLocaleString()}`;
+        displayDiv.style.background = '#e8f5e9';
     }
     
-    function selectPaymentMethod(method) {
-        document.querySelectorAll('.payment-option').forEach(opt => opt.classList.remove('selected'));
-        document.getElementById(`option-${method}`).classList.add('selected');
+    // Enable the payment button
+    const paymentBtn = document.getElementById('continuePaymentBtn');
+    if (paymentBtn) {
+        paymentBtn.disabled = false;
+        paymentBtn.style.background = '#1e3c72';
+        paymentBtn.style.cursor = 'pointer';
+    }
+}
+
+function openPromotionModalFromPost(taloId) {
+    currentPromotionTalo = taloId;
+    // Reset selection
+    selectedPromotionPackage = { days: null, amount: null, name: null };
+    document.querySelectorAll('.payment-option').forEach(opt => {
+        opt.classList.remove('selected');
+    });
+    const displayDiv = document.getElementById('selectedPackageDisplay');
+    if (displayDiv) {
+        displayDiv.innerHTML = 'No package selected';
+        displayDiv.style.background = '#f5f5f5';
+    }
+    const paymentBtn = document.getElementById('continuePaymentBtn');
+    if (paymentBtn) {
+        paymentBtn.disabled = true;
+        paymentBtn.style.background = '#ccc';
+        paymentBtn.style.cursor = 'not-allowed';
+    }
+    document.getElementById('promotionModal').style.display = 'flex';
+}
+
+function closePromotionModal() {
+    document.getElementById('promotionModal').style.display = 'none';
+    currentPromotionTalo = null;
+    selectedPromotionPackage = { days: null, amount: null, name: null };
+}
+
+async function initiatePromotion() {
+    if (!currentPromotionTalo) {
+        alert('No post selected for promotion');
+        return;
     }
     
-    async function initiatePromotion() {
-        const selectedOption = document.querySelector('.payment-option.selected');
-        if (!selectedOption) {
-            alert('Please select a payment method');
-            return;
-        }
-        const paymentMethod = selectedOption.dataset.method;
-        const amount = parseFloat(document.getElementById('promotionAmount').value);
-        if (!amount || amount < 100) {
-            alert('Minimum promotion amount is $100');
-            return;
-        }
+    if (!selectedPromotionPackage.amount || !selectedPromotionPackage.days) {
+        alert('Please select a promotion package');
+        return;
+    }
+    
+    const amount = selectedPromotionPackage.amount;
+    const days = selectedPromotionPackage.days;
+    
+    // Show loading state
+    const btn = document.getElementById('continuePaymentBtn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="loading-spinner"></span> Processing...';
+    btn.disabled = true;
+    
+    try {
+        // First, create the promotion request on the server
         const response = await fetch('/api/promote_post', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ talo_id: currentPromotionTalo, amount: amount, payment_method: paymentMethod })
+            body: JSON.stringify({ 
+                talo_id: currentPromotionTalo, 
+                amount: amount,
+                days: days,
+                payment_method: 'paystack'
+            })
         });
-        if (response.ok) {
-            const data = await response.json();
-            if (paymentMethod === 'paystack') {
-                const paystack = new PaystackPop();
-                paystack.newTransaction({
-                    key: '{{ paystack_public_key }}',
-                    amount: amount * 100,
-                    email: '{{ user.email }}',
-                    onSuccess: async (transaction) => {
-                        await fetch(`/api/confirm_promotion_payment/${data.promotion_id}`, { method: 'POST' });
-                        alert('Promotion activated successfully!');
-                        closePromotionModal();
-                        location.reload();
-                    },
-                    onCancel: () => alert('Payment cancelled')
-                });
-            } else {
-                await fetch(`/api/confirm_promotion_payment/${data.promotion_id}`, { method: 'POST' });
-                alert('Promotion request submitted! Admin will verify.');
-                closePromotionModal();
-            }
-        } else {
-            alert('Failed to initiate promotion');
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to initiate promotion');
         }
+        
+        const data = await response.json();
+        
+        // Get user email - you may need to get this from the page context
+        const userEmail = '{{ user.email }}' || 'customer@guan.com';
+        
+        // Initialize Paystack payment
+        const paystack = new PaystackPop();
+        paystack.newTransaction({
+            key: '{{ paystack_public_key }}',
+            email: userEmail,
+            amount: amount * 100, // Paystack expects amount in kobo (cents)
+            currency: 'NGN',
+            metadata: {
+                promotion_id: data.promotion_id,
+                talo_id: currentPromotionTalo,
+                days: days,
+                amount: amount
+            },
+            onSuccess: async (transaction) => {
+                console.log('Payment successful:', transaction);
+                // Confirm payment on server
+                try {
+                    const confirmResponse = await fetch(`/api/confirm_promotion_payment/${data.promotion_id}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            transaction_ref: transaction.reference,
+                            status: 'success'
+                        })
+                    });
+                    
+                    if (confirmResponse.ok) {
+                        const confirmData = await confirmResponse.json();
+                        showFlashNotification('✓ Payment successful! Your post will be promoted soon.', 'success');
+                        closePromotionModal();
+                        setTimeout(() => {
+                            location.reload();
+                        }, 2000);
+                    } else {
+                        showFlashNotification('Payment successful but verification pending. Admin will review shortly.', 'info');
+                        closePromotionModal();
+                    }
+                } catch (err) {
+                    console.error('Error confirming payment:', err);
+                    showFlashNotification('Payment received! Admin will verify and activate your promotion.', 'info');
+                    closePromotionModal();
+                }
+            },
+            onCancel: () => {
+                showFlashNotification('Payment cancelled', 'error');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            },
+            onError: (error) => {
+                console.error('Paystack error:', error);
+                showFlashNotification('Payment error: ' + error.message, 'error');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error initiating promotion:', error);
+        showFlashNotification(error.message || 'Failed to initiate promotion', 'error');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
+}
     
     // ========== PULL TO REFRESH ==========
     const scrollableContent = document.getElementById('scrollableContent');

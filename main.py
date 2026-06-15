@@ -56,7 +56,9 @@ def filter_banned_words(text: str) -> str:
 class PromotionRequest(BaseModel):
     talo_id: str
     amount: float
+    days: int  # Add days field
     payment_method: str
+
 
 # ===== PAYPAL CONFIGURATION =====
 PAYPAL_EMAIL = 'victor_uwafo@yahoo.com'
@@ -308,6 +310,7 @@ Get started by following interesting accounts and sharing your first talo.
         # Don't raise the exception - allow the app to start anyway
         # The account will be created on next API call if needed
         logger.warning("Could not verify/create wa_guan account. Will retry on next request.")
+
 
 # Also update the get_jsonbin_data function to be more resilient
 async def get_jsonbin_data(force_refresh=False) -> Dict:
@@ -864,7 +867,8 @@ async def dashboard(request: Request):
         "unread_notifications": unread_notifications,
         "paystack_public_key": PAYSTACK_PUBLIC_KEY,
         "promoted_shown_count": promoted_shown_count,
-        "promoted_total_count": promoted_total_count
+        "promoted_total_count": promoted_total_count,
+        "user_email": user.get("email", "")  # Add this line
     })
 
 @app.get("/api/get_promoted_posts")
@@ -2384,15 +2388,23 @@ async def promote_post(request: Request, promotion: PromotionRequest):
     if talo["user_id"] != user["user_id"]:
         raise HTTPException(status_code=403, detail="You can only promote your own posts")
     
+    # Validate amount matches the days
+    expected_amounts = {3: 600, 7: 1100, 30: 3000}
+    if promotion.amount != expected_amounts.get(promotion.days, 0):
+        raise HTTPException(status_code=400, detail="Invalid amount for selected duration")
+    
     promotion_id = str(uuid.uuid4())
     promotion_record = {
         "id": promotion_id,
         "talo_id": promotion.talo_id,
         "user_id": user["user_id"],
+        "user_email": user.get("email", ""),
         "amount": promotion.amount,
+        "days": promotion.days,
         "payment_method": promotion.payment_method,
-        "status": "pending",
-        "created_at": datetime.now().isoformat()
+        "status": "pending_payment",  # pending_payment, payment_verified, activated, expired
+        "created_at": datetime.now().isoformat(),
+        "expires_at": (datetime.now() + timedelta(days=promotion.days)).isoformat()
     }
     
     if "promotions" not in data:
@@ -2402,8 +2414,10 @@ async def promote_post(request: Request, promotion: PromotionRequest):
     
     return {
         "promotion_id": promotion_id,
+        "amount": promotion.amount,
         "message": "Promotion request created. Complete payment to activate."
     }
+
 
 @app.post("/api/confirm_promotion_payment/{promotion_id}")
 async def confirm_promotion_payment(promotion_id: str, request: Request):
@@ -2422,10 +2436,16 @@ async def confirm_promotion_payment(promotion_id: str, request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     
+    body = await request.json()
+    transaction_ref = body.get("transaction_ref")
+    payment_status = body.get("status")
+    
     promotion = None
-    for p in data.get("promotions", []):
+    promotion_index = None
+    for i, p in enumerate(data.get("promotions", [])):
         if p["id"] == promotion_id:
             promotion = p
+            promotion_index = i
             break
     
     if not promotion:
@@ -2434,19 +2454,60 @@ async def confirm_promotion_payment(promotion_id: str, request: Request):
     if promotion["user_id"] != user["user_id"]:
         raise HTTPException(status_code=403, detail="Unauthorized")
     
-    promotion["status"] = "activated"
-    promotion["payment_confirmed_at"] = datetime.now().isoformat()
-    
-    for talo in data.get("talos", []):
-        if talo["id"] == promotion["talo_id"]:
-            talo["promoted"] = True
-            talo["promotion_level"] = promotion.get("amount", 0) // 100
-            talo["promoted_at"] = datetime.now().isoformat()
-            break
-    
-    await save_jsonbin_data(data)
-    
-    return {"message": "Promotion activated successfully!"}
+    # Verify payment with Paystack (optional but recommended)
+    if payment_status == "success":
+        # Mark promotion as payment verified but pending admin activation
+        promotion["status"] = "payment_verified"
+        promotion["transaction_ref"] = transaction_ref
+        promotion["payment_confirmed_at"] = datetime.now().isoformat()
+        
+        # Add to payments record
+        if "payments" not in data:
+            data["payments"] = []
+        data["payments"].append({
+            "id": str(uuid.uuid4()),
+            "user_id": user["user_id"],
+            "amount": promotion["amount"],
+            "days": promotion["days"],
+            "payment_method": "paystack",
+            "transaction_ref": transaction_ref,
+            "status": "completed",
+            "promotion_id": promotion_id,
+            "created_at": datetime.now().isoformat()
+        })
+        
+        # Auto-activate promotion (or set for admin approval)
+        promotion["status"] = "activated"
+        
+        # Mark the talo as promoted
+        for talo in data.get("talos", []):
+            if talo["id"] == promotion["talo_id"]:
+                talo["promoted"] = True
+                talo["promotion_level"] = promotion["days"] // 3  # Level based on days
+                talo["promoted_at"] = datetime.now().isoformat()
+                talo["promotion_expires_at"] = promotion["expires_at"]
+                break
+        
+        # Send notification to user
+        if "notifications" not in data:
+            data["notifications"] = []
+        data["notifications"].append({
+            "id": str(uuid.uuid4()),
+            "user_id": user["user_id"],
+            "type": "promotion_activated",
+            "message": f"Your {promotion['days']}-day promotion has been activated! Your post will be featured.",
+            "related_talo_id": promotion["talo_id"],
+            "read": False,
+            "created_at": datetime.now().isoformat()
+        })
+        
+        await save_jsonbin_data(data)
+        
+        return {"message": "Promotion activated successfully!"}
+    else:
+        promotion["status"] = "payment_failed"
+        await save_jsonbin_data(data)
+        raise HTTPException(status_code=400, detail="Payment verification failed")
 
 
 @app.get("/api/get_followed_users")
@@ -3314,36 +3375,74 @@ async def health_check():
 
 @app.on_event("startup")
 async def startup_event():
-    """Startup with pre-loading of data"""
-    logger.info("Starting GuAn Microblogging Platform...")
-    
-    # Pre-load data into cache on startup
-    for attempt in range(3):
-        try:
-            logger.info(f"Attempting to pre-load API data (attempt {attempt + 1}/3)...")
-            data = await get_jsonbin_data(force_refresh=True)
-            if data:
-                logger.info(f"Successfully pre-loaded data: {len(data.get('users', []))} users, {len(data.get('talos', []))} talos")
-                break
-        except Exception as e:
-            logger.error(f"Pre-load attempt {attempt + 1} failed: {str(e)}")
-            if attempt < 2:
-                await asyncio.sleep(5)
-    
-    # Try to ensure wa_guan account exists, but don't block startup
-    for attempt in range(3):
-        try:
-            await ensure_wa_guan_account()
-            logger.info("Startup completed successfully")
-            break
-        except Exception as e:
-            logger.error(f"Startup attempt {attempt + 1} failed: {str(e)}")
-            if attempt < 2:
-                logger.info(f"Retrying in 5 seconds...")
-                await asyncio.sleep(5)
-            else:
-                logger.warning("Could not verify/create wa_guan account on startup. Account will be created on first API call if needed.")
+            """Startup with pre-loading of data and background tasks"""
+            logger.info("Starting GuAn Microblogging Platform...")
+            
+            # Pre-load data into cache on startup
+            for attempt in range(3):
+                try:
+                    logger.info(f"Attempting to pre-load API data (attempt {attempt + 1}/3)...")
+                    data = await get_jsonbin_data(force_refresh=True)
+                    if data:
+                        logger.info(f"Successfully pre-loaded data: {len(data.get('users', []))} users, {len(data.get('talos', []))} talos")
+                        break
+                except Exception as e:
+                    logger.error(f"Pre-load attempt {attempt + 1} failed: {str(e)}")
+                    if attempt < 2:
+                        await asyncio.sleep(5)
+            
+            # Try to ensure wa_guan account exists, but don't block startup
+            for attempt in range(3):
+                try:
+                    await ensure_wa_guan_account()
+                    logger.info("Startup completed successfully")
+                    break
+                except Exception as e:
+                    logger.error(f"Startup attempt {attempt + 1} failed: {str(e)}")
+                    if attempt < 2:
+                        logger.info(f"Retrying in 5 seconds...")
+                        await asyncio.sleep(5)
+                    else:
+                        logger.warning("Could not verify/create wa_guan account on startup. Account will be created on first API call if needed.")
+            
+            # Start the promotion expiry background task
+            asyncio.create_task(promotion_expiry_loop())
+            logger.info("Promotion expiry checker started")
 
+            
+async def check_and_expire_promotions():
+  """Background task to check and expire promotions that have passed their expiry date"""
+  try:
+      data = await get_jsonbin_data()
+      now = datetime.now()
+      updated = False
+      
+      for promotion in data.get("promotions", []):
+          if promotion.get("status") == "activated" and promotion.get("expires_at"):
+              expires_at = datetime.fromisoformat(promotion["expires_at"])
+              if now > expires_at:
+                  promotion["status"] = "expired"
+                  # Remove promotion flag from talo
+                  for talo in data.get("talos", []):
+                      if talo["id"] == promotion["talo_id"]:
+                          talo["promoted"] = False
+                          talo["promotion_level"] = 0
+                          break
+                  updated = True
+                  logger.info(f"Expired promotion for talo: {promotion['talo_id']}")
+      
+      if updated:
+          await save_jsonbin_data(data)
+          logger.info("Checked and updated expired promotions")
+  except Exception as e:
+      logger.error(f"Error checking expired promotions: {e}")
+
+async def promotion_expiry_loop():
+  """Loop that runs every hour to check for expired promotions"""
+  while True:
+      await asyncio.sleep(3600)  # Check every hour (3600 seconds)
+      await check_and_expire_promotions()
+      
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
