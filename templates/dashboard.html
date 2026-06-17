@@ -1971,11 +1971,6 @@
     		<span id="notificationCount" class="notification-badge" style="display: none;">0</span>
 	    </button>
 
-		<button class="icon-btn" id="pushNotificationBtn" onclick="togglePushNotifications()" 
-                 style="background: #ccc; border-radius: 20px; padding: 5px 12px; font-size: 12px; color: #333;">
-                🔔 Enable Notifications
-               </button>
-
             <button class="icon-btn" onclick="markAllPostsAsViewed()" id="homeBtnHeader" title="Mark all posts as viewed">
                 🏠
             </button>
@@ -2427,189 +2422,6 @@
         following_count: {{ user.following_count }},
         talos_count: {{ user.talos_count }}
     };
- 
-
-// ===== PUSH NOTIFICATIONS =====
-
-// Check if browser supports notifications
-function isPushNotificationSupported() {
-    return 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
-}
-
-// Register service worker
-async function registerServiceWorker() {
-    if (!isPushNotificationSupported()) {
-        console.log('Push notifications not supported');
-        return false;
-    }
-    
-    try {
-        const registration = await navigator.serviceWorker.register('/static/sw.js');
-        console.log('Service Worker registered:', registration);
-        return registration;
-    } catch (error) {
-        console.error('Service Worker registration failed:', error);
-        return false;
-    }
-}
-
-// Request permission and subscribe to push
-async function subscribeToPushNotifications() {
-    if (!isPushNotificationSupported()) {
-        showFlashNotification('Push notifications are not supported on this browser', 'error');
-        return false;
-    }
-    
-    try {
-        // Request permission
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-            showFlashNotification('Permission denied. You won\'t receive notifications.', 'error');
-            return false;
-        }
-        
-        // Register service worker
-        const registration = await registerServiceWorker();
-        if (!registration) {
-            showFlashNotification('Service worker registration failed', 'error');
-            return false;
-        }
-        
-        // Get VAPID public key from server
-        let response;
-        try {
-            response = await fetch('/api/get_vapid_public_key');
-            if (!response.ok) {
-                throw new Error('Server returned ' + response.status);
-            }
-        } catch (e) {
-            showFlashNotification('Push notifications not configured on server. Please contact support.', 'error');
-            return false;
-        }
-        
-        const data = await response.json();
-        if (!data.public_key) {
-            showFlashNotification('Push notifications not configured on server.', 'error');
-            return false;
-        }
-        
-        // Subscribe
-        const subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: data.public_key
-        });
-        
-        // Send subscription to server
-        const saveResponse = await fetch('/api/save_push_subscription', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(subscription)
-        });
-        
-        if (!saveResponse.ok) {
-            throw new Error('Failed to save subscription');
-        }
-        
-        showFlashNotification('🔔 Notifications enabled!', 'success');
-        return true;
-        
-    } catch (error) {
-        console.error('Push subscription failed:', error);
-        showFlashNotification('Failed to enable notifications: ' + error.message, 'error');
-        return false;
-    }
-}
-
-// Toggle notifications button
-async function togglePushNotifications() {
-    if (!isPushNotificationSupported()) {
-        showFlashNotification('Push notifications not supported on this browser', 'error');
-        return;
-    }
-    
-    const btn = document.getElementById('pushNotificationBtn');
-    const isEnabled = localStorage.getItem('pushNotificationsEnabled') === 'true';
-    
-    if (isEnabled) {
-        // Disable notifications
-        localStorage.setItem('pushNotificationsEnabled', 'false');
-        btn.innerHTML = '🔔 Enable Notifications';
-        btn.style.background = '#ccc';
-        showFlashNotification('Notifications disabled', 'info');
-    } else {
-        try {
-            const success = await subscribeToPushNotifications();
-            if (success) {
-                localStorage.setItem('pushNotificationsEnabled', 'true');
-                btn.innerHTML = '🔕 Disable Notifications';
-                btn.style.background = '#28a745';
-            }
-        } catch (error) {
-            console.error('Error enabling notifications:', error);
-            showFlashNotification('Failed to enable notifications: ' + error.message, 'error');
-        }
-    }
-}
-
-// Check notification status on load
-function checkNotificationStatus() {
-    const isEnabled = localStorage.getItem('pushNotificationsEnabled') === 'true';
-    const btn = document.getElementById('pushNotificationBtn');
-    if (btn) {
-        if (isEnabled) {
-            btn.innerHTML = '🔕 Disable Notifications';
-            btn.style.background = '#28a745';
-        } else {
-            btn.innerHTML = '🔔 Enable Notifications';
-            btn.style.background = '#ccc';
-        }
-    }
-}
-
-// Periodically check for new notifications (polling for mobile)
-function startNotificationPollingForMobile() {
-    // Check every 30 seconds
-    setInterval(async () => {
-        try {
-            const response = await fetch('/api/get_activity_notifications');
-            const data = await response.json();
-            
-            const unreadCount = (data.notifications || []).filter(n => !n.read).length;
-            
-            // Update badge
-            updateNotificationBadge(unreadCount);
-            
-            // If there are unread notifications and we have permission, show a notification
-            if (unreadCount > 0 && Notification.permission === 'granted') {
-                // Check if we already showed a notification for these
-                const lastNotifTime = localStorage.getItem('lastNotificationTime');
-                const now = Date.now();
-                
-                if (!lastNotifTime || (now - parseInt(lastNotifTime)) > 60000) { // Only once per minute
-                    const latest = data.notifications[0];
-                    if (latest) {
-                        navigator.serviceWorker.ready.then(registration => {
-                            registration.showNotification('GuAn - New Activity', {
-                                body: `You have ${unreadCount} new notification${unreadCount > 1 ? 's' : ''}`,
-                                icon: '/static/guan-icon.png',
-                                badge: '/static/guan-badge.png',
-                                vibrate: [200, 100, 200],
-                                data: {
-                                    url: '/dashboard'
-                                }
-                            });
-                        });
-                        localStorage.setItem('lastNotificationTime', now.toString());
-                    }
-                }
-            }
-            
-        } catch (error) {
-            console.error('Error polling notifications:', error);
-        }
-    }, 30000);
-}
-
 
    
     // ========== POST ACTIONS FUNCTIONS - FIXED ==========
@@ -4576,14 +4388,7 @@ document.addEventListener('DOMContentLoaded', function() {
         createSection.style.display = 'none';
     }
     
-    // Check notification status
-    checkNotificationStatus();
-    
-    // Start notification polling for mobile
-    if (isPushNotificationSupported()) {
-        startNotificationPollingForMobile();
-        checkNotificationStatus();
-    }
+   
 });
 
     

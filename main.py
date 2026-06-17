@@ -1,4 +1,5 @@
 # main.py - With Working Search and Original Trending System
+# Push notifications removed to fix mobile display issues
 
 from fastapi import FastAPI, HTTPException, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -23,37 +24,6 @@ import re
 from functools import lru_cache
 import time
 from contextlib import asynccontextmanager
-
-
-# In main.py, replace the pywebpush import with this:
-try:
-    from pywebpush import WebPushException, webpush
-    PUSH_NOTIFICATIONS_AVAILABLE = True
-except ImportError:
-    PUSH_NOTIFICATIONS_AVAILABLE = False
-    print("Warning: pywebpush not installed. Push notifications will be disabled.")
-
-# Generate VAPID keys (run once and save)
-# You can generate with: python -c "from pywebpush import generate_vapid_keys; print(generate_vapid_keys())"
-#VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY', 'your_private_key')
-#VAPID_PUBLIC_KEY = os.getenv('VAPID_PUBLIC_KEY', 'your_public_key')
-
-# In main.py, add this after the imports
-# Generate VAPID keys if not set in environment
-VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY', '')
-VAPID_PUBLIC_KEY = os.getenv('VAPID_PUBLIC_KEY', '')
-
-# If keys are not set and pywebpush is available, generate them
-if (not VAPID_PRIVATE_KEY or not VAPID_PUBLIC_KEY) and PUSH_NOTIFICATIONS_AVAILABLE:
-    try:
-        from pywebpush import generate_vapid_keys
-        vapid_keys = generate_vapid_keys()
-        VAPID_PRIVATE_KEY = vapid_keys.get('private_key')
-        VAPID_PUBLIC_KEY = vapid_keys.get('public_key')
-        print(f"Generated VAPID keys. Public: {VAPID_PUBLIC_KEY[:20]}...")
-    except Exception as e:
-        print(f"Could not generate VAPID keys: {e}")
-
 
 # ===== BANNED WORDS CONFIGURATION =====
 BANNED_WORDS = {
@@ -87,9 +57,8 @@ def filter_banned_words(text: str) -> str:
 class PromotionRequest(BaseModel):
     talo_id: str
     amount: float
-    days: int  # Add days field
+    days: int
     payment_method: str
-
 
 # ===== PAYPAL CONFIGURATION =====
 PAYPAL_EMAIL = 'victor_uwafo@yahoo.com'
@@ -121,7 +90,6 @@ PAYSTACK_PUBLIC_KEY = 'pk_live_2018244c913523ab0751249b240bc3e3448c3c19'
 SUPER_ADMIN_ID = "Adminxx01"
 SUPER_ADMIN_PASSWORD = "kijiXmart4140#"
 
-
 # Simple memory cache for API data
 class APICache:
     def __init__(self, ttl_seconds=30):
@@ -142,18 +110,16 @@ class APICache:
     def clear(self):
         self.cache.clear()
 
-api_cache = APICache(ttl_seconds=30)  # Cache for 30 seconds
-
+api_cache = APICache(ttl_seconds=30)
 
 class PersistentAPICache:
     """File-based cache that persists across server restarts"""
-    def __init__(self, cache_file="api_cache.json", ttl_seconds=300):  # 5 minute TTL
+    def __init__(self, cache_file="api_cache.json", ttl_seconds=300):
         self.cache_file = cache_file
         self.ttl = ttl_seconds
         self._load_cache()
     
     def _load_cache(self):
-        """Load cache from file"""
         try:
             if os.path.exists(self.cache_file):
                 with open(self.cache_file, 'r') as f:
@@ -169,7 +135,6 @@ class PersistentAPICache:
             self.timestamp = 0
     
     def _save_cache(self):
-        """Save cache to file"""
         try:
             with open(self.cache_file, 'w') as f:
                 json.dump({
@@ -180,26 +145,23 @@ class PersistentAPICache:
             logger.error(f"Error saving persistent cache: {e}")
     
     def get(self, key):
-        """Get cached data if not expired"""
         if self.cache and time.time() - self.timestamp < self.ttl:
             return self.cache.get(key)
         return None
     
     def set(self, key, data):
-        """Set cached data"""
         self.cache = {key: data}
         self.timestamp = time.time()
         self._save_cache()
     
     def clear(self):
-        """Clear cache"""
         self.cache = {}
         self.timestamp = 0
         if os.path.exists(self.cache_file):
             os.remove(self.cache_file)
 
 # Replace api_cache with persistent cache
-api_cache = PersistentAPICache(ttl_seconds=300)  # 5 minute cache
+api_cache = PersistentAPICache(ttl_seconds=300)
 
 # ===== WA_GUAN ACCOUNT CONFIGURATION =====
 WA_GUAN_USER_ID = "wa_guan"
@@ -212,7 +174,6 @@ async def ensure_wa_guan_account():
     try:
         data = await get_jsonbin_data()
         
-        # Check if wa_guan account already exists
         wa_guan_exists = False
         wa_guan_user = None
         for user in data.get("users", []):
@@ -221,7 +182,6 @@ async def ensure_wa_guan_account():
                 wa_guan_user = user
                 break
         
-        # Create wa_guan account if it doesn't exist
         if not wa_guan_exists:
             logger.info("Creating @wa_guan support account...")
             new_user = {
@@ -252,7 +212,6 @@ async def ensure_wa_guan_account():
             data["users"].append(new_user)
             logger.info(f"Created @{WA_GUAN_USER_ID} support account")
             
-            # Create welcome post for wa_guan
             welcome_content = """Wa guan. 👋 Welcome to GuAn!
 
 We're excited to have you here! 
@@ -294,7 +253,6 @@ Get started by following interesting accounts and sharing your first talo.
         else:
             logger.info("@wa_guan account already exists")
             
-            # Check if welcome post exists, create if not
             has_welcome_post = False
             for talo in data.get("talos", []):
                 if talo.get("user_id") == WA_GUAN_USER_ID and talo.get("is_welcome"):
@@ -338,16 +296,11 @@ Get started by following interesting accounts and sharing your first talo.
                 
     except Exception as e:
         logger.error(f"Error in ensure_wa_guan_account: {str(e)}")
-        # Don't raise the exception - allow the app to start anyway
-        # The account will be created on next API call if needed
         logger.warning("Could not verify/create wa_guan account. Will retry on next request.")
 
-
-# Also update the get_jsonbin_data function to be more resilient
 async def get_jsonbin_data(force_refresh=False) -> Dict:
     """Fetch data from jsonbinbro API with improved retry logic"""
     
-    # Check cache first
     if not force_refresh:
         cached_data = api_cache.get("jsonbin_data")
         if cached_data:
@@ -355,13 +308,12 @@ async def get_jsonbin_data(force_refresh=False) -> Dict:
             return cached_data
     
     max_retries = 3
-    retry_delay = 2  # Increased from 1 second
+    retry_delay = 2
     
     for attempt in range(max_retries):
         try:
             url = f"{API_BASE}/bins/{BIN_ID}?api_key={API_KEY}"
             
-            # Increased timeout to 15 seconds
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.get(url)
                 
@@ -378,7 +330,6 @@ async def get_jsonbin_data(force_refresh=False) -> Dict:
                             for col in collections:
                                 if col not in data_content:
                                     data_content[col] = []
-                            # Cache the successful response
                             api_cache.set("jsonbin_data", data_content)
                             return data_content
                         else:
@@ -408,9 +359,8 @@ async def get_jsonbin_data(force_refresh=False) -> Dict:
                 else:
                     if attempt < max_retries - 1:
                         logger.warning(f"API returned {response.status_code}, retrying...")
-                        await asyncio.sleep(retry_delay * (attempt + 1))  # Exponential backoff
+                        await asyncio.sleep(retry_delay * (attempt + 1))
                         continue
-                    # Return cached data if available
                     cached = api_cache.get("jsonbin_data")
                     if cached:
                         logger.warning("Using cached data due to API error")
@@ -422,7 +372,6 @@ async def get_jsonbin_data(force_refresh=False) -> Dict:
             if attempt < max_retries - 1:
                 await asyncio.sleep(retry_delay * (attempt + 1))
                 continue
-            # Return cached data if available
             cached = api_cache.get("jsonbin_data")
             if cached:
                 logger.warning("Using cached data due to timeout")
@@ -434,14 +383,12 @@ async def get_jsonbin_data(force_refresh=False) -> Dict:
             if attempt < max_retries - 1:
                 await asyncio.sleep(retry_delay * (attempt + 1))
                 continue
-            # Return cached data if available
             cached = api_cache.get("jsonbin_data")
             if cached:
                 logger.warning("Using cached data due to error")
                 return cached
             raise HTTPException(status_code=503, detail=f"Unable to access API: {str(e)}")
     
-    # Fallback to cached data
     cached = api_cache.get("jsonbin_data")
     if cached:
         logger.warning("Using cached data as final fallback")
@@ -485,29 +432,24 @@ def verify_password(password: str, hashed: str) -> bool:
 def generate_token():
     return secrets.token_urlsafe(32)
 
-# Add this helper function to organize replies hierarchically:
 def organize_replies_hierarchically(replies):
     """Organize replies into a hierarchical tree structure"""
     reply_dict = {}
     top_level_replies = []
     
-    # First, index all replies by ID
     for reply in replies:
         reply["child_replies"] = []
         reply["child_reply_count"] = 0
         reply_dict[reply["id"]] = reply
     
-    # Then organize them
     for reply in replies:
         parent_id = reply.get("parent_reply_id")
         if parent_id and parent_id in reply_dict:
-            # This is a child reply
             reply_dict[parent_id]["child_replies"].append(reply)
             reply_dict[parent_id]["child_reply_count"] = len(reply_dict[parent_id]["child_replies"])
-        elif not parent_id:  # Top-level reply (direct to post)
+        elif not parent_id:
             top_level_replies.append(reply)
     
-    # Sort each level by created_at (oldest first for replies)
     top_level_replies.sort(key=lambda x: x.get("created_at", ""))
     
     def sort_children_recursively(reply_list):
@@ -516,12 +458,7 @@ def organize_replies_hierarchically(replies):
             sort_children_recursively(reply["child_replies"])
     
     sort_children_recursively(top_level_replies)
-    # Debug logging
-    print(f"Top level replies: {len(top_level_replies)}")
-    for reply in top_level_replies:
-        print(f"Reply {reply['id']} has {len(reply.get('child_replies', []))} child replies")
     
-
     return top_level_replies
 
 # Models
@@ -555,12 +492,6 @@ class CreateAdminRequest(BaseModel):
     password: str
     name: str
 
-
-class CreateAdminRequest(BaseModel):
-    admin_id: str
-    password: str
-    name: str
-
 class ToggleAdminStatusRequest(BaseModel):
     admin_id: str
     is_active: bool
@@ -574,7 +505,6 @@ async def search_all_posts(search_query: str, data: Dict) -> List[Dict]:
     for talo in data.get("talos", []):
         content_lower = talo.get("content", "").lower()
         if query_lower in content_lower:
-            # Add user info
             for user in data.get("users", []):
                 if user["user_id"] == talo["user_id"]:
                     talo["user_name"] = f"{user['first_name']} {user['last_name']}"
@@ -584,12 +514,10 @@ async def search_all_posts(search_query: str, data: Dict) -> List[Dict]:
                                        if r.get("parent_talo_id") == talo["id"]])
             matched_posts.append(talo)
     
-    # Also search for @username specifically
     if query_lower.startswith('@'):
         username = query_lower[1:]
         for user in data.get("users", []):
             if username in user.get("user_id", "").lower():
-                # Get all posts from this user
                 for talo in data.get("talos", []):
                     if talo["user_id"].lower() == username and talo not in matched_posts:
                         for u in data.get("users", []):
@@ -601,16 +529,13 @@ async def search_all_posts(search_query: str, data: Dict) -> List[Dict]:
                                                    if r.get("parent_talo_id") == talo["id"]])
                         matched_posts.append(talo)
     
-    # Sort by date (newest first)
     matched_posts.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-    
     return matched_posts
 
 async def search_users(search_query: str, data: Dict) -> List[Dict]:
     """Search for users by user_id or name"""
     query_lower = search_query.lower().strip()
     
-    # Remove @ prefix if present
     if query_lower.startswith('@'):
         query_lower = query_lower[1:]
     
@@ -693,7 +618,6 @@ async def api_signup(user_data: UserSignup):
     data["users"].append(new_user)
     await save_jsonbin_data(data)
     
-    # Auto-follow wa_guan for new users
     for user in data.get("users", []):
         if user["user_id"] == WA_GUAN_USER_ID:
             if "follows" not in data:
@@ -714,13 +638,11 @@ async def api_login(login_data: UserLogin):
     try:
         data = await get_jsonbin_data()
     except HTTPException as e:
-        # If API fails, try one more time with force refresh
         logger.warning("First API attempt failed, retrying...")
         await asyncio.sleep(1)
         try:
             data = await get_jsonbin_data(force_refresh=True)
         except HTTPException:
-            # Return user-friendly error
             raise HTTPException(status_code=503, detail="Service is starting up. Please wait 10 seconds and try again.")
     
     await ensure_wa_guan_account()
@@ -813,12 +735,10 @@ async def dashboard(request: Request):
     
     talos = data.get("talos", [])
     
-    # Get all promoted posts
     all_promoted_talos = []
     regular_talos = []
     
     for talo in talos:
-        # Add user info to each talo
         for u in data.get("users", []):
             if u["user_id"] == talo["user_id"]:
                 talo["user_name"] = f"{u['first_name']} {u['last_name']}"
@@ -829,45 +749,26 @@ async def dashboard(request: Request):
         if talo.get("promoted", False):
             all_promoted_talos.append(talo)
         else:
-            # For regular posts, only show from followed users
             if followed_user_ids and talo["user_id"] in followed_user_ids:
                 regular_talos.append(talo)
-            elif not followed_user_ids or len(followed_user_ids) <= 1:  # Only self
+            elif not followed_user_ids or len(followed_user_ids) <= 1:
                 regular_talos.append(talo)
     
-    # Sort regular posts by date (newest first)
     regular_talos.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     
-    # ===== PROBABILISTIC PROMOTED POSTS (25% chance to show each) =====
     import random
     selected_promoted_talos = []
     
     if all_promoted_talos:
-        # Sort promoted posts by promotion level (higher level first)
         all_promoted_talos.sort(key=lambda x: (x.get("promotion_level", 0), x.get("created_at", "")), reverse=True)
         
-        # Each promoted post has a 25% chance of being shown
         for promoted_talo in all_promoted_talos:
-            # 25% probability (1 in 4 chance)
-            if random.random() < 0.25:  # 25% chance
+            if random.random() < 0.25:
                 selected_promoted_talos.append(promoted_talo)
-        
-        # Also ensure at least one promoted post is shown if any exist (optional)
-        # Uncomment the line below if you want at least 1 promoted post guaranteed
-        # if not selected_promoted_talos and all_promoted_talos:
-        #     selected_promoted_talos.append(all_promoted_talos[0])
     
-    # Combine: Selected promoted posts first, then regular posts
     personal_talos = selected_promoted_talos + regular_talos
-
-    # Ensure all posts are sorted by created_at descending (newest first)
-    # This is already done but let's reinforce
     personal_talos.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     
-    # Store which promoted posts were shown in session for consistency? (optional)
-    # This ensures the same promoted posts appear until next refresh
-    
-    # Global trending - based on ALL posts in the platform
     all_talos = data.get("talos", [])
     global_words = []
     for talo in all_talos:
@@ -885,7 +786,6 @@ async def dashboard(request: Request):
     notifications = [n for n in data.get("notifications", []) if n.get("user_id") == user["user_id"]]
     unread_notifications = len([n for n in notifications if not n.get("read", False)])
     
-    # Pass the probability info to the template for display
     promoted_shown_count = len(selected_promoted_talos)
     promoted_total_count = len(all_promoted_talos)
     
@@ -899,12 +799,11 @@ async def dashboard(request: Request):
         "paystack_public_key": PAYSTACK_PUBLIC_KEY,
         "promoted_shown_count": promoted_shown_count,
         "promoted_total_count": promoted_total_count,
-        "user_email": user.get("email", "")  # Add this line
+        "user_email": user.get("email", "")
     })
 
 @app.get("/api/get_promoted_posts")
 async def get_promoted_posts(request: Request):
-    """Get all promoted posts for global visibility"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -923,7 +822,6 @@ async def get_promoted_posts(request: Request):
     promoted_posts = []
     for talo in data.get("talos", []):
         if talo.get("promoted", False):
-            # Add user info
             for u in data.get("users", []):
                 if u["user_id"] == talo["user_id"]:
                     talo["user_name"] = f"{u['first_name']} {u['last_name']}"
@@ -932,7 +830,6 @@ async def get_promoted_posts(request: Request):
             talo["reply_count"] = len([r for r in data.get("replies", []) if r.get("parent_talo_id") == talo["id"]])
             promoted_posts.append(talo)
     
-    # Sort by promotion level (higher first) and then by date
     promoted_posts.sort(key=lambda x: (x.get("promotion_level", 0), x.get("created_at", "")), reverse=True)
     
     return {"promoted_posts": promoted_posts}
@@ -940,7 +837,6 @@ async def get_promoted_posts(request: Request):
 # ===== SEARCH ENDPOINTS =====
 @app.get("/api/search")
 async def search_global(request: Request, q: str = ""):
-    """Global search for posts and users"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -950,10 +846,7 @@ async def search_global(request: Request, q: str = ""):
     
     data = await get_jsonbin_data()
     
-    # Search posts
     matched_posts = await search_all_posts(q, data)
-    
-    # Search users
     matched_users = await search_users(q, data)
     
     return {
@@ -966,7 +859,6 @@ async def search_global(request: Request, q: str = ""):
 
 @app.get("/search", response_class=HTMLResponse)
 async def search_page(request: Request, q: str = ""):
-    """Search results page"""
     session_token = request.cookies.get("session_token")
     if not session_token:
         return RedirectResponse(url="/", status_code=303)
@@ -1080,11 +972,9 @@ async def view_post(request: Request, talo_id: str, reply_id: str = None):
             talo["user_photo"] = u.get("profile_photo")
             break
     
-    # Get ALL replies for this post (including nested ones)
     all_replies = []
     for r in data.get("replies", []):
         if r.get("parent_talo_id") == talo_id:
-            # Add user info to each reply
             for u in data.get("users", []):
                 if u["user_id"] == r["user_id"]:
                     r["user_name"] = f"{u['first_name']} {u['last_name']}"
@@ -1092,7 +982,6 @@ async def view_post(request: Request, talo_id: str, reply_id: str = None):
                     break
             all_replies.append(r)
     
-    # Organize replies hierarchically
     replies = organize_replies_hierarchically(all_replies)
     
     return templates.TemplateResponse("post.html", {
@@ -1139,12 +1028,11 @@ async def create_talo(request: Request):
         "dislikes": 0,
         "retalos": 0,
         "reply_count": 0,
-        "created_at": datetime.now().isoformat(),  
+        "created_at": datetime.now().isoformat(),
         "promoted": False,
         "promotion_level": 0
     }
     
-        
     if "talos" not in data:
         data["talos"] = []
     data["talos"].insert(0, talo)
@@ -1175,6 +1063,7 @@ async def create_talo(request: Request):
     await save_jsonbin_data(data)
     
     return {"message": "Talo created successfully", "talo_id": talo["id"]}
+
    
 @app.post("/api/create_reply/{parent_talo_id}")
 async def create_reply(request: Request, parent_talo_id: str):
@@ -3440,94 +3329,6 @@ async def confirm_premium_payment(request: Request):
     
     return {"message": "Premium upgrade successful", "is_premium": True}
 
-
-@app.get("/api/get_vapid_public_key")
-async def get_vapid_public_key():
-    """Return VAPID public key for push notifications"""
-    if not PUSH_NOTIFICATIONS_AVAILABLE or not VAPID_PUBLIC_KEY:
-        raise HTTPException(status_code=503, detail="Push notifications are not available")
-    return {"public_key": VAPID_PUBLIC_KEY}
-
-@app.post("/api/save_push_subscription")
-async def save_push_subscription(request: Request):
-    """Save push subscription for a user"""
-    if not PUSH_NOTIFICATIONS_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Push notifications are not available")
-    
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    user = None
-    
-    for u in data.get("users", []):
-        if u.get("session_token") == session_token:
-            user = u
-            break
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    subscription = await request.json()
-    
-    if "push_subscriptions" not in data:
-        data["push_subscriptions"] = []
-    
-    # Remove existing subscription for this user
-    data["push_subscriptions"] = [
-        s for s in data["push_subscriptions"] 
-        if s.get("user_id") != user["user_id"]
-    ]
-    
-    # Save new subscription
-    data["push_subscriptions"].append({
-        "user_id": user["user_id"],
-        "subscription": subscription,
-        "created_at": datetime.now().isoformat()
-    })
-    
-    await save_jsonbin_data(data)
-    
-    return {"success": True}
-
-
-# Function to send push notification
-async def send_push_notification(user_id: str, title: str, body: str, url: str = "/dashboard"):
-    """Send a push notification to a user"""
-    if not PUSH_NOTIFICATIONS_AVAILABLE:
-        return False
-    
-    try:
-        data = await get_jsonbin_data()
-        
-        # Find user's push subscription
-        subscription = None
-        for sub in data.get("push_subscriptions", []):
-            if sub.get("user_id") == user_id:
-                subscription = sub.get("subscription")
-                break
-        
-        if not subscription:
-            return False
-        
-        webpush(
-            subscription_info=subscription,
-            data=json.dumps({
-                "title": title,
-                "body": body,
-                "data": {"url": url}
-            }),
-            vapid_private_key=VAPID_PRIVATE_KEY,
-            vapid_claims={"sub": "mailto:support@guan.com"}
-        )
-        return True
-    except WebPushException as e:
-        print(f"Push notification error: {e}")
-        return False
-    except Exception as e:
-        print(f"Push notification error: {e}")
-        return False
 
 
 
