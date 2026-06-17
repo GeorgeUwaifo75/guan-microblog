@@ -4329,23 +4329,20 @@ function toggleCreateTalo() {
     if (createSection.style.display === 'none' || createSection.style.display === '') {
         createSection.style.display = 'block';
         createSection.style.animation = 'slideDown 0.3s ease';
-        // Use a Unicode multiplication sign (×) instead of 'x' - it's more consistent
-        // And use a smaller font size for the close icon to match the plus sign
-        fabBtn.textContent = '×';
-        fabBtn.style.fontSize = '32px'; // Slightly larger to match visual weight of '+'
+        // Use a smaller 'x' that matches the hexagon size visually
+        fabBtn.textContent = '✕'; // Use a thin multiplication sign
+        fabBtn.style.fontSize = '28px';
         fabBtn.style.lineHeight = '1';
-        // Focus on textarea
         setTimeout(() => {
             document.getElementById('taloContent').focus();
         }, 300);
     } else {
         createSection.style.display = 'none';
-        fabBtn.textContent = '+';
-        fabBtn.style.fontSize = '32px';
+        fabBtn.textContent = '⬡'; // Hexagon symbol
+        fabBtn.style.fontSize = '28px';
         fabBtn.style.lineHeight = '1';
     }
 }
-
 
 // Add slideDown animation
 // Revert the styleSheet creation
