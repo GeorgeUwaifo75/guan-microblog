@@ -677,7 +677,7 @@
 
 /* When create section is hidden, increase margin on first post */
 .create-talo.hidden + .talo-card:first-of-type {
-    margin-top: 30px;
+    margin-top: 20px;
 }
 
         
@@ -4341,7 +4341,7 @@ function toggleCreateTalo() {
         
         // Increase first post margin to fill the gap
         if (firstTaloCard) {
-            firstTaloCard.style.marginTop = '30px';
+            firstTaloCard.style.marginTop = '20px';
         }
         
         fabBtn.textContent = '+';
@@ -4410,7 +4410,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Check if there's a first post and adjust margin
         const firstTaloCard = document.querySelector('.talo-card:first-of-type');
         if (firstTaloCard) {
-            firstTaloCard.style.marginTop = '30px';
+            firstTaloCard.style.marginTop = '20px';
         }
     }
     
