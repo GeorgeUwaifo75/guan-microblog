@@ -663,6 +663,23 @@
             resize: none;
             font-family: inherit;
         }
+
+
+/* First post margin adjustment */
+.talo-card:first-of-type {
+    margin-top: 10px;
+    transition: margin-top 0.3s ease;
+}
+
+.create-talo.visible + .talo-card:first-of-type {
+    margin-top: 10px;
+}
+
+/* When create section is hidden, increase margin on first post */
+.create-talo.hidden + .talo-card:first-of-type {
+    margin-top: 30px;
+}
+
         
         /* Focus state for textarea */
         .create-talo textarea:focus {
@@ -2499,26 +2516,35 @@ window.openPromotionModalFromPost = function(taloId) {
     
     // ========== FOCUS ON TEXTAREA FUNCTION ==========
     function focusOnTextarea() {
-        const scrollableContentEl = document.getElementById('scrollableContent');
-        const createSection = document.getElementById('createTaloSection');
-        const textarea = document.getElementById('taloContent');
+    const createSection = document.getElementById('createTaloSection');
+    const textarea = document.getElementById('taloContent');
+    const fabBtn = document.querySelector('.new-post-btn span');
+    const firstTaloCard = document.querySelector('.talo-card:first-of-type');
+    
+    if (createSection.style.display === 'none' || createSection.style.display === '') {
+        createSection.style.display = 'block';
+        createSection.style.animation = 'slideDown 0.3s ease';
+        createSection.classList.remove('hidden');
+        createSection.classList.add('visible');
         
-        if (!createSection || !textarea) return;
+        // Reset first post margin
+        if (firstTaloCard) {
+            firstTaloCard.style.marginTop = '10px';
+        }
         
-        createSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        
-        setTimeout(() => {
-            textarea.focus();
-            const currentValue = textarea.value;
-            textarea.setSelectionRange(currentValue.length, currentValue.length);
-            createSection.classList.add('highlight');
-            setTimeout(() => createSection.classList.remove('highlight'), 1000);
-            if (fabContainer && !fabVisible) {
-                fabContainer.classList.remove('hidden');
-                fabVisible = true;
-            }
-        }, 300);
+        fabBtn.textContent = '✕';
+        fabBtn.style.fontSize = '28px';
+        fabBtn.style.lineHeight = '1';
+        fabBtn.style.display = 'flex';
+        fabBtn.style.alignItems = 'center';
+        fabBtn.style.justifyContent = 'center';
     }
+    
+    setTimeout(() => {
+        textarea.focus();
+        textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+}
     
     // ========== FAB VISIBILITY CONTROL ==========
     function initFabVisibilityControl() {
@@ -4283,22 +4309,41 @@ function loadPaystackScript() {
 function toggleCreateTalo() {
     const createSection = document.getElementById('createTaloSection');
     const fabBtn = document.querySelector('.new-post-btn span');
+    const firstTaloCard = document.querySelector('.talo-card:first-of-type');
     
     if (createSection.style.display === 'none' || createSection.style.display === '') {
+        // Show create section
         createSection.style.display = 'block';
         createSection.style.animation = 'slideDown 0.3s ease';
-        // Use consistent font size - match the CSS default
+        createSection.classList.remove('hidden');
+        createSection.classList.add('visible');
+        
+        // Reset first post margin
+        if (firstTaloCard) {
+            firstTaloCard.style.marginTop = '10px';
+        }
+        
         fabBtn.textContent = '✕';
         fabBtn.style.fontSize = '28px';
         fabBtn.style.lineHeight = '1';
         fabBtn.style.display = 'flex';
         fabBtn.style.alignItems = 'center';
         fabBtn.style.justifyContent = 'center';
+        
         setTimeout(() => {
             document.getElementById('taloContent').focus();
         }, 300);
     } else {
+        // Hide create section
         createSection.style.display = 'none';
+        createSection.classList.remove('visible');
+        createSection.classList.add('hidden');
+        
+        // Increase first post margin to fill the gap
+        if (firstTaloCard) {
+            firstTaloCard.style.marginTop = '30px';
+        }
+        
         fabBtn.textContent = '+';
         fabBtn.style.fontSize = '28px';
         fabBtn.style.lineHeight = '1';
@@ -4354,16 +4399,32 @@ document.head.appendChild(styleSheet);
 
 
 // Make sure the toggle works when clicking the hexagon
+
 document.addEventListener('DOMContentLoaded', function() {
     // Ensure create section is hidden by default
     const createSection = document.getElementById('createTaloSection');
     if (createSection) {
         createSection.style.display = 'none';
+        createSection.classList.add('hidden');
+        
+        // Check if there's a first post and adjust margin
+        const firstTaloCard = document.querySelector('.talo-card:first-of-type');
+        if (firstTaloCard) {
+            firstTaloCard.style.marginTop = '30px';
+        }
     }
     
-   
+    // Also check if there are no posts at all
+    const talosFeed = document.getElementById('talosFeed');
+    if (talosFeed) {
+        const hasPosts = talosFeed.querySelector('.talo-card');
+        // If no posts, we don't need to adjust anything
+        if (!hasPosts) {
+            // No posts, so no margin adjustment needed
+            console.log('No posts found');
+        }
+    }
 });
-
     
     // ========== INITIALIZATION ==========
     document.querySelectorAll('.talo-time').forEach(el => {
