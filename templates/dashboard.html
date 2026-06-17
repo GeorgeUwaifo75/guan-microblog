@@ -922,7 +922,8 @@
         }
         
         /* Floating Action Buttons */
-        .fab-container {
+       /* Floating Action Buttons */
+.fab-container {
     position: fixed;
     bottom: 65px;
     right: 20px;
@@ -940,8 +941,8 @@
 }
 
 .new-post-btn {
-    width: 50px;
-    height: 50px;
+    width: 54px;
+    height: 54px;
     background: #cc0000;
     clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     display: flex;
@@ -963,7 +964,7 @@
 }
 
 .new-post-btn span {
-    font-size: 26px;
+    font-size: 28px;
     color: white;
     font-weight: bold;
     transition: transform 0.3s;
@@ -1950,24 +1951,23 @@
     }
     
     .new-post-btn {
-        width: 44px;
-        height: 44px;
+        width: 48px;
+        height: 48px;
     }
     
     .new-post-btn span {
-        font-size: 22px;
+        font-size: 24px;
     }
     
     .home-btn {
-        width: 44px;
-        height: 44px;
+        width: 48px;
+        height: 48px;
     }
     
     .home-btn span {
         font-size: 20px;
     }
 }
-
     </style>
 </head>
 <body>
@@ -4343,6 +4343,7 @@ function toggleCreateTalo() {
 }
 
 // Add slideDown animation
+// Revert the styleSheet creation
 const styleSheet = document.createElement("style");
 styleSheet.textContent = `
     @keyframes slideDown {
@@ -4382,6 +4383,7 @@ styleSheet.textContent = `
     }
 `;
 document.head.appendChild(styleSheet);
+
 
 // Also update the focusOnTextarea function to toggle visibility
 function focusOnTextarea() {
