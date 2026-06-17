@@ -1880,6 +1880,73 @@
     transform: scale(0.95);
 }
 
+/* Update the FAB CSS in dashboard.html */
+.fab-container {
+    position: fixed;
+    bottom: 65px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 200;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.fab-container.hidden {
+    opacity: 0;
+    transform: translateX(20px);
+    pointer-events: none;
+}
+
+.new-post-btn {
+    width: 54px;
+    height: 54px;
+    background: #cc0000;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    transition: transform 0.2s, background 0.3s;
+    border: none;
+    position: relative;
+}
+
+.new-post-btn:hover {
+    transform: scale(1.05);
+}
+
+.new-post-btn:active {
+    transform: scale(0.95);
+}
+
+.new-post-btn span {
+    font-size: 28px;
+    color: white;
+    font-weight: bold;
+    transition: transform 0.3s;
+    line-height: 1;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .fab-container {
+        bottom: 55px;
+        right: 15px;
+        gap: 10px;
+    }
+    
+    .new-post-btn {
+        width: 48px;
+        height: 48px;
+    }
+    
+    .new-post-btn span {
+        font-size: 24px;
+    }
+}
+
     </style>
 </head>
 <body>
@@ -1903,6 +1970,12 @@
     		🔔 
     		<span id="notificationCount" class="notification-badge" style="display: none;">0</span>
 	    </button>
+
+		<button class="icon-btn" id="pushNotificationBtn" onclick="togglePushNotifications()" 
+                 style="background: #ccc; border-radius: 20px; padding: 5px 12px; font-size: 12px; color: #333;">
+                🔔 Enable Notifications
+               </button>
+
             <button class="icon-btn" onclick="markAllPostsAsViewed()" id="homeBtnHeader" title="Mark all posts as viewed">
                 🏠
             </button>
@@ -1979,25 +2052,27 @@
                     <button class="clear-filter" onclick="clearHashtagFilter()">Clear filter</button>
                 </div>
 
-                <div class="create-talo" id="createTaloSection">
-                    <form id="createTaloForm" enctype="multipart/form-data">
-                        <textarea name="content" id="taloContent" rows="3" placeholder="What's happening? (max 250 characters)" maxlength="250"></textarea>
-                        <div class="char-counter" id="charCounter">250 characters remaining</div>
-                        <div id="photoPreview" class="photo-preview"></div>
-                        <div class="talo-actions">
-                            <div class="photo-buttons">
-                                <button type="button" class="photo-btn" onclick="addPhotoInput()">📷 Add Photo (max 4)</button>
-                            </div>
-                            <button type="button" id="submitTaloBtn" class="btn btn-primary" onclick="createTaloWithFirebase()">Talo →</button>
-                        </div>
-                    </form>
-                    <div id="uploadProgress" style="display: none; margin-top: 10px;">
-                        <div style="background: #f0f0f0; border-radius: 10px; overflow: hidden;">
-                            <div id="progressBar" style="width: 0%; height: 4px; background: #cc0000; transition: width 0.3s;"></div>
-                        </div>
-                        <p id="progressText" style="font-size: 12px; color: #666; margin-top: 5px;">Uploading...</p>
-                    </div>
-                </div>
+                <!-- Update the create-talo section in dashboard.html -->
+<div class="create-talo" id="createTaloSection" style="display: none;">
+    <form id="createTaloForm" enctype="multipart/form-data">
+        <textarea name="content" id="taloContent" rows="3" placeholder="What's happening? (max 250 characters)" maxlength="250"></textarea>
+        <div class="char-counter" id="charCounter">250 characters remaining</div>
+        <div id="photoPreview" class="photo-preview"></div>
+        <div class="talo-actions">
+            <div class="photo-buttons">
+                <button type="button" class="photo-btn" onclick="addPhotoInput()">📷 Add Photo (max 4)</button>
+            </div>
+            <button type="button" id="submitTaloBtn" class="btn btn-primary" onclick="createTaloWithFirebase()">Talo →</button>
+        </div>
+    </form>
+    <div id="uploadProgress" style="display: none; margin-top: 10px;">
+        <div style="background: #f0f0f0; border-radius: 10px; overflow: hidden;">
+            <div id="progressBar" style="width: 0%; height: 4px; background: #cc0000; transition: width 0.3s;"></div>
+        </div>
+        <p id="progressText" style="font-size: 12px; color: #666; margin-top: 5px;">Uploading...</p>
+    </div>
+</div>
+
 <div id="talosFeed">
     {% set promoted_shown = false %}
     {% for talo in talos %}
@@ -2110,15 +2185,16 @@
     </div>
 
     <!-- Floating Action Buttons -->
-    <div class="fab-container" id="fabContainer">
-        <div class="new-post-btn" onclick="focusOnTextarea()">
-            <span>+</span>
-        </div>
-        <div class="home-btn" onclick="refreshTimeline()" id="homeBtn">
-            <span>🏠</span>
-            <div class="home-indicator-fab gray" id="homeIndicator"></div>
-        </div>
+    <!-- Update the fab-container in dashboard.html -->
+<div class="fab-container" id="fabContainer">
+    <div class="new-post-btn" onclick="toggleCreateTalo()">
+        <span>⬡</span>
     </div>
+    <div class="home-btn" onclick="refreshTimeline()" id="homeBtn">
+        <span>🏠</span>
+        <div class="home-indicator-fab gray" id="homeIndicator"></div>
+    </div>
+</div>
 
     <!-- Mobile Menu -->
     <div id="mobileMenuOverlay" class="mobile-menu-overlay" onclick="closeMobileMenu()"></div>
@@ -2351,7 +2427,163 @@
         following_count: {{ user.following_count }},
         talos_count: {{ user.talos_count }}
     };
+ 
+
+// ===== PUSH NOTIFICATIONS =====
+
+// Check if browser supports notifications
+function isPushNotificationSupported() {
+    return 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
+}
+
+// Register service worker
+async function registerServiceWorker() {
+    if (!isPushNotificationSupported()) {
+        console.log('Push notifications not supported');
+        return false;
+    }
     
+    try {
+        const registration = await navigator.serviceWorker.register('/static/sw.js');
+        console.log('Service Worker registered:', registration);
+        return registration;
+    } catch (error) {
+        console.error('Service Worker registration failed:', error);
+        return false;
+    }
+}
+
+// Request permission and subscribe to push
+async function subscribeToPushNotifications() {
+    if (!isPushNotificationSupported()) {
+        alert('Push notifications are not supported on this browser');
+        return false;
+    }
+    
+    try {
+        // Request permission
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            alert('Permission denied. You won\'t receive notifications.');
+            return false;
+        }
+        
+        // Register service worker
+        const registration = await registerServiceWorker();
+        if (!registration) {
+            alert('Service worker registration failed');
+            return false;
+        }
+        
+        // Get VAPID public key from server
+        const response = await fetch('/api/get_vapid_public_key');
+        const data = await response.json();
+        
+        // Subscribe
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: data.public_key
+        });
+        
+        // Send subscription to server
+        await fetch('/api/save_push_subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(subscription)
+        });
+        
+        showFlashNotification('🔔 Notifications enabled!', 'success');
+        return true;
+        
+    } catch (error) {
+        console.error('Push subscription failed:', error);
+        alert('Failed to enable notifications: ' + error.message);
+        return false;
+    }
+}
+
+// Toggle notifications button
+async function togglePushNotifications() {
+    const btn = document.getElementById('pushNotificationBtn');
+    const isEnabled = localStorage.getItem('pushNotificationsEnabled') === 'true';
+    
+    if (isEnabled) {
+        // Disable notifications
+        localStorage.setItem('pushNotificationsEnabled', 'false');
+        btn.innerHTML = '🔔 Enable Notifications';
+        btn.style.background = '#ccc';
+        showFlashNotification('Notifications disabled', 'info');
+    } else {
+        const success = await subscribeToPushNotifications();
+        if (success) {
+            localStorage.setItem('pushNotificationsEnabled', 'true');
+            btn.innerHTML = '🔕 Disable Notifications';
+            btn.style.background = '#28a745';
+        }
+    }
+}
+
+// Check notification status on load
+function checkNotificationStatus() {
+    const isEnabled = localStorage.getItem('pushNotificationsEnabled') === 'true';
+    const btn = document.getElementById('pushNotificationBtn');
+    if (btn) {
+        if (isEnabled) {
+            btn.innerHTML = '🔕 Disable Notifications';
+            btn.style.background = '#28a745';
+        } else {
+            btn.innerHTML = '🔔 Enable Notifications';
+            btn.style.background = '#ccc';
+        }
+    }
+}
+
+// Periodically check for new notifications (polling for mobile)
+function startNotificationPollingForMobile() {
+    // Check every 30 seconds
+    setInterval(async () => {
+        try {
+            const response = await fetch('/api/get_activity_notifications');
+            const data = await response.json();
+            
+            const unreadCount = (data.notifications || []).filter(n => !n.read).length;
+            
+            // Update badge
+            updateNotificationBadge(unreadCount);
+            
+            // If there are unread notifications and we have permission, show a notification
+            if (unreadCount > 0 && Notification.permission === 'granted') {
+                // Check if we already showed a notification for these
+                const lastNotifTime = localStorage.getItem('lastNotificationTime');
+                const now = Date.now();
+                
+                if (!lastNotifTime || (now - parseInt(lastNotifTime)) > 60000) { // Only once per minute
+                    const latest = data.notifications[0];
+                    if (latest) {
+                        navigator.serviceWorker.ready.then(registration => {
+                            registration.showNotification('GuAn - New Activity', {
+                                body: `You have ${unreadCount} new notification${unreadCount > 1 ? 's' : ''}`,
+                                icon: '/static/guan-icon.png',
+                                badge: '/static/guan-badge.png',
+                                vibrate: [200, 100, 200],
+                                data: {
+                                    url: '/dashboard'
+                                }
+                            });
+                        });
+                        localStorage.setItem('lastNotificationTime', now.toString());
+                    }
+                }
+            }
+            
+        } catch (error) {
+            console.error('Error polling notifications:', error);
+        }
+    }, 30000);
+}
+
+
+   
     // ========== POST ACTIONS FUNCTIONS - FIXED ==========
 window.togglePostActions = function(btn) {
     // Stop event propagation
@@ -4226,7 +4458,105 @@ function loadPaystackScript() {
     }, 120000);
 
 
+   //TOGGLE CREATE VISIBILITY
 
+// Add this function to dashboard.html script section
+
+// Toggle create talo section visibility
+function toggleCreateTalo() {
+    const createSection = document.getElementById('createTaloSection');
+    const fabBtn = document.querySelector('.new-post-btn span');
+    
+    if (createSection.style.display === 'none' || createSection.style.display === '') {
+        createSection.style.display = 'block';
+        createSection.style.animation = 'slideDown 0.3s ease';
+        fabBtn.textContent = '✕'; // Change to close icon
+        // Focus on textarea
+        setTimeout(() => {
+            document.getElementById('taloContent').focus();
+        }, 300);
+    } else {
+        createSection.style.display = 'none';
+        fabBtn.textContent = '⬡'; // Change back to hexagon
+    }
+}
+
+// Add slideDown animation
+const styleSheet = document.createElement("style");
+styleSheet.textContent = `
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .new-post-btn {
+        width: 54px;
+        height: 54px;
+        background: #cc0000;
+        clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        transition: transform 0.2s, background 0.3s;
+        border: none;
+    }
+    
+    .new-post-btn:hover {
+        transform: scale(1.05);
+    }
+    
+    .new-post-btn span {
+        font-size: 28px;
+        color: white;
+        font-weight: bold;
+        transition: transform 0.3s;
+    }
+`;
+document.head.appendChild(styleSheet);
+
+// Also update the focusOnTextarea function to toggle visibility
+function focusOnTextarea() {
+    const createSection = document.getElementById('createTaloSection');
+    const textarea = document.getElementById('taloContent');
+    const fabBtn = document.querySelector('.new-post-btn span');
+    
+    if (createSection.style.display === 'none' || createSection.style.display === '') {
+        createSection.style.display = 'block';
+        createSection.style.animation = 'slideDown 0.3s ease';
+        fabBtn.textContent = '✕';
+    }
+    
+    setTimeout(() => {
+        textarea.focus();
+        textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+}
+
+// Make sure the toggle works when clicking the hexagon
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure create section is hidden by default
+    const createSection = document.getElementById('createTaloSection');
+    if (createSection) {
+        createSection.style.display = 'none';
+    }
+    
+    // Check notification status
+    checkNotificationStatus();
+    
+    // Start notification polling for mobile
+    if (isPushNotificationSupported()) {
+        startNotificationPollingForMobile();
+        checkNotificationStatus();
+    }
+});
 
     
     // ========== INITIALIZATION ==========

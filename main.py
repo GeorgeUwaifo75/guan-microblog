@@ -24,6 +24,16 @@ from functools import lru_cache
 import time
 from contextlib import asynccontextmanager
 
+
+# Add this to main.py
+from pywebpush import WebPushException, webpush
+
+# Generate VAPID keys (run once and save)
+# You can generate with: python -c "from pywebpush import generate_vapid_keys; print(generate_vapid_keys())"
+VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY', 'your_private_key')
+VAPID_PUBLIC_KEY = os.getenv('VAPID_PUBLIC_KEY', 'your_public_key')
+
+
 # ===== BANNED WORDS CONFIGURATION =====
 BANNED_WORDS = {
     'kill', 'bomb', 'have sex', 'porn', 'cum', 'fuck', 'penis', 'dick', 'blow job',
@@ -3337,6 +3347,155 @@ async def create_nested_reply(parent_reply_id: str, request: Request):
     await save_jsonbin_data(data)
     
     return {"message": "Reply posted successfully", "reply_id": nested_reply["id"]}
+
+
+# Add this endpoint to main.py
+
+@app.post("/api/confirm_premium_payment")
+async def confirm_premium_payment(request: Request):
+    """Confirm premium payment and upgrade user"""
+    body = await request.json()
+    transaction_ref = body.get("transaction_ref")
+    user_id = body.get("user_id")
+    status = body.get("status")
+    
+    if status != "success":
+        raise HTTPException(status_code=400, detail="Payment was not successful")
+    
+    data = await get_jsonbin_data()
+    
+    # Find the user
+    user = None
+    user_index = None
+    for i, u in enumerate(data.get("users", [])):
+        if u["user_id"] == user_id:
+            user = u
+            user_index = i
+            break
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if already premium
+    if user.get("is_premium", False):
+        return {"message": "User is already premium"}
+    
+    # Upgrade user to premium
+    user["is_premium"] = True
+    user["premium_activated_at"] = datetime.now().isoformat()
+    user["premium_payment_ref"] = transaction_ref
+    
+    if user_index is not None:
+        data["users"][user_index] = user
+    
+    # Record the payment
+    if "payments" not in data:
+        data["payments"] = []
+    data["payments"].append({
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "amount": 5500,
+        "payment_method": "paystack",
+        "transaction_ref": transaction_ref,
+        "status": "approved",
+        "type": "premium_upgrade",
+        "created_at": datetime.now().isoformat(),
+        "processed_at": datetime.now().isoformat()
+    })
+    
+    # Send notification to user
+    if "notifications" not in data:
+        data["notifications"] = []
+    data["notifications"].append({
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "type": "premium_upgraded",
+        "message": "🎉 Congratulations! You are now a premium user. Enjoy enhanced visibility!",
+        "read": False,
+        "created_at": datetime.now().isoformat()
+    })
+    
+    await save_jsonbin_data(data)
+    
+    return {"message": "Premium upgrade successful", "is_premium": True}
+
+
+@app.get("/api/get_vapid_public_key")
+async def get_vapid_public_key():
+    """Return VAPID public key for push notifications"""
+    return {"public_key": VAPID_PUBLIC_KEY}
+
+@app.post("/api/save_push_subscription")
+async def save_push_subscription(request: Request):
+    """Save push subscription for a user"""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    subscription = await request.json()
+    
+    if "push_subscriptions" not in data:
+        data["push_subscriptions"] = []
+    
+    # Remove existing subscription for this user
+    data["push_subscriptions"] = [
+        s for s in data["push_subscriptions"] 
+        if s.get("user_id") != user["user_id"]
+    ]
+    
+    # Save new subscription
+    data["push_subscriptions"].append({
+        "user_id": user["user_id"],
+        "subscription": subscription,
+        "created_at": datetime.now().isoformat()
+    })
+    
+    await save_jsonbin_data(data)
+    
+    return {"success": True}
+
+# Function to send push notification
+async def send_push_notification(user_id: str, title: str, body: str, url: str = "/dashboard"):
+    """Send a push notification to a user"""
+    data = await get_jsonbin_data()
+    
+    # Find user's push subscription
+    subscription = None
+    for sub in data.get("push_subscriptions", []):
+        if sub.get("user_id") == user_id:
+            subscription = sub.get("subscription")
+            break
+    
+    if not subscription:
+        return False
+    
+    try:
+        webpush(
+            subscription_info=subscription,
+            data=json.dumps({
+                "title": title,
+                "body": body,
+                "data": {"url": url}
+            }),
+            vapid_private_key=VAPID_PRIVATE_KEY,
+            vapid_claims={"sub": "mailto:support@guan.com"}
+        )
+        return True
+    except WebPushException as e:
+        print(f"Push notification error: {e}")
+        return False
+
 
 @app.get("/api/health")
 async def health_check():
