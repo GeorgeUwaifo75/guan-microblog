@@ -25,13 +25,34 @@ import time
 from contextlib import asynccontextmanager
 
 
-# Add this to main.py
-from pywebpush import WebPushException, webpush
+# In main.py, replace the pywebpush import with this:
+try:
+    from pywebpush import WebPushException, webpush
+    PUSH_NOTIFICATIONS_AVAILABLE = True
+except ImportError:
+    PUSH_NOTIFICATIONS_AVAILABLE = False
+    print("Warning: pywebpush not installed. Push notifications will be disabled.")
 
 # Generate VAPID keys (run once and save)
 # You can generate with: python -c "from pywebpush import generate_vapid_keys; print(generate_vapid_keys())"
-VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY', 'your_private_key')
-VAPID_PUBLIC_KEY = os.getenv('VAPID_PUBLIC_KEY', 'your_public_key')
+#VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY', 'your_private_key')
+#VAPID_PUBLIC_KEY = os.getenv('VAPID_PUBLIC_KEY', 'your_public_key')
+
+# In main.py, add this after the imports
+# Generate VAPID keys if not set in environment
+VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY', '')
+VAPID_PUBLIC_KEY = os.getenv('VAPID_PUBLIC_KEY', '')
+
+# If keys are not set and pywebpush is available, generate them
+if (not VAPID_PRIVATE_KEY or not VAPID_PUBLIC_KEY) and PUSH_NOTIFICATIONS_AVAILABLE:
+    try:
+        from pywebpush import generate_vapid_keys
+        vapid_keys = generate_vapid_keys()
+        VAPID_PRIVATE_KEY = vapid_keys.get('private_key')
+        VAPID_PUBLIC_KEY = vapid_keys.get('public_key')
+        print(f"Generated VAPID keys. Public: {VAPID_PUBLIC_KEY[:20]}...")
+    except Exception as e:
+        print(f"Could not generate VAPID keys: {e}")
 
 
 # ===== BANNED WORDS CONFIGURATION =====
@@ -3423,11 +3444,16 @@ async def confirm_premium_payment(request: Request):
 @app.get("/api/get_vapid_public_key")
 async def get_vapid_public_key():
     """Return VAPID public key for push notifications"""
+    if not PUSH_NOTIFICATIONS_AVAILABLE or not VAPID_PUBLIC_KEY:
+        raise HTTPException(status_code=503, detail="Push notifications are not available")
     return {"public_key": VAPID_PUBLIC_KEY}
 
 @app.post("/api/save_push_subscription")
 async def save_push_subscription(request: Request):
     """Save push subscription for a user"""
+    if not PUSH_NOTIFICATIONS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Push notifications are not available")
+    
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -3465,22 +3491,26 @@ async def save_push_subscription(request: Request):
     
     return {"success": True}
 
+
 # Function to send push notification
 async def send_push_notification(user_id: str, title: str, body: str, url: str = "/dashboard"):
     """Send a push notification to a user"""
-    data = await get_jsonbin_data()
-    
-    # Find user's push subscription
-    subscription = None
-    for sub in data.get("push_subscriptions", []):
-        if sub.get("user_id") == user_id:
-            subscription = sub.get("subscription")
-            break
-    
-    if not subscription:
+    if not PUSH_NOTIFICATIONS_AVAILABLE:
         return False
     
     try:
+        data = await get_jsonbin_data()
+        
+        # Find user's push subscription
+        subscription = None
+        for sub in data.get("push_subscriptions", []):
+            if sub.get("user_id") == user_id:
+                subscription = sub.get("subscription")
+                break
+        
+        if not subscription:
+            return False
+        
         webpush(
             subscription_info=subscription,
             data=json.dumps({
@@ -3495,6 +3525,10 @@ async def send_push_notification(user_id: str, title: str, body: str, url: str =
     except WebPushException as e:
         print(f"Push notification error: {e}")
         return False
+    except Exception as e:
+        print(f"Push notification error: {e}")
+        return False
+
 
 
 @app.get("/api/health")

@@ -2456,7 +2456,7 @@ async function registerServiceWorker() {
 // Request permission and subscribe to push
 async function subscribeToPushNotifications() {
     if (!isPushNotificationSupported()) {
-        alert('Push notifications are not supported on this browser');
+        showFlashNotification('Push notifications are not supported on this browser', 'error');
         return false;
     }
     
@@ -2464,20 +2464,34 @@ async function subscribeToPushNotifications() {
         // Request permission
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') {
-            alert('Permission denied. You won\'t receive notifications.');
+            showFlashNotification('Permission denied. You won\'t receive notifications.', 'error');
             return false;
         }
         
         // Register service worker
         const registration = await registerServiceWorker();
         if (!registration) {
-            alert('Service worker registration failed');
+            showFlashNotification('Service worker registration failed', 'error');
             return false;
         }
         
         // Get VAPID public key from server
-        const response = await fetch('/api/get_vapid_public_key');
+        let response;
+        try {
+            response = await fetch('/api/get_vapid_public_key');
+            if (!response.ok) {
+                throw new Error('Server returned ' + response.status);
+            }
+        } catch (e) {
+            showFlashNotification('Push notifications not configured on server. Please contact support.', 'error');
+            return false;
+        }
+        
         const data = await response.json();
+        if (!data.public_key) {
+            showFlashNotification('Push notifications not configured on server.', 'error');
+            return false;
+        }
         
         // Subscribe
         const subscription = await registration.pushManager.subscribe({
@@ -2486,24 +2500,33 @@ async function subscribeToPushNotifications() {
         });
         
         // Send subscription to server
-        await fetch('/api/save_push_subscription', {
+        const saveResponse = await fetch('/api/save_push_subscription', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(subscription)
         });
+        
+        if (!saveResponse.ok) {
+            throw new Error('Failed to save subscription');
+        }
         
         showFlashNotification('🔔 Notifications enabled!', 'success');
         return true;
         
     } catch (error) {
         console.error('Push subscription failed:', error);
-        alert('Failed to enable notifications: ' + error.message);
+        showFlashNotification('Failed to enable notifications: ' + error.message, 'error');
         return false;
     }
 }
 
 // Toggle notifications button
 async function togglePushNotifications() {
+    if (!isPushNotificationSupported()) {
+        showFlashNotification('Push notifications not supported on this browser', 'error');
+        return;
+    }
+    
     const btn = document.getElementById('pushNotificationBtn');
     const isEnabled = localStorage.getItem('pushNotificationsEnabled') === 'true';
     
@@ -2514,11 +2537,16 @@ async function togglePushNotifications() {
         btn.style.background = '#ccc';
         showFlashNotification('Notifications disabled', 'info');
     } else {
-        const success = await subscribeToPushNotifications();
-        if (success) {
-            localStorage.setItem('pushNotificationsEnabled', 'true');
-            btn.innerHTML = '🔕 Disable Notifications';
-            btn.style.background = '#28a745';
+        try {
+            const success = await subscribeToPushNotifications();
+            if (success) {
+                localStorage.setItem('pushNotificationsEnabled', 'true');
+                btn.innerHTML = '🔕 Disable Notifications';
+                btn.style.background = '#28a745';
+            }
+        } catch (error) {
+            console.error('Error enabling notifications:', error);
+            showFlashNotification('Failed to enable notifications: ' + error.message, 'error');
         }
     }
 }
