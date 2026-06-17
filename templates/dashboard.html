@@ -2183,7 +2183,7 @@
     <!-- Update the fab-container in dashboard.html -->
 <div class="fab-container" id="fabContainer">
     <div class="new-post-btn" onclick="toggleCreateTalo()">
-        <span>⬡</span>
+        <span>+</span>
     </div>
     <div class="home-btn" onclick="refreshTimeline()" id="homeBtn">
         <span>🏠</span>
@@ -4310,14 +4310,14 @@ function toggleCreateTalo() {
     if (createSection.style.display === 'none' || createSection.style.display === '') {
         createSection.style.display = 'block';
         createSection.style.animation = 'slideDown 0.3s ease';
-        fabBtn.textContent = '✕'; // Change to close icon
+        fabBtn.textContent = 'x'; // Change to close icon
         // Focus on textarea
         setTimeout(() => {
             document.getElementById('taloContent').focus();
         }, 300);
     } else {
         createSection.style.display = 'none';
-        fabBtn.textContent = '⬡'; // Change back to hexagon
+        fabBtn.textContent = '+'; // Change back to hexagon
     }
 }
 
@@ -4371,7 +4371,7 @@ function focusOnTextarea() {
     if (createSection.style.display === 'none' || createSection.style.display === '') {
         createSection.style.display = 'block';
         createSection.style.animation = 'slideDown 0.3s ease';
-        fabBtn.textContent = '✕';
+        fabBtn.textContent = 'x';
     }
     
     setTimeout(() => {
