@@ -969,6 +969,11 @@
     font-weight: bold;
     transition: transform 0.3s;
     line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
 }
 
 .home-btn {
@@ -4329,20 +4334,27 @@ function toggleCreateTalo() {
     if (createSection.style.display === 'none' || createSection.style.display === '') {
         createSection.style.display = 'block';
         createSection.style.animation = 'slideDown 0.3s ease';
-        // Use a smaller 'x' that matches the hexagon size visually
-        fabBtn.textContent = '✕'; // Use a thin multiplication sign
-        fabBtn.style.fontSize = '25px';
+        // Use consistent font size - match the CSS default
+        fabBtn.textContent = '✕';
+        fabBtn.style.fontSize = '28px';
         fabBtn.style.lineHeight = '1';
+        fabBtn.style.display = 'flex';
+        fabBtn.style.alignItems = 'center';
+        fabBtn.style.justifyContent = 'center';
         setTimeout(() => {
             document.getElementById('taloContent').focus();
         }, 300);
     } else {
         createSection.style.display = 'none';
-        fabBtn.textContent = '+'; // Hexagon symbol
-        fabBtn.style.fontSize = '25px';
+        fabBtn.textContent = '+';
+        fabBtn.style.fontSize = '28px';
         fabBtn.style.lineHeight = '1';
+        fabBtn.style.display = 'flex';
+        fabBtn.style.alignItems = 'center';
+        fabBtn.style.justifyContent = 'center';
     }
 }
+
 
 // Add slideDown animation
 // Revert the styleSheet creation
@@ -4387,7 +4399,6 @@ styleSheet.textContent = `
 document.head.appendChild(styleSheet);
 
 
-// Also update the focusOnTextarea function to toggle visibility
 function focusOnTextarea() {
     const createSection = document.getElementById('createTaloSection');
     const textarea = document.getElementById('taloContent');
@@ -4396,9 +4407,12 @@ function focusOnTextarea() {
     if (createSection.style.display === 'none' || createSection.style.display === '') {
         createSection.style.display = 'block';
         createSection.style.animation = 'slideDown 0.3s ease';
-        fabBtn.textContent = '×';
-        fabBtn.style.fontSize = '32px';
+        fabBtn.textContent = '✕';
+        fabBtn.style.fontSize = '28px';
         fabBtn.style.lineHeight = '1';
+        fabBtn.style.display = 'flex';
+        fabBtn.style.alignItems = 'center';
+        fabBtn.style.justifyContent = 'center';
     }
     
     setTimeout(() => {
@@ -4406,6 +4420,7 @@ function focusOnTextarea() {
         textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 300);
 }
+
 
 // Make sure the toggle works when clicking the hexagon
 document.addEventListener('DOMContentLoaded', function() {
