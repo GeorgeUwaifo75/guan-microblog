@@ -665,21 +665,22 @@
         }
 
 
-/* First post margin adjustment */
-.talo-card:first-of-type {
-    margin-top: 10px;
-    transition: margin-top 0.3s ease;
+/* First post margin adjustment - MOBILE ONLY */
+@media (max-width: 768px) {
+    .talo-card:first-of-type {
+        margin-top: 10px;
+        transition: margin-top 0.3s ease;
+    }
+    
+    .create-talo.visible + .talo-card:first-of-type {
+        margin-top: 10px;
+    }
+    
+    /* When create section is hidden, increase margin on first post - MOBILE ONLY */
+    .create-talo.hidden + .talo-card:first-of-type {
+        margin-top: 20px;
+    }
 }
-
-.create-talo.visible + .talo-card:first-of-type {
-    margin-top: 10px;
-}
-
-/* When create section is hidden, increase margin on first post */
-.create-talo.hidden + .talo-card:first-of-type {
-    margin-top: 20px;
-}
-
         
         /* Focus state for textarea */
         .create-talo textarea:focus {
@@ -2515,11 +2516,12 @@ window.openPromotionModalFromPost = function(taloId) {
     }
     
     // ========== FOCUS ON TEXTAREA FUNCTION ==========
-    function focusOnTextarea() {
+  function focusOnTextarea() {
     const createSection = document.getElementById('createTaloSection');
     const textarea = document.getElementById('taloContent');
     const fabBtn = document.querySelector('.new-post-btn span');
     const firstTaloCard = document.querySelector('.talo-card:first-of-type');
+    const isMobile = window.innerWidth <= 768;
     
     if (createSection.style.display === 'none' || createSection.style.display === '') {
         createSection.style.display = 'block';
@@ -2527,8 +2529,10 @@ window.openPromotionModalFromPost = function(taloId) {
         createSection.classList.remove('hidden');
         createSection.classList.add('visible');
         
-        // Reset first post margin
-        if (firstTaloCard) {
+        // Reset first post margin - only on mobile
+        if (firstTaloCard && isMobile) {
+            firstTaloCard.style.marginTop = '10px';
+        } else if (firstTaloCard && !isMobile) {
             firstTaloCard.style.marginTop = '10px';
         }
         
@@ -4310,6 +4314,7 @@ function toggleCreateTalo() {
     const createSection = document.getElementById('createTaloSection');
     const fabBtn = document.querySelector('.new-post-btn span');
     const firstTaloCard = document.querySelector('.talo-card:first-of-type');
+    const isMobile = window.innerWidth <= 768;
     
     if (createSection.style.display === 'none' || createSection.style.display === '') {
         // Show create section
@@ -4318,9 +4323,11 @@ function toggleCreateTalo() {
         createSection.classList.remove('hidden');
         createSection.classList.add('visible');
         
-        // Reset first post margin
-        if (firstTaloCard) {
+        // Reset first post margin - only on mobile
+        if (firstTaloCard && isMobile) {
             firstTaloCard.style.marginTop = '10px';
+        } else if (firstTaloCard && !isMobile) {
+            firstTaloCard.style.marginTop = '10px'; // Desktop default
         }
         
         fabBtn.textContent = '✕';
@@ -4339,9 +4346,11 @@ function toggleCreateTalo() {
         createSection.classList.remove('visible');
         createSection.classList.add('hidden');
         
-        // Increase first post margin to fill the gap
-        if (firstTaloCard) {
+        // Increase first post margin to fill the gap - ONLY on mobile
+        if (firstTaloCard && isMobile) {
             firstTaloCard.style.marginTop = '20px';
+        } else if (firstTaloCard && !isMobile) {
+            firstTaloCard.style.marginTop = '10px'; // Desktop default
         }
         
         fabBtn.textContent = '+';
@@ -4352,7 +4361,6 @@ function toggleCreateTalo() {
         fabBtn.style.justifyContent = 'center';
     }
 }
-
 
 // Add slideDown animation
 // Revert the styleSheet creation
@@ -4396,21 +4404,22 @@ styleSheet.textContent = `
 `;
 document.head.appendChild(styleSheet);
 
-
-
 // Make sure the toggle works when clicking the hexagon
-
 document.addEventListener('DOMContentLoaded', function() {
     // Ensure create section is hidden by default
     const createSection = document.getElementById('createTaloSection');
+    const isMobile = window.innerWidth <= 768;
+    
     if (createSection) {
         createSection.style.display = 'none';
         createSection.classList.add('hidden');
         
-        // Check if there's a first post and adjust margin
+        // Check if there's a first post and adjust margin - ONLY on mobile
         const firstTaloCard = document.querySelector('.talo-card:first-of-type');
-        if (firstTaloCard) {
+        if (firstTaloCard && isMobile) {
             firstTaloCard.style.marginTop = '20px';
+        } else if (firstTaloCard && !isMobile) {
+            firstTaloCard.style.marginTop = '10px'; // Desktop default
         }
     }
     
@@ -4418,13 +4427,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const talosFeed = document.getElementById('talosFeed');
     if (talosFeed) {
         const hasPosts = talosFeed.querySelector('.talo-card');
-        // If no posts, we don't need to adjust anything
         if (!hasPosts) {
-            // No posts, so no margin adjustment needed
             console.log('No posts found');
         }
     }
 });
+
+// Also handle window resize to adjust margins when switching between mobile/desktop
+window.addEventListener('resize', function() {
+    const createSection = document.getElementById('createTaloSection');
+    const firstTaloCard = document.querySelector('.talo-card:first-of-type');
+    const isMobile = window.innerWidth <= 768;
+    const isHidden = createSection.style.display === 'none' || createSection.style.display === '';
+    
+    if (firstTaloCard) {
+        if (isMobile && isHidden) {
+            firstTaloCard.style.marginTop = '20px';
+        } else if (isMobile && !isHidden) {
+            firstTaloCard.style.marginTop = '10px';
+        } else {
+            firstTaloCard.style.marginTop = '10px';
+        }
+    }
+});
+
     
     // ========== INITIALIZATION ==========
     document.querySelectorAll('.talo-time').forEach(el => {
