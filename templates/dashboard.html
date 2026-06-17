@@ -921,8 +921,8 @@
             color: #28a745;
         }
         
-        /* Floating Action Buttons */
-       /* Floating Action Buttons */
+  
+     /* Floating Action Buttons */
 .fab-container {
     position: fixed;
     bottom: 65px;
@@ -4331,15 +4331,15 @@ function toggleCreateTalo() {
         createSection.style.animation = 'slideDown 0.3s ease';
         // Use a smaller 'x' that matches the hexagon size visually
         fabBtn.textContent = '✕'; // Use a thin multiplication sign
-        fabBtn.style.fontSize = '28px';
+        fabBtn.style.fontSize = '25px';
         fabBtn.style.lineHeight = '1';
         setTimeout(() => {
             document.getElementById('taloContent').focus();
         }, 300);
     } else {
         createSection.style.display = 'none';
-        fabBtn.textContent = '⬡'; // Hexagon symbol
-        fabBtn.style.fontSize = '28px';
+        fabBtn.textContent = '+'; // Hexagon symbol
+        fabBtn.style.fontSize = '25px';
         fabBtn.style.lineHeight = '1';
     }
 }
