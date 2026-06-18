@@ -870,6 +870,13 @@
                 font-size: 10px;
             }
         }
+
+        .talo-photos .photo-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 12px;
+        }
     </style>
 </head>
 <body>
@@ -930,16 +937,26 @@
                 </div>
                 <div class="post-content" id="postContent">{{ talo.content }}</div>
 
-                {% if talo.photos and talo.photos|length > 0 %}
-                <div class="post-photos photo-count-{{ talo.photos|length }}">
-                    {% for photo in talo.photos %}
-                        {% if loop.index <= 4 %}
-                        <div class="photo-item" onclick="event.stopPropagation(); viewPhoto('{{ photo.url }}')">
-                            <img src="{{ photo.url }}" alt="Photo">
-                            {% if loop.index == 4 and talo.photos|length > 4 %}
-                            <div class="photo-overlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold;">+{{ talo.photos|length - 4 }}</div>
-                            {% endif %}
-                        </div>
+             {% if talo.photos and talo.photos|length > 0 %}
+                <div class="talo-photos photo-count-{{ talo.photos|length }}">
+                    {% for media in talo.photos %}
+                        {% if media.type == 'video' %}
+                            <div class="photo-item" style="cursor:default;">
+                                <video controls style="width:100%; height:100%; object-fit:cover; border-radius:12px;">
+                                    <source src="{{ media.url }}" type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                                {% if talo.photos|length > 1 %} <!-- should never happen with video-only rule, but safe -->
+                                <div class="photo-overlay">🎬</div>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <div class="photo-item" onclick="event.stopPropagation(); viewPhoto('{{ media.url }}')">
+                                <img src="{{ media.url }}" alt="Photo">
+                                {% if loop.index == 4 and talo.photos|length > 4 %}
+                                <div class="photo-overlay">+{{ talo.photos|length - 4 }}</div>
+                                {% endif %}
+                            </div>
                         {% endif %}
                     {% endfor %}
                 </div>

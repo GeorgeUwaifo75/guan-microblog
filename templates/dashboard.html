@@ -1944,6 +1944,13 @@
         font-size: 20px;
     }
 }
+
+       .talo-photos .photo-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 12px;
+        }
     </style>
 </head>
 <body>
@@ -2052,7 +2059,8 @@
         <div id="photoPreview" class="photo-preview"></div>
         <div class="talo-actions">
             <div class="photo-buttons">
-                <button type="button" class="photo-btn" onclick="addPhotoInput()">📷 Add Photo (max 4)</button>
+                <button type="button" class="photo-btn" onclick="selectMedia()">📷 Add Photo/Video</button>
+                <span id="mediaCount" style="font-size:12px; color:#666; margin-left:8px;">0 files selected</span>
             </div>
             <button type="button" id="submitTaloBtn" class="btn btn-primary" onclick="createTaloWithFirebase()">Talo →</button>
         </div>
@@ -2118,19 +2126,29 @@
 
         <!-- Enhanced Photo Display -->
         {% if talo.photos and talo.photos|length > 0 %}
-        <div class="talo-photos photo-count-{{ talo.photos|length }}">
-            {% for photo in talo.photos %}
-                {% if loop.index <= 4 %}
-                <div class="photo-item" onclick="event.stopPropagation(); viewPhoto('{{ photo.url }}')">
-                    <img src="{{ photo.url }}" alt="Photo">
-                    {% if loop.index == 4 and talo.photos|length > 4 %}
-                    <div class="photo-overlay">+{{ talo.photos|length - 4 }}</div>
+            <div class="talo-photos photo-count-{{ talo.photos|length }}">
+                {% for media in talo.photos %}
+                    {% if media.type == 'video' %}
+                        <div class="photo-item" style="cursor:default;">
+                            <video controls style="width:100%; height:100%; object-fit:cover; border-radius:12px;">
+                                <source src="{{ media.url }}" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                            {% if talo.photos|length > 1 %} <!-- should never happen with video-only rule, but safe -->
+                            <div class="photo-overlay">🎬</div>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <div class="photo-item" onclick="event.stopPropagation(); viewPhoto('{{ media.url }}')">
+                            <img src="{{ media.url }}" alt="Photo">
+                            {% if loop.index == 4 and talo.photos|length > 4 %}
+                            <div class="photo-overlay">+{{ talo.photos|length - 4 }}</div>
+                            {% endif %}
+                        </div>
                     {% endif %}
-                </div>
-                {% endif %}
-            {% endfor %}
-        </div>
-        {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
         
         {% if talo.original_talo %}
         <div class="retalo-original">
@@ -3221,22 +3239,16 @@ startLiveTimestampUpdates();
     
 async function createTaloWithFirebase() {
     const content = document.getElementById('taloContent').value;
-    if (!content.trim()) {
-        alert('Please enter some content');
-        return;
-    }
-    if (content.length > MAX_CHARS) {
-        alert(`Content cannot exceed ${MAX_CHARS} characters`);
-        return;
-    }
-    
-    // Check for banned words
+    if (!content.trim()) { alert('Please enter some content'); return; }
+    if (content.length > MAX_CHARS) { alert(`Content cannot exceed ${MAX_CHARS} characters`); return; }
+
+    // Banned words check (existing)
     const bannedCheck = await checkForBannedWords(content);
     if (bannedCheck && bannedCheck.contains_banned) {
         alert('Your post contains inappropriate language. Please review and try again.');
         return;
     }
-    
+
     const submitBtn = document.getElementById('submitTaloBtn');
     const progressDiv = document.getElementById('uploadProgress');
     const progressBar = document.getElementById('progressBar');
@@ -3244,70 +3256,46 @@ async function createTaloWithFirebase() {
     submitBtn.disabled = true;
     submitBtn.textContent = 'Uploading...';
     progressDiv.style.display = 'block';
-    
+
     try {
-        const photoUrls = [];
-        for (let i = 0; i < photoFiles.length; i++) {
-            progressBar.style.width = `${((i + 1) / (photoFiles.length + 1)) * 100}%`;
-            progressText.textContent = `Uploading photo ${i + 1}/${photoFiles.length}...`;
-            const file = photoFiles[i];
-            const fileExt = file.name.split('.').pop();
+        const mediaUrls = [];
+        for (let i = 0; i < selectedMedia.length; i++) {
+            const item = selectedMedia[i];
+            progressBar.style.width = `${((i + 1) / (selectedMedia.length + 1)) * 100}%`;
+            progressText.textContent = `Uploading ${item.type} ${i + 1}/${selectedMedia.length}...`;
+            
+            const fileExt = item.file.name.split('.').pop();
             const fileName = `${loggedInUserId}/${Date.now()}/${i}_${Date.now()}.${fileExt}`;
-            const storageRef = window.firebaseRef(window.firebaseStorage, `talos/${fileName}`);
-            const snapshot = await window.uploadBytes(storageRef, file);
+            const folder = item.type === 'video' ? 'videos' : 'talos';
+            const storageRef = window.firebaseRef(window.firebaseStorage, `${folder}/${fileName}`);
+            const snapshot = await window.uploadBytes(storageRef, item.file);
             const downloadURL = await window.getDownloadURL(snapshot.ref);
-            photoUrls.push({ url: downloadURL, path: `talos/${fileName}`, type: file.type });
+            mediaUrls.push({
+                url: downloadURL,
+                path: `${folder}/${fileName}`,
+                type: item.type,
+                duration: item.duration || null
+            });
         }
-        
+
         progressBar.style.width = '100%';
         progressText.textContent = 'Creating post...';
-        
+
         const response = await fetch('/api/create_talo', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content: content, photos: photoUrls })
+            body: JSON.stringify({ content: content, photos: mediaUrls })
         });
-        
+
         if (response.ok) {
             const data = await response.json();
-            const newPostId = data.talo_id;
-            
-            // Use the server's timestamp
-             let serverTimestamp = data.created_at;
-             if (!serverTimestamp) {
-                 serverTimestamp = new Date().toISOString();
-               }
-            
-            // If no timestamp returned, use current time
-            //if (!serverTimestamp) {
-             //   serverTimestamp = new Date().toISOString();
-           // }
-            
-     // DEBUG: Log the timestamp to see the effect
-    		//console.log('=== NEW POST CREATED ===');
-              // debugTimestampWithDeduction(serverTimestamp);
-    
-           // console.log('Server timestamp:', serverTimestamp);
-           // console.log('Formatted time:', formatTimeAgo(serverTimestamp));
-            
-            // Update timestamp with server time
-            latestTaloTimestamp = serverTimestamp;
-            localStorage.setItem('lastSeenTimestamp', serverTimestamp);
-            
-            // Clear the form
+            // Clear form, update UI and reload
             document.getElementById('taloContent').value = '';
-            photoFiles = [];
+            selectedMedia = [];
             document.getElementById('photoPreview').innerHTML = '';
-            updateCharCounter();
-            
-            // Show success message
+            updateMediaCount();
             showFlashNotification('✓ Post created successfully!', 'success');
-            
-            // Reload the page to show all posts in correct order
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
-            
+            setTimeout(() => location.reload(), 1000);
         } else {
             const error = await response.json();
             alert('Failed to create post: ' + (error.detail || 'Unknown error'));
@@ -4511,7 +4499,108 @@ window.addEventListener('resize', function() {
         if (event.target === document.getElementById('followingModal')) closeFollowingModal();
     };
 
+
+// ========== MEDIA SELECTION (Video or Photos) ==========
+let selectedMedia = []; // each item: { file, type: 'image'|'video', previewUrl, duration? }
+
+function selectMedia() {
+    document.getElementById('mediaInput').click();
+}
+
+function handleMediaSelection(files) {
+    const isVideo = files.length === 1 && files[0].type.startsWith('video/');
+    const areImages = files.length >= 1 && files.length <= 4 && Array.from(files).every(f => f.type.startsWith('image/'));
+
+    // Validate rule: either 1 video OR 1-4 photos, not both.
+    if (!isVideo && !areImages) {
+        alert('You can either upload 1 video (max 30s) OR 1-4 photos. Please select valid files.');
+        document.getElementById('mediaInput').value = '';
+        return;
+    }
+
+    if (isVideo) {
+        // Validate video duration
+        const videoFile = files[0];
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.onloadedmetadata = function() {
+            if (video.duration > 30) {
+                alert('Video must be 30 seconds or less.');
+                document.getElementById('mediaInput').value = '';
+                return;
+            }
+            // Accepted: clear any existing media and add video
+            selectedMedia = [{ file: videoFile, type: 'video', previewUrl: URL.createObjectURL(videoFile), duration: video.duration }];
+            updateMediaPreview();
+            updateMediaCount();
+        };
+        video.src = URL.createObjectURL(videoFile);
+        video.onerror = function() {
+            alert('Unable to read video file. Please try another.');
+            document.getElementById('mediaInput').value = '';
+        };
+    } else {
+        // Images: clear previous media, add each image
+        selectedMedia = [];
+        for (let f of files) {
+            selectedMedia.push({ file: f, type: 'image', previewUrl: URL.createObjectURL(f) });
+        }
+        updateMediaPreview();
+        updateMediaCount();
+    }
+    document.getElementById('mediaInput').value = ''; // reset
+}
+
+function updateMediaCount() {
+    document.getElementById('mediaCount').textContent = selectedMedia.length + ' file(s) selected';
+}
+
+function updateMediaPreview() {
+    const container = document.getElementById('photoPreview');
+    container.innerHTML = '';
+    selectedMedia.forEach((item, index) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'photo-container';
+        wrapper.style.position = 'relative';
+        wrapper.style.display = 'inline-block';
+        wrapper.style.margin = '5px';
+
+        if (item.type === 'image') {
+            const img = document.createElement('img');
+            img.src = item.previewUrl;
+            img.style.width = '80px';
+            img.style.height = '80px';
+            img.style.objectFit = 'cover';
+            img.style.borderRadius = '8px';
+            wrapper.appendChild(img);
+        } else { // video
+            const video = document.createElement('video');
+            video.src = item.previewUrl;
+            video.controls = true;
+            video.style.width = '80px';
+            video.style.height = '80px';
+            video.style.objectFit = 'cover';
+            video.style.borderRadius = '8px';
+            wrapper.appendChild(video);
+        }
+
+        const removeBtn = document.createElement('button');
+        removeBtn.textContent = '✖';
+        removeBtn.className = 'remove-photo';
+        removeBtn.onclick = () => {
+            selectedMedia.splice(index, 1);
+            updateMediaPreview();
+            updateMediaCount();
+        };
+        wrapper.appendChild(removeBtn);
+        container.appendChild(wrapper);
+    });
+}
+
+
 </script>
+
+<input type="file" id="mediaInput" accept="image/*,video/*" multiple style="display:none" onchange="handleMediaSelection(this.files)">
 
 </body>
 </html>
