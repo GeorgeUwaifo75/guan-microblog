@@ -2398,6 +2398,9 @@
     let fabContainer = null;
     let fabVisible = true;
     let scrollTimeout = null;
+
+let autoCloseTimeout = null;
+const AUTO_CLOSE_DELAY = 5000; // 5 seconds
     
     const loggedInUserId = '{{ user.user_id }}';
     const MAX_CHARS = 250;
@@ -2516,7 +2519,8 @@ window.openPromotionModalFromPost = function(taloId) {
     }
     
     // ========== FOCUS ON TEXTAREA FUNCTION ==========
-  function focusOnTextarea() {
+  // Focus on textarea (also opens the create section and starts auto-close timer)
+function focusOnTextarea() {
     const createSection = document.getElementById('createTaloSection');
     const textarea = document.getElementById('taloContent');
     const fabBtn = document.querySelector('.new-post-btn span');
@@ -2529,7 +2533,6 @@ window.openPromotionModalFromPost = function(taloId) {
         createSection.classList.remove('hidden');
         createSection.classList.add('visible');
         
-        // Reset first post margin - only on mobile
         if (firstTaloCard && isMobile) {
             firstTaloCard.style.marginTop = '10px';
         } else if (firstTaloCard && !isMobile) {
@@ -2542,6 +2545,9 @@ window.openPromotionModalFromPost = function(taloId) {
         fabBtn.style.display = 'flex';
         fabBtn.style.alignItems = 'center';
         fabBtn.style.justifyContent = 'center';
+        
+        // Start the auto-close timer
+        resetAutoCloseTimer();
     }
     
     setTimeout(() => {
@@ -4309,7 +4315,7 @@ function loadPaystackScript() {
 
    //TOGGLE CREATE VISIBILITY
 
-// Toggle create talo section visibility
+// Toggle create talo section visibility (with auto-close timer)
 function toggleCreateTalo() {
     const createSection = document.getElementById('createTaloSection');
     const fabBtn = document.querySelector('.new-post-btn span');
@@ -4327,7 +4333,7 @@ function toggleCreateTalo() {
         if (firstTaloCard && isMobile) {
             firstTaloCard.style.marginTop = '10px';
         } else if (firstTaloCard && !isMobile) {
-            firstTaloCard.style.marginTop = '10px'; // Desktop default
+            firstTaloCard.style.marginTop = '10px';
         }
         
         fabBtn.textContent = '✕';
@@ -4337,20 +4343,23 @@ function toggleCreateTalo() {
         fabBtn.style.alignItems = 'center';
         fabBtn.style.justifyContent = 'center';
         
+        // Start the auto-close timer
+        resetAutoCloseTimer();
+        
+        // Focus on textarea after a short delay
         setTimeout(() => {
             document.getElementById('taloContent').focus();
         }, 300);
     } else {
-        // Hide create section
+        // Hide create section (manual close)
         createSection.style.display = 'none';
         createSection.classList.remove('visible');
         createSection.classList.add('hidden');
         
-        // Increase first post margin to fill the gap - ONLY on mobile
         if (firstTaloCard && isMobile) {
             firstTaloCard.style.marginTop = '20px';
         } else if (firstTaloCard && !isMobile) {
-            firstTaloCard.style.marginTop = '10px'; // Desktop default
+            firstTaloCard.style.marginTop = '10px';
         }
         
         fabBtn.textContent = '+';
@@ -4359,8 +4368,67 @@ function toggleCreateTalo() {
         fabBtn.style.display = 'flex';
         fabBtn.style.alignItems = 'center';
         fabBtn.style.justifyContent = 'center';
+        
+        // Clear the auto-close timer
+        if (autoCloseTimeout) {
+            clearTimeout(autoCloseTimeout);
+            autoCloseTimeout = null;
+        }
     }
 }
+
+
+// Reset or start the auto-close timer
+function resetAutoCloseTimer() {
+    if (autoCloseTimeout) {
+        clearTimeout(autoCloseTimeout);
+        autoCloseTimeout = null;
+    }
+    const createSection = document.getElementById('createTaloSection');
+    if (createSection.style.display !== 'none' && createSection.style.display !== '') {
+        autoCloseTimeout = setTimeout(() => {
+            autoCloseCreateTalo();
+        }, AUTO_CLOSE_DELAY);
+    }
+}
+
+// Auto-close the create section (called by timer)
+function autoCloseCreateTalo() {
+    const createSection = document.getElementById('createTaloSection');
+    const fabBtn = document.querySelector('.new-post-btn span');
+    const firstTaloCard = document.querySelector('.talo-card:first-of-type');
+    const isMobile = window.innerWidth <= 768;
+    
+    // Only close if it's still open
+    if (createSection.style.display !== 'none' && createSection.style.display !== '') {
+        createSection.style.display = 'none';
+        createSection.classList.remove('visible');
+        createSection.classList.add('hidden');
+        
+        // Adjust first post margin (mobile only)
+        if (firstTaloCard && isMobile) {
+            firstTaloCard.style.marginTop = '20px';
+        } else if (firstTaloCard && !isMobile) {
+            firstTaloCard.style.marginTop = '10px';
+        }
+        
+        // Reset button icon
+        fabBtn.textContent = '+';
+        fabBtn.style.fontSize = '28px';
+        fabBtn.style.lineHeight = '1';
+        fabBtn.style.display = 'flex';
+        fabBtn.style.alignItems = 'center';
+        fabBtn.style.justifyContent = 'center';
+        
+        // Clear the timer
+        if (autoCloseTimeout) {
+            clearTimeout(autoCloseTimeout);
+            autoCloseTimeout = null;
+        }
+    }
+}
+
+
 
 // Add slideDown animation
 // Revert the styleSheet creation
@@ -4431,6 +4499,33 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('No posts found');
         }
     }
+
+
+// Set up auto-close timer reset on user activity within the create section
+const createSection = document.getElementById('createTaloSection');
+if (createSection) {
+    // Reset timer on input in textarea
+    const textarea = document.getElementById('taloContent');
+    if (textarea) {
+        textarea.addEventListener('input', function() {
+            if (createSection.style.display !== 'none' && createSection.style.display !== '') {
+                resetAutoCloseTimer();
+            }
+        });
+        textarea.addEventListener('keydown', function() {
+            if (createSection.style.display !== 'none' && createSection.style.display !== '') {
+                resetAutoCloseTimer();
+            }
+        });
+    }
+    // Reset timer on any click inside the create section
+    createSection.addEventListener('click', function(e) {
+        if (createSection.style.display !== 'none' && createSection.style.display !== '') {
+            resetAutoCloseTimer();
+        }
+    });
+}
+
 });
 
 // Also handle window resize to adjust margins when switching between mobile/desktop
