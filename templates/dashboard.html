@@ -2515,7 +2515,6 @@ window.openPromotionModalFromPost = function(taloId) {
         document.getElementById('photoViewerModal').style.display = 'none';
     }
     
-    // ========== FOCUS ON TEXTAREA FUNCTION ==========
   function focusOnTextarea() {
     const createSection = document.getElementById('createTaloSection');
     const textarea = document.getElementById('taloContent');
@@ -2523,34 +2522,45 @@ window.openPromotionModalFromPost = function(taloId) {
     const firstTaloCard = document.querySelector('.talo-card:first-of-type');
     const isMobile = window.innerWidth <= 768;
     
-    if (createSection.style.display === 'none' || createSection.style.display === '') {
-        createSection.style.display = 'block';
-        createSection.style.animation = 'slideDown 0.3s ease';
-        createSection.classList.remove('hidden');
-        createSection.classList.add('visible');
-        
-        // Reset first post margin - only on mobile
-        if (firstTaloCard && isMobile) {
-            firstTaloCard.style.marginTop = '10px';
-        } else if (firstTaloCard && !isMobile) {
-            firstTaloCard.style.marginTop = '10px';
+    // If already visible, just focus and return
+    if (createSection.style.display !== 'none' && createSection.style.display !== '') {
+        if (textarea) {
+            textarea.focus();
+            textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
-        
-        fabBtn.textContent = '✕';
-        fabBtn.style.fontSize = '28px';
-        fabBtn.style.lineHeight = '1';
-        fabBtn.style.display = 'flex';
-        fabBtn.style.alignItems = 'center';
-        fabBtn.style.justifyContent = 'center';
+        return;
     }
     
+    // Otherwise, open it
+    createSection.style.display = 'block';
+    createSection.style.animation = 'slideDown 0.3s ease';
+    createSection.classList.remove('hidden');
+    createSection.classList.add('visible');
+    
+    if (firstTaloCard && isMobile) {
+        firstTaloCard.style.marginTop = '10px';
+    } else if (firstTaloCard && !isMobile) {
+        firstTaloCard.style.marginTop = '10px';
+    }
+    
+    fabBtn.textContent = '✕';
+    fabBtn.style.fontSize = '28px';
+    fabBtn.style.lineHeight = '1';
+    fabBtn.style.display = 'flex';
+    fabBtn.style.alignItems = 'center';
+    fabBtn.style.justifyContent = 'center';
+    
     setTimeout(() => {
-        textarea.focus();
-        textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (textarea) {
+            textarea.focus();
+            textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     }, 300);
 }
+
     
     // ========== FAB VISIBILITY CONTROL + AUTO-CLOSE ON SCROLL ==========
+// ========== FAB VISIBILITY CONTROL + AUTO-CLOSE ON SCROLL ==========
 function initFabVisibilityControl() {
     fabContainer = document.getElementById('fabContainer');
     const scrollableContent = document.getElementById('scrollableContent');
@@ -2559,15 +2569,35 @@ function initFabVisibilityControl() {
     if (!fabContainer || !scrollableContent) return;
     
     scrollableContent.addEventListener('scroll', function() {
-        // --- NEW: If create section is open, close it when user scrolls ---
+        // If create section is open, close it when user scrolls
         if (createSection && (createSection.style.display !== 'none' && createSection.style.display !== '')) {
-            // Close the create section (this will reset the icon)
-            toggleCreateTalo();
-            // After closing, we might want to immediately show the fab if hidden
-            // The fab visibility logic below will handle it.
+            // Close the create section directly
+            createSection.style.display = 'none';
+            createSection.classList.remove('visible');
+            createSection.classList.add('hidden');
+            
+            // Reset button icon to '+'
+            const fabBtn = document.querySelector('.new-post-btn span');
+            if (fabBtn) {
+                fabBtn.textContent = '+';
+                fabBtn.style.fontSize = '28px';
+                fabBtn.style.lineHeight = '1';
+                fabBtn.style.display = 'flex';
+                fabBtn.style.alignItems = 'center';
+                fabBtn.style.justifyContent = 'center';
+            }
+            
+            // Adjust first post margin (mobile only)
+            const firstTaloCard = document.querySelector('.talo-card:first-of-type');
+            const isMobile = window.innerWidth <= 768;
+            if (firstTaloCard && isMobile) {
+                firstTaloCard.style.marginTop = '20px';
+            } else if (firstTaloCard && !isMobile) {
+                firstTaloCard.style.marginTop = '10px';
+            }
         }
         
-        // --- Existing FAB visibility control ---
+        // Existing FAB visibility control (hide/show on scroll)
         if (scrollTimeout) {
             clearTimeout(scrollTimeout);
         }
@@ -4319,25 +4349,25 @@ function loadPaystackScript() {
 
    //TOGGLE CREATE VISIBILITY
 
-// Toggle create talo section visibility
+// Toggle create talo section visibility (open/close)
 function toggleCreateTalo() {
     const createSection = document.getElementById('createTaloSection');
     const fabBtn = document.querySelector('.new-post-btn span');
     const firstTaloCard = document.querySelector('.talo-card:first-of-type');
     const isMobile = window.innerWidth <= 768;
+    const textarea = document.getElementById('taloContent');
     
+    // If currently hidden → open it
     if (createSection.style.display === 'none' || createSection.style.display === '') {
-        // Show create section
         createSection.style.display = 'block';
         createSection.style.animation = 'slideDown 0.3s ease';
         createSection.classList.remove('hidden');
         createSection.classList.add('visible');
         
-        // Reset first post margin - only on mobile
         if (firstTaloCard && isMobile) {
             firstTaloCard.style.marginTop = '10px';
         } else if (firstTaloCard && !isMobile) {
-            firstTaloCard.style.marginTop = '10px'; // Desktop default
+            firstTaloCard.style.marginTop = '10px';
         }
         
         fabBtn.textContent = '✕';
@@ -4348,19 +4378,21 @@ function toggleCreateTalo() {
         fabBtn.style.justifyContent = 'center';
         
         setTimeout(() => {
-            document.getElementById('taloContent').focus();
+            if (textarea) {
+                textarea.focus();
+                textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
         }, 300);
     } else {
-        // Hide create section
+        // Currently visible → close it
         createSection.style.display = 'none';
         createSection.classList.remove('visible');
         createSection.classList.add('hidden');
         
-        // Increase first post margin to fill the gap - ONLY on mobile
         if (firstTaloCard && isMobile) {
             firstTaloCard.style.marginTop = '20px';
         } else if (firstTaloCard && !isMobile) {
-            firstTaloCard.style.marginTop = '10px'; // Desktop default
+            firstTaloCard.style.marginTop = '10px';
         }
         
         fabBtn.textContent = '+';
