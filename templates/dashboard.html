@@ -2392,9 +2392,6 @@
     let isRefreshing = false;
     let unreadNotifications = 0;
     let searchTimeout = null;
-
-    let autoCloseTimeout = null;
-    const AUTO_CLOSE_DELAY = 5000; // 5 seconds
     
     // FAB visibility control variables
     let lastScrollTop = 0;
@@ -2422,64 +2419,6 @@
         following_count: {{ user.following_count }},
         talos_count: {{ user.talos_count }}
     };
-
-
-//FUNCTIONS FOR AUTO-CONTROL OF FAB ICONS
-
-// Start or reset the auto-close timer
-function resetAutoCloseTimer() {
-    // Clear any existing timer
-    if (autoCloseTimeout) {
-        clearTimeout(autoCloseTimeout);
-        autoCloseTimeout = null;
-    }
-    // Only set timer if the create section is currently open
-    const createSection = document.getElementById('createTaloSection');
-    if (createSection.style.display !== 'none' && createSection.style.display !== '') {
-        autoCloseTimeout = setTimeout(() => {
-            autoCloseCreateTalo();
-        }, AUTO_CLOSE_DELAY);
-    }
-}
-
-// Auto-close the create section
-function autoCloseCreateTalo() {
-    const createSection = document.getElementById('createTaloSection');
-    const fabBtn = document.querySelector('.new-post-btn span');
-    const firstTaloCard = document.querySelector('.talo-card:first-of-type');
-    const isMobile = window.innerWidth <= 768;
-    
-    if (createSection.style.display !== 'none' && createSection.style.display !== '') {
-        // Hide create section
-        createSection.style.display = 'none';
-        createSection.classList.remove('visible');
-        createSection.classList.add('hidden');
-        
-        // Adjust first post margin (mobile only)
-        if (firstTaloCard && isMobile) {
-            firstTaloCard.style.marginTop = '20px';
-        } else if (firstTaloCard && !isMobile) {
-            firstTaloCard.style.marginTop = '10px';
-        }
-        
-        // Reset button icon
-        fabBtn.textContent = '+';
-        fabBtn.style.fontSize = '28px';
-        fabBtn.style.lineHeight = '1';
-        fabBtn.style.display = 'flex';
-        fabBtn.style.alignItems = 'center';
-        fabBtn.style.justifyContent = 'center';
-        
-        // Clear any existing timer
-        if (autoCloseTimeout) {
-            clearTimeout(autoCloseTimeout);
-            autoCloseTimeout = null;
-        }
-        
-        // Optionally show a brief notification
-        // showFlashNotification('Create section closed due to inactivity', 'info');
-    }
-}
 
    
     // ========== POST ACTIONS FUNCTIONS - FIXED ==========
@@ -2590,6 +2529,7 @@ window.openPromotionModalFromPost = function(taloId) {
         createSection.classList.remove('hidden');
         createSection.classList.add('visible');
         
+        // Reset first post margin - only on mobile
         if (firstTaloCard && isMobile) {
             firstTaloCard.style.marginTop = '10px';
         } else if (firstTaloCard && !isMobile) {
@@ -2602,9 +2542,6 @@ window.openPromotionModalFromPost = function(taloId) {
         fabBtn.style.display = 'flex';
         fabBtn.style.alignItems = 'center';
         fabBtn.style.justifyContent = 'center';
-        
-        // Start the auto-close timer
-        resetAutoCloseTimer();
     }
     
     setTimeout(() => {
@@ -4390,7 +4327,7 @@ function toggleCreateTalo() {
         if (firstTaloCard && isMobile) {
             firstTaloCard.style.marginTop = '10px';
         } else if (firstTaloCard && !isMobile) {
-            firstTaloCard.style.marginTop = '10px';
+            firstTaloCard.style.marginTop = '10px'; // Desktop default
         }
         
         fabBtn.textContent = '✕';
@@ -4400,23 +4337,20 @@ function toggleCreateTalo() {
         fabBtn.style.alignItems = 'center';
         fabBtn.style.justifyContent = 'center';
         
-        // Start the auto-close timer
-        resetAutoCloseTimer();
-        
-        // Focus on textarea after a short delay
         setTimeout(() => {
             document.getElementById('taloContent').focus();
         }, 300);
     } else {
-        // Hide create section (manual close)
+        // Hide create section
         createSection.style.display = 'none';
         createSection.classList.remove('visible');
         createSection.classList.add('hidden');
         
+        // Increase first post margin to fill the gap - ONLY on mobile
         if (firstTaloCard && isMobile) {
             firstTaloCard.style.marginTop = '20px';
         } else if (firstTaloCard && !isMobile) {
-            firstTaloCard.style.marginTop = '10px';
+            firstTaloCard.style.marginTop = '10px'; // Desktop default
         }
         
         fabBtn.textContent = '+';
@@ -4425,15 +4359,8 @@ function toggleCreateTalo() {
         fabBtn.style.display = 'flex';
         fabBtn.style.alignItems = 'center';
         fabBtn.style.justifyContent = 'center';
-        
-        // Clear the auto-close timer
-        if (autoCloseTimeout) {
-            clearTimeout(autoCloseTimeout);
-            autoCloseTimeout = null;
-        }
     }
 }
-
 
 // Add slideDown animation
 // Revert the styleSheet creation
@@ -4504,38 +4431,6 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('No posts found');
         }
     }
-
-// Set up auto-close timer reset on user activity within the create section
-    const createSection = document.getElementById('createTaloSection');
-    if (createSection) {
-        // Reset timer on any input or click inside the create section
-        createSection.addEventListener('input', function(e) {
-            // Only reset if the section is visible
-            if (createSection.style.display !== 'none' && createSection.style.display !== '') {
-                resetAutoCloseTimer();
-            }
-        });
-        createSection.addEventListener('click', function(e) {
-            // Ignore clicks on the close button (if any) or on the submit button? 
-            // We'll reset anyway so it stays open.
-            if (createSection.style.display !== 'none' && createSection.style.display !== '') {
-                resetAutoCloseTimer();
-            }
-        });
-        // Also reset on keydown inside the textarea
-        const textarea = document.getElementById('taloContent');
-        if (textarea) {
-            textarea.addEventListener('keydown', function() {
-                if (createSection.style.display !== 'none' && createSection.style.display !== '') {
-                    resetAutoCloseTimer();
-                }
-            });
-        }
-    }
-
-
-
-
 });
 
 // Also handle window resize to adjust margins when switching between mobile/desktop
