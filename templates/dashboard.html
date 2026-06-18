@@ -2550,35 +2550,45 @@ window.openPromotionModalFromPost = function(taloId) {
     }, 300);
 }
     
-    // ========== FAB VISIBILITY CONTROL ==========
-    function initFabVisibilityControl() {
-        fabContainer = document.getElementById('fabContainer');
-        const scrollableContent = document.getElementById('scrollableContent');
-        
-        if (!fabContainer || !scrollableContent) return;
-        
-        scrollableContent.addEventListener('scroll', function() {
-            if (scrollTimeout) {
-                clearTimeout(scrollTimeout);
-            }
-            if (fabVisible) {
-                fabContainer.classList.add('hidden');
-                fabVisible = false;
-            }
-            scrollTimeout = setTimeout(function() {
-                if (!fabVisible) {
-                    fabContainer.classList.remove('hidden');
-                    fabVisible = true;
-                }
-            }, 150);
-            lastScrollTop = scrollableContent.scrollTop;
-        });
-        
-        if (fabContainer && !fabVisible) {
-            fabContainer.classList.remove('hidden');
-            fabVisible = true;
+    // ========== FAB VISIBILITY CONTROL + AUTO-CLOSE ON SCROLL ==========
+function initFabVisibilityControl() {
+    fabContainer = document.getElementById('fabContainer');
+    const scrollableContent = document.getElementById('scrollableContent');
+    const createSection = document.getElementById('createTaloSection');
+    
+    if (!fabContainer || !scrollableContent) return;
+    
+    scrollableContent.addEventListener('scroll', function() {
+        // --- NEW: If create section is open, close it when user scrolls ---
+        if (createSection && (createSection.style.display !== 'none' && createSection.style.display !== '')) {
+            // Close the create section (this will reset the icon)
+            toggleCreateTalo();
+            // After closing, we might want to immediately show the fab if hidden
+            // The fab visibility logic below will handle it.
         }
+        
+        // --- Existing FAB visibility control ---
+        if (scrollTimeout) {
+            clearTimeout(scrollTimeout);
+        }
+        if (fabVisible) {
+            fabContainer.classList.add('hidden');
+            fabVisible = false;
+        }
+        scrollTimeout = setTimeout(function() {
+            if (!fabVisible) {
+                fabContainer.classList.remove('hidden');
+                fabVisible = true;
+            }
+        }, 150);
+        lastScrollTop = scrollableContent.scrollTop;
+    });
+    
+    if (fabContainer && !fabVisible) {
+        fabContainer.classList.remove('hidden');
+        fabVisible = true;
     }
+}
     
     // ========== SEARCH FUNCTIONALITY ==========
     const searchInput = document.getElementById('globalSearchInput');
