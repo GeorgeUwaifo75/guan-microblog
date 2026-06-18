@@ -2430,7 +2430,7 @@
    //TOGGLE CREATE VISIBILITY
 
 // Toggle create talo section visibility (with auto-close timer)
-function toggleCreateTalo() {
+window.toggleCreateTalo = function() {
     const createSection = document.getElementById('createTaloSection');
     const fabBtn = document.querySelector('.new-post-btn span');
     const firstTaloCard = document.querySelector('.talo-card:first-of-type');
@@ -2443,7 +2443,6 @@ function toggleCreateTalo() {
         createSection.classList.remove('hidden');
         createSection.classList.add('visible');
         
-        // Reset first post margin - only on mobile
         if (firstTaloCard && isMobile) {
             firstTaloCard.style.marginTop = '10px';
         } else if (firstTaloCard && !isMobile) {
@@ -2457,15 +2456,13 @@ function toggleCreateTalo() {
         fabBtn.style.alignItems = 'center';
         fabBtn.style.justifyContent = 'center';
         
-        // Start the auto-close timer
         resetAutoCloseTimer();
         
-        // Focus on textarea after a short delay
         setTimeout(() => {
             document.getElementById('taloContent').focus();
         }, 300);
     } else {
-        // Hide create section (manual close)
+        // Hide create section
         createSection.style.display = 'none';
         createSection.classList.remove('visible');
         createSection.classList.add('hidden');
@@ -2483,14 +2480,12 @@ function toggleCreateTalo() {
         fabBtn.style.alignItems = 'center';
         fabBtn.style.justifyContent = 'center';
         
-        // Clear the auto-close timer
         if (autoCloseTimeout) {
             clearTimeout(autoCloseTimeout);
             autoCloseTimeout = null;
         }
     }
-}
-
+};
 
 // Reset or start the auto-close timer
 function resetAutoCloseTimer() {
