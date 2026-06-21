@@ -298,114 +298,103 @@ Get started by following interesting accounts and sharing your first talo.
         logger.error(f"Error in ensure_wa_guan_account: {str(e)}")
         logger.warning("Could not verify/create wa_guan account. Will retry on next request.")
 
-
-
-
-
-async def get_jsonbin_data(force_refresh=False, fast_mode=False) -> Dict:
-    """Fetch data with optional fast mode for login (fewer retries)."""
+async def get_jsonbin_data(force_refresh=False) -> Dict:
+    """Fetch data from jsonbinbro API with improved retry logic"""
+    
     if not force_refresh:
         cached_data = api_cache.get("jsonbin_data")
         if cached_data:
+            logger.info("Returning cached API data")
             return cached_data
-
-    max_retries = 2 if fast_mode else 3   # fewer retries for login
-    retry_delay = 1 if fast_mode else 2   # shorter delay
     
+    max_retries = 3
+    retry_delay = 2
     
     for attempt in range(max_retries):
         try:
-            for attempt in range(max_retries):
-                try:
-                    url = f"{API_BASE}/bins/{BIN_ID}?api_key={API_KEY}"
+            url = f"{API_BASE}/bins/{BIN_ID}?api_key={API_KEY}"
+            
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.get(url)
+                
+                if response.status_code == 200:
+                    result = response.json()
                     
-                    async with httpx.AsyncClient(timeout=15.0) as client:
-                        response = await client.get(url)
-                        
-                        if response.status_code == 200:
-                            result = response.json()
-                            
-                            if 'data' in result:
-                                data_content = result['data']
-                                if isinstance(data_content, dict):
-                                    collections = ["users", "talos", "replies", "admins", "likes", 
-                                                  "dislikes", "retalos", "follows", "blocks", 
-                                                  "payments", "notifications", "adverts", "premium_requests",
-                                                  "promotions"]
-                                    for col in collections:
-                                        if col not in data_content:
-                                            data_content[col] = []
-                                    api_cache.set("jsonbin_data", data_content)
-                                    return data_content
-                                else:
-                                    default_data = {
-                                        "users": [], "talos": [], "replies": [], "admins": [],
-                                        "likes": [], "dislikes": [], "retalos": [], "follows": [],
-                                        "blocks": [], "payments": [], "notifications": [], "adverts": [],
-                                        "premium_requests": [], "promotions": []
-                                    }
-                                    api_cache.set("jsonbin_data", default_data)
-                                    return default_data
-                            else:
-                                api_cache.set("jsonbin_data", result)
-                                return result
-                                
-                        elif response.status_code == 404:
-                            logger.warning("Bin not found, creating initial data structure")
-                            initial_data = {
+                    if 'data' in result:
+                        data_content = result['data']
+                        if isinstance(data_content, dict):
+                            collections = ["users", "talos", "replies", "admins", "likes", 
+                                          "dislikes", "retalos", "follows", "blocks", 
+                                          "payments", "notifications", "adverts", "premium_requests",
+                                          "promotions"]
+                            for col in collections:
+                                if col not in data_content:
+                                    data_content[col] = []
+                            api_cache.set("jsonbin_data", data_content)
+                            return data_content
+                        else:
+                            default_data = {
                                 "users": [], "talos": [], "replies": [], "admins": [],
                                 "likes": [], "dislikes": [], "retalos": [], "follows": [],
                                 "blocks": [], "payments": [], "notifications": [], "adverts": [],
                                 "premium_requests": [], "promotions": []
                             }
-                            await save_jsonbin_data(initial_data)
-                            api_cache.set("jsonbin_data", initial_data)
-                            return initial_data
-                        else:
-                            if attempt < max_retries - 1:
-                                logger.warning(f"API returned {response.status_code}, retrying...")
-                                await asyncio.sleep(retry_delay * (attempt + 1))
-                                continue
-                            cached = api_cache.get("jsonbin_data")
-                            if cached:
-                                logger.warning("Using cached data due to API error")
-                                return cached
-                            raise HTTPException(status_code=503, detail=f"API error: Status {response.status_code}")
-                            
-                except httpx.TimeoutException:
-                    logger.error(f"Timeout error (attempt {attempt + 1}/{max_retries})")
+                            api_cache.set("jsonbin_data", default_data)
+                            return default_data
+                    else:
+                        api_cache.set("jsonbin_data", result)
+                        return result
+                        
+                elif response.status_code == 404:
+                    logger.warning("Bin not found, creating initial data structure")
+                    initial_data = {
+                        "users": [], "talos": [], "replies": [], "admins": [],
+                        "likes": [], "dislikes": [], "retalos": [], "follows": [],
+                        "blocks": [], "payments": [], "notifications": [], "adverts": [],
+                        "premium_requests": [], "promotions": []
+                    }
+                    await save_jsonbin_data(initial_data)
+                    api_cache.set("jsonbin_data", initial_data)
+                    return initial_data
+                else:
                     if attempt < max_retries - 1:
+                        logger.warning(f"API returned {response.status_code}, retrying...")
                         await asyncio.sleep(retry_delay * (attempt + 1))
                         continue
                     cached = api_cache.get("jsonbin_data")
                     if cached:
-                        logger.warning("Using cached data due to timeout")
+                        logger.warning("Using cached data due to API error")
                         return cached
-                    raise HTTPException(status_code=503, detail="API is currently slow. Please try again in a moment.")
+                    raise HTTPException(status_code=503, detail=f"API error: Status {response.status_code}")
                     
-                except Exception as e:
-                    logger.error(f"Error fetching data (attempt {attempt + 1}/{max_retries}): {str(e)}")
-                    if attempt < max_retries - 1:
-                        await asyncio.sleep(retry_delay * (attempt + 1))
-                        continue
-                    cached = api_cache.get("jsonbin_data")
-                    if cached:
-                        logger.warning("Using cached data due to error")
-                        return cached
-                    raise HTTPException(status_code=503, detail=f"Unable to access API: {str(e)}")
-            
-            cached = api_cache.get("jsonbin_data")
-            if cached:
-                logger.warning("Using cached data as final fallback")
-                return cached
-            raise HTTPException(status_code=503, detail="Unable to access API after multiple attempts")
-        
-        except Exception:
+        except httpx.TimeoutException:
+            logger.error(f"Timeout error (attempt {attempt + 1}/{max_retries})")
             if attempt < max_retries - 1:
                 await asyncio.sleep(retry_delay * (attempt + 1))
                 continue
-            # fallback to cached data or raise
-    # ...
+            cached = api_cache.get("jsonbin_data")
+            if cached:
+                logger.warning("Using cached data due to timeout")
+                return cached
+            raise HTTPException(status_code=503, detail="API is currently slow. Please try again in a moment.")
+            
+        except Exception as e:
+            logger.error(f"Error fetching data (attempt {attempt + 1}/{max_retries}): {str(e)}")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(retry_delay * (attempt + 1))
+                continue
+            cached = api_cache.get("jsonbin_data")
+            if cached:
+                logger.warning("Using cached data due to error")
+                return cached
+            raise HTTPException(status_code=503, detail=f"Unable to access API: {str(e)}")
+    
+    cached = api_cache.get("jsonbin_data")
+    if cached:
+        logger.warning("Using cached data as final fallback")
+        return cached
+    raise HTTPException(status_code=503, detail="Unable to access API after multiple attempts")
+
 async def save_jsonbin_data(data: Dict) -> bool:
     """Save data to jsonbinbro API"""
     try:
@@ -646,14 +635,19 @@ async def api_signup(user_data: UserSignup):
 
 @app.post("/api/login")
 async def api_login(login_data: UserLogin):
-    # 1. Fetch data once with fast mode (using cache)
-    data = await get_jsonbin_data(fast_mode=True)
+    try:
+        data = await get_jsonbin_data()
+    except HTTPException as e:
+        logger.warning("First API attempt failed, retrying...")
+        await asyncio.sleep(1)
+        try:
+            data = await get_jsonbin_data(force_refresh=True)
+        except HTTPException:
+            raise HTTPException(status_code=503, detail="Service is starting up. Please wait 10 seconds and try again.")
     
-    # 2. Ensure wa_guan exists (async, non-blocking)
-    if not any(u.get('user_id') == WA_GUAN_USER_ID for u in data.get('users', [])):
-        asyncio.create_task(ensure_wa_guan_account())   # fire and forget
-
-    # 3. Authenticate user/admin (same logic as before)
+    await ensure_wa_guan_account()
+    data = await get_jsonbin_data()
+    
     if login_data.user_id == SUPER_ADMIN_ID and login_data.password == SUPER_ADMIN_PASSWORD:
         token = generate_token()
         
@@ -701,14 +695,11 @@ async def api_login(login_data: UserLogin):
             token = generate_token()
             user["session_token"] = token
             user["last_active"] = datetime.now().isoformat()
-    
-            # 4. After successful auth, update session_token and save
-            await save_jsonbin_data(data)   # this will save the updated token
-
-            # 5. Return response with cookie
+            await save_jsonbin_data(data)
             response = RedirectResponse(url="/dashboard", status_code=303)
             response.set_cookie(key="session_token", value=token, httponly=True)
-            return response    
+            return response
+    
     raise HTTPException(status_code=401, detail="Invalid credentials")
 
 @app.get("/dashboard", response_class=HTMLResponse)
