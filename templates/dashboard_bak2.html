@@ -716,7 +716,8 @@
         .photo-preview img {
             width: 80px;
             height: 80px;
-            object-fit: cover;
+            object-fit: contain;    /* Show full image in square */
+            background: #f0f0f0;
             border-radius: 8px;
         }
         
@@ -806,11 +807,12 @@
             margin: 10px 0;
         }
         
-        /* 1 photo - full width, 4:5 aspect ratio, max-width 540px */
+
+        /* For 1 photo, make it span full width and auto-height */
         .talo-photos.photo-count-1 {
             grid-template-columns: 1fr;
-            max-width: 540px;
         }
+        
         
         .talo-photos.photo-count-1 .photo-item {
             aspect-ratio: 4 / 5;
@@ -818,10 +820,9 @@
             margin: 0 auto;
         }
         
-        /* 2 photos - side by side, each 4:5 aspect ratio, max-width 270px each */
+        /* For 2 or more, use flexible columns */
         .talo-photos.photo-count-2 {
             grid-template-columns: 1fr 1fr;
-            max-width: 560px;
         }
         
         .talo-photos.photo-count-2 .photo-item {
@@ -835,14 +836,12 @@
             grid-template-areas: 
                 "main main"
                 "sub1 sub2";
-            max-width: 560px;
         }
         
-        .talo-photos.photo-count-3 .photo-item:first-child {
-            grid-area: main;
-            aspect-ratio: 4 / 5;
-            max-width: 560px;
-        }
+        /* The first photo in 3‑photo layout should span both columns */
+            .talo-photos.photo-count-3 .photo-item:first-child {
+                grid-area: main;
+            }
         
         .talo-photos.photo-count-3 .photo-item:nth-child(2) {
             grid-area: sub1;
@@ -859,7 +858,6 @@
         /* 4 photos - 2x2 grid, each 4:5 aspect ratio, max-width 270px each */
         .talo-photos.photo-count-4 {
             grid-template-columns: 1fr 1fr;
-            max-width: 560px;
         }
         
         .talo-photos.photo-count-4 .photo-item {
@@ -874,17 +872,9 @@
             background: #f0f0f0;
             cursor: pointer;
             width: 100%;
+            /* Remove fixed aspect-ratio; let image decide height */
         }
         
-        .photo-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            position: absolute;
-            top: 0;
-            left: 0;
-            transition: transform 0.3s ease;
-        }
         
         .photo-item:hover img {
             transform: scale(1.02);
@@ -1558,14 +1548,17 @@
                 top: 105px;
             }
             
-            /* Mobile photo adjustments */
+           
+           /* Remove fixed aspect-ratio and max-width constraints */
             .talo-photos.photo-count-1,
             .talo-photos.photo-count-2,
             .talo-photos.photo-count-3,
             .talo-photos.photo-count-4 {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
                 max-width: 100%;
             }
-            
+
+
             .talo-photos.photo-count-1 .photo-item {
                 max-width: 100%;
             }
@@ -1945,12 +1938,25 @@
     }
 }
 
-       .talo-photos .photo-item video {
+       .talo-photos {
             width: 100%;
             height: 100%;
             object-fit: cover;
             border-radius: 12px;
         }
+
+
+.photo-item img,
+.photo-item video {
+    width: 100%;
+    height: auto;               /* Let height adjust to image aspect ratio */
+    max-height: 500px;          /* Limit height to avoid very tall images */
+    object-fit: contain;        /* Show entire image without cropping */
+    display: block;
+    background: #f0f0f0;
+    border-radius: 12px;
+}
+
     </style>
 </head>
 <body>
