@@ -244,17 +244,24 @@
             max-width: 270px;
         }
 
-       .photo-item {
+        .photo-item {
             position: relative;
             overflow: hidden;
             border-radius: 12px;
             background: #f0f0f0;
             cursor: pointer;
             width: 100%;
-            /* Remove fixed aspect-ratio; let image decide height */
         }
 
-        
+        .photo-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transition: transform 0.3s ease;
+        }
 
         .photo-item:hover img {
             transform: scale(1.02);
@@ -864,73 +871,12 @@
             }
         }
 
-/*
         .talo-photos .photo-item video {
             width: 100%;
             height: 100%;
             object-fit: cover;
             border-radius: 12px;
         }
-        */
-/*
-        .talo-photos {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 12px;
-        }*/
-        
-        .talo-photos {
-            display: grid;
-            gap: 8px;
-            margin: 10px 0;
-        }
-
-
-        .photo-item img,
-        .photo-item video {
-            width: 100%;
-            height: auto;               /* Let height adjust to image aspect ratio */
-            max-height: 500px;          /* Limit height to avoid very tall images */
-            object-fit: contain;        /* Show entire image without cropping */
-            display: block;
-            background: #f0f0f0;
-            border-radius: 12px;
-        }
-
-
-/* Remove fixed aspect-ratio and max-width constraints */
-            .talo-photos.photo-count-1,
-            .talo-photos.photo-count-2,
-            .talo-photos.photo-count-3,
-            .talo-photos.photo-count-4 {
-                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-                max-width: 100%;
-            }
-
-/* For 1 photo, make it span full width and auto-height */
-        .talo-photos.photo-count-1 {
-            grid-template-columns: 1fr;
-        }
-
-/* For 2 or more, use flexible columns */
-        .talo-photos.photo-count-2 {
-            grid-template-columns: 1fr 1fr;
-        }
-        .talo-photos.photo-count-3 {
-            grid-template-columns: 1fr 1fr;
-            grid-template-areas: 
-                "main main"
-                "sub1 sub2";
-        }
-        .talo-photos.photo-count-4 {
-            grid-template-columns: 1fr 1fr;
-        }
-
-    /* The first photo in 3‑photo layout should span both columns */
-        .talo-photos.photo-count-3 .photo-item:first-child {
-            grid-area: main;
-        }    
     </style>
 </head>
 <body>
