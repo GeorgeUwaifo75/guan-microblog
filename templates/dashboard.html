@@ -4737,6 +4737,8 @@ function waitForPaystack() {
     });
 }
 
+document.getElementById('taloContent').placeholder = 
+    `What's happening? (max ${MAX_CHARS} characters)`;
 </script>
 
 <input type="file" id="mediaInput" accept="image/*,video/*" multiple style="display:none" onchange="handleMediaSelection(this.files)">
