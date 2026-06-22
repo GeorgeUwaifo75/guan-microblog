@@ -1027,8 +1027,11 @@ async def create_talo(request: Request):
     if contains_banned_words(content):
         raise HTTPException(status_code=400, detail="Your post contains inappropriate language. Please review and try again.")
     
-    if len(content) > 250:
-        raise HTTPException(status_code=400, detail="Talo cannot exceed 250 characters")
+    # ----- NEW: Character limit based on premium status -----
+    max_len = 500 if user.get("is_premium", False) else 250
+    if len(content) > max_len:
+        raise HTTPException(status_code=400, detail=f"Talo cannot exceed {max_len} characters")
+    # --------------------------------------------------------
     
     talo = {
         "id": str(uuid.uuid4()),
