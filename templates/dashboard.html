@@ -1951,15 +1951,6 @@
             object-fit: cover;
             border-radius: 12px;
         }
-
-
-/* Preserve line breaks in post/reply content */
-.talo-content,
-.post-content,
-.reply-content {
-    white-space: pre-wrap;
-    word-wrap: break-word;
-}
     </style>
 </head>
 <body>
@@ -3933,17 +3924,16 @@ setInterval(checkForNewPostsAndUpdate, 30000);
         document.getElementById('trendingModal').classList.remove('active');
     }
     
-function populateMobileMenu() {
-    const mobileProfileDiv = document.getElementById('mobileProfileCard');
-    const profilePhotoHtml = userData.profile_photo ? 
-        `<img class="profile-photo" src="${userData.profile_photo}" alt="Profile" style="cursor: pointer;" onclick="openProfileEditModal(); closeMobileMenu();">` :
-        `<div class="profile-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto; cursor: pointer;" onclick="openProfileEditModal(); closeMobileMenu();">👤</div>`;
+    function populateMobileMenu() {
+                  
+        const mobileProfileDiv = document.getElementById('mobileProfileCard');
+                    const profilePhotoHtml = userData.profile_photo ? 
 
-    // ---- FORCE BOOLEAN CONVERSION ----
-    const isPremium = (userData.is_premium === true || userData.is_premium === 'true');
+            `<img class="profile-photo" src="${userData.profile_photo}" alt="Profile" style="cursor: pointer;" onclick="openProfileEditModal(); closeMobileMenu();">` :
+            `<div class="profile-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto; cursor: pointer;" onclick="openProfileEditModal(); closeMobileMenu();">👤</div>`;
 
-    let premiumButtonHtml = '';
-    if (!isPremium) {
+let premiumButtonHtml = '';
+    if (!userData.is_premium) {
         premiumButtonHtml = `
             <div style="margin-top: 15px;">
                 <button class="get-premium-btn" onclick="initiatePremiumPayment(); closeMobileMenu();" 
@@ -3954,32 +3944,31 @@ function populateMobileMenu() {
         `;
     }
 
-    mobileProfileDiv.innerHTML = `
-        <div class="profile-card" style="margin-bottom: 20px;">
-            <button class="edit-profile-btn" onclick="openProfileEditModal(); closeMobileMenu();">✏️ Edit</button>
-            ${profilePhotoHtml}
-            <h3>${userData.first_name} ${userData.last_name}</h3>
-            <p>@${userData.user_id}</p>
-            ${userData.bio ? `<p style="font-size: 12px; color: #666; margin-top: 8px;">${userData.bio}</p>` : ''}
-            ${isPremium ? '<div class="premium-badge">🐏 PREMIUM</div>' : ''}
-            ${premiumButtonHtml}
-            <div class="stats">
-                <div class="stat" onclick="showFollowersModal('${userData.user_id}'); closeMobileMenu();">
-                    <div class="stat-number">${userData.followers_count}</div>
-                    <div>Followers</div>
-                </div>
-                <div class="stat" onclick="showFollowingModal('${userData.user_id}'); closeMobileMenu();">
-                    <div class="stat-number">${userData.following_count}</div>
-                    <div>Following</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-number">${userData.talos_count}</div>
-                    <div>Talos</div>
+
+        mobileProfileDiv.innerHTML = `
+            <div class="profile-card" style="margin-bottom: 20px;">
+                <button class="edit-profile-btn" onclick="openProfileEditModal(); closeMobileMenu();">✏️ Edit</button>
+                ${profilePhotoHtml}
+                <h3>${userData.first_name} ${userData.last_name}</h3>
+                <p>@${userData.user_id}</p>
+                ${userData.bio ? `<p style="font-size: 12px; color: #666; margin-top: 8px;">${userData.bio}</p>` : ''}
+                ${userData.is_premium ? '<div class="premium-badge">🐏 PREMIUM</div>' : ''}
+                <div class="stats">
+                    <div class="stat" onclick="showFollowersModal('${userData.user_id}'); closeMobileMenu();">
+                        <div class="stat-number">${userData.followers_count}</div>
+                        <div>Followers</div>
+                    </div>
+                    <div class="stat" onclick="showFollowingModal('${userData.user_id}'); closeMobileMenu();">
+                        <div class="stat-number">${userData.following_count}</div>
+                        <div>Following</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">${userData.talos_count}</div>
+                        <div>Talos</div>
+                    </div>
                 </div>
             </div>
-        </div>
-    `;
-}
+        `;
         const mobileTrendingDiv = document.getElementById('mobileTrendingCard');
         let trendingHtml = '<div class="trending-card"><h4>🔥 Trending Today</h4>';
         if (trendingData.length > 0) {
