@@ -4625,16 +4625,18 @@ function updateMediaPreview() {
 
 
 // Premium Payment Functions
+// ========== PREMIUM PAYMENT FUNCTIONS ==========
 async function initiatePremiumPayment() {
-    const btn = document.querySelector('.premium-upgrade-btn');
+    const btn = document.querySelector('.get-premium-btn');
+    if (!btn) return;
     const originalText = btn.innerHTML;
     btn.innerHTML = '<span class="loading-spinner"></span> Processing...';
     btn.disabled = true;
     
     try {
-        // Get user email - from the template
-        const userEmail = '{{ current_user.email }}' || 'customer@guan.com';
-        const userId = '{{ current_user.user_id }}';
+        // Use 'user' (the logged-in user) not 'current_user'
+        const userEmail = '{{ user.email }}' || 'customer@guan.com';
+        const userId = '{{ user.user_id }}';
         
         // Generate unique reference
         const reference = 'PREMIUM-' + Date.now() + '-' + Math.floor(Math.random() * 1000000);
@@ -4642,40 +4644,33 @@ async function initiatePremiumPayment() {
         // Wait for Paystack to be available
         await waitForPaystack();
         
-        // Initialize Paystack payment
+        // Initialize Paystack payment with ₦7,800
         const handler = window.PaystackPop.setup({
             key: '{{ paystack_public_key }}',
             email: userEmail,
-            amount: 5500 * 100, // Convert to kobo (5500 naira)
+            amount: 7800 * 100, // 7800 naira in kobo
             currency: 'NGN',
             ref: reference,
             metadata: {
                 user_id: userId,
                 payment_type: 'premium_upgrade',
-                product_name: 'Premium Account Upgrade',
-                amount: 5500
+                product_name: 'Premium Account Upgrade (Annual)',
+                amount: 7800
             },
             callback: function(response) {
-                // Payment successful
                 console.log('Premium payment successful:', response);
-                
-                // Confirm payment on server
                 confirmPremiumPayment(response.reference, userId);
-                
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             },
             onClose: function() {
-                // Payment cancelled
                 console.log('Payment window closed');
                 showFlashNotification('Payment cancelled', 'error');
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }
         });
-        
         handler.openIframe();
-        
     } catch (error) {
         console.error('Error initiating premium payment:', error);
         showFlashNotification(error.message || 'Failed to initiate payment', 'error');
@@ -4695,14 +4690,10 @@ async function confirmPremiumPayment(transactionRef, userId) {
                 status: 'success'
             })
         });
-        
         const data = await response.json();
-        
         if (response.ok) {
             showFlashNotification('🎉 Premium upgrade successful! You now have premium status.', 'success');
-            setTimeout(() => {
-                location.reload();
-            }, 2000);
+            setTimeout(() => location.reload(), 2000);
         } else {
             showFlashNotification(data.detail || 'Payment confirmed but upgrade failed. Please contact support.', 'error');
         }
@@ -4718,10 +4709,8 @@ function waitForPaystack() {
             resolve();
             return;
         }
-        
         let attempts = 0;
         const maxAttempts = 50;
-        
         const checkInterval = setInterval(() => {
             attempts++;
             if (typeof window.PaystackPop !== 'undefined' && window.PaystackPop.setup) {
@@ -4734,8 +4723,6 @@ function waitForPaystack() {
         }, 100);
     });
 }
-
-
 
 </script>
 
