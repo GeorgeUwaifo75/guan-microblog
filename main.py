@@ -941,7 +941,9 @@ async def view_profile(request: Request, user_id: str):
         "request": request,
         "current_user": current_user,
         "profile_user": profile_user,
-        "talos": user_talos[:50]
+        "talos": user_talos[:50],
+        "paystack_public_key": PAYSTACK_PUBLIC_KEY,
+        "user_email": current_user.get("email", "")
     })
 
 @app.get("/post/{talo_id}", response_class=HTMLResponse)
