@@ -2442,7 +2442,7 @@
         last_name: '{{ user.last_name }}',
         profile_photo: '{{ user.profile_photo or "" }}',
         bio: '{{ user.bio or "" }}',
-        is_premium: {{ user.is_premium|lower }},
+        is_premium: {{ user.is_premium|tojson }},
         followers_count: {{ user.followers_count }},
         following_count: {{ user.following_count }},
         talos_count: {{ user.talos_count }}
