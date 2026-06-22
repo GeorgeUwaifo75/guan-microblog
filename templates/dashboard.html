@@ -2448,6 +2448,10 @@
         talos_count: {{ user.talos_count }}
     };
 
+
+// ---- FORCE BOOLEAN CONVERSION ----
+// This ensures is_premium is a real boolean, no matter how it was stored.
+userData.is_premium = (userData.is_premium === true || userData.is_premium === 'true');
    
     // ========== POST ACTIONS FUNCTIONS - FIXED ==========
 window.togglePostActions = function(btn) {
