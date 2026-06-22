@@ -633,14 +633,14 @@
                     Get premium status and enjoy exclusive benefits including higher visibility for your posts!
                 </p>
                 <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
-                    <span style="font-size: 20px; font-weight: bold; color: #cc0000;">₦5,500</span>
+                    <span style="font-size: 20px; font-weight: bold; color: #cc0000;">₦7,800</span>
                     <button class="premium-upgrade-btn" onclick="initiatePremiumPayment()" 
                             style="background: linear-gradient(135deg, #cc0000 0%, #990000 100%); color: white; border: none; padding: 10px 30px; border-radius: 25px; cursor: pointer; font-size: 16px; font-weight: bold; transition: transform 0.2s;">
                         ⭐ Get Premium
                     </button>
                 </div>
                 <div style="font-size: 11px; color: #999; margin-top: 8px;">
-                    ✅ One-time payment • Lifetime premium status
+                    ✅ Annual subscription • ₦7,800 per year
                 </div>
             </div>
             {% endif %}
@@ -811,14 +811,14 @@ async function initiatePremiumPayment() {
         const handler = window.PaystackPop.setup({
             key: '{{ paystack_public_key }}',
             email: userEmail,
-            amount: 5500 * 100, // Convert to kobo (5500 naira)
+            amount: 7800 * 100, // Convert to kobo (7800 naira)
             currency: 'NGN',
             ref: reference,
             metadata: {
                 user_id: userId,
                 payment_type: 'premium_upgrade',
                 product_name: 'Premium Account Upgrade',
-                amount: 5500
+                amount: 7800
             },
             callback: function(response) {
                 // Payment successful

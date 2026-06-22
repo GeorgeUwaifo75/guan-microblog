@@ -3313,7 +3313,7 @@ async def confirm_premium_payment(request: Request):
     data["payments"].append({
         "id": str(uuid.uuid4()),
         "user_id": user_id,
-        "amount": 5500,
+        "amount": 7800,
         "payment_method": "paystack",
         "transaction_ref": transaction_ref,
         "status": "approved",

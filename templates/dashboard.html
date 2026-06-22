@@ -2016,6 +2016,16 @@
                     <div class="premium-badge">🐏 PREMIUM</div>
                     {% endif %}
                     
+                    <!-- NEW: Get Premium button for non‑premium -->
+			{% if not user.is_premium %}
+			 <div style="margin-top: 15px;">
+    			 <button class="get-premium-btn" onclick="initiatePremiumPayment()" 
+            		 style="background: linear-gradient(135deg, #ffcc00 0%, #ffaa00 100%); color: #990000; border: none; padding: 8px 20px; border-radius: 25px; cursor: pointer; font-weight: bold; width: 100%;">
+      			  ⭐ Get Premium (₦7,800/yr)
+    			 </button>
+			 </div>
+			{% endif %}
+
                     <div id="followButtonContainer" style="margin: 15px 0;"></div>
                     
                     <div class="stats">
@@ -3915,9 +3925,24 @@ setInterval(checkForNewPostsAndUpdate, 30000);
     
     function populateMobileMenu() {
         const mobileProfileDiv = document.getElementById('mobileProfileCard');
-        const profilePhotoHtml = userData.profile_photo ? 
+                    const profilePhotoHtml = userData.profile_photo ? 
+
             `<img class="profile-photo" src="${userData.profile_photo}" alt="Profile" style="cursor: pointer;" onclick="openProfileEditModal(); closeMobileMenu();">` :
             `<div class="profile-photo" style="background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto; cursor: pointer;" onclick="openProfileEditModal(); closeMobileMenu();">👤</div>`;
+
+let premiumButtonHtml = '';
+    if (!userData.is_premium) {
+        premiumButtonHtml = `
+            <div style="margin-top: 15px;">
+                <button class="get-premium-btn" onclick="initiatePremiumPayment(); closeMobileMenu();" 
+                        style="background: linear-gradient(135deg, #ffcc00 0%, #ffaa00 100%); color: #990000; border: none; padding: 8px 20px; border-radius: 25px; cursor: pointer; font-weight: bold; width: 100%;">
+                    ⭐ Get Premium (₦7,800/yr)
+                </button>
+            </div>
+        `;
+    }
+
+
         mobileProfileDiv.innerHTML = `
             <div class="profile-card" style="margin-bottom: 20px;">
                 <button class="edit-profile-btn" onclick="openProfileEditModal(); closeMobileMenu();">✏️ Edit</button>
@@ -4596,6 +4621,120 @@ function updateMediaPreview() {
         container.appendChild(wrapper);
     });
 }
+
+
+
+// Premium Payment Functions
+async function initiatePremiumPayment() {
+    const btn = document.querySelector('.premium-upgrade-btn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="loading-spinner"></span> Processing...';
+    btn.disabled = true;
+    
+    try {
+        // Get user email - from the template
+        const userEmail = '{{ current_user.email }}' || 'customer@guan.com';
+        const userId = '{{ current_user.user_id }}';
+        
+        // Generate unique reference
+        const reference = 'PREMIUM-' + Date.now() + '-' + Math.floor(Math.random() * 1000000);
+        
+        // Wait for Paystack to be available
+        await waitForPaystack();
+        
+        // Initialize Paystack payment
+        const handler = window.PaystackPop.setup({
+            key: '{{ paystack_public_key }}',
+            email: userEmail,
+            amount: 5500 * 100, // Convert to kobo (5500 naira)
+            currency: 'NGN',
+            ref: reference,
+            metadata: {
+                user_id: userId,
+                payment_type: 'premium_upgrade',
+                product_name: 'Premium Account Upgrade',
+                amount: 5500
+            },
+            callback: function(response) {
+                // Payment successful
+                console.log('Premium payment successful:', response);
+                
+                // Confirm payment on server
+                confirmPremiumPayment(response.reference, userId);
+                
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            },
+            onClose: function() {
+                // Payment cancelled
+                console.log('Payment window closed');
+                showFlashNotification('Payment cancelled', 'error');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+        
+        handler.openIframe();
+        
+    } catch (error) {
+        console.error('Error initiating premium payment:', error);
+        showFlashNotification(error.message || 'Failed to initiate payment', 'error');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function confirmPremiumPayment(transactionRef, userId) {
+    try {
+        const response = await fetch('/api/confirm_premium_payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                transaction_ref: transactionRef,
+                user_id: userId,
+                status: 'success'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showFlashNotification('🎉 Premium upgrade successful! You now have premium status.', 'success');
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            showFlashNotification(data.detail || 'Payment confirmed but upgrade failed. Please contact support.', 'error');
+        }
+    } catch (error) {
+        console.error('Error confirming premium payment:', error);
+        showFlashNotification('Payment received but verification failed. Please contact support.', 'error');
+    }
+}
+
+function waitForPaystack() {
+    return new Promise((resolve, reject) => {
+        if (typeof window.PaystackPop !== 'undefined' && window.PaystackPop.setup) {
+            resolve();
+            return;
+        }
+        
+        let attempts = 0;
+        const maxAttempts = 50;
+        
+        const checkInterval = setInterval(() => {
+            attempts++;
+            if (typeof window.PaystackPop !== 'undefined' && window.PaystackPop.setup) {
+                clearInterval(checkInterval);
+                resolve();
+            } else if (attempts >= maxAttempts) {
+                clearInterval(checkInterval);
+                reject(new Error('Paystack failed to load. Please refresh and try again.'));
+            }
+        }, 100);
+    });
+}
+
 
 
 </script>
