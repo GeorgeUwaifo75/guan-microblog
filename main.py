@@ -1240,14 +1240,14 @@ async def like_talo(talo_id: str, request: Request):
                     data["notifications"].append(notification)
                 
                 
-                # Example for like_talo (inside the else block after adding like)
-                await send_push_notification(
-                    talo_owner_id,
-                    f"@{user['user_id']} liked your talo",
-                    f"💎 {talo.get('content', '')[:50]}...",
-                    icon=user.get("profile_photo"),
-                    data={"url": f"/post/{talo_id}"}
-                )
+                    # Example for like_talo (inside the else block after adding like)
+                    await send_push_notification(
+                        talo_owner_id,
+                        f"@{user['user_id']} liked your talo",
+                        f"💎 {talo.get('content', '')[:50]}...",
+                        icon=user.get("profile_photo"),
+                        data={"url": f"/post/{talo_id}"}
+                    )
                 
                 await save_jsonbin_data(data)
                 return {"liked": True, "count": talo["likes"]}
