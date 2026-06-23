@@ -2818,7 +2818,7 @@ async def create_reply(request: Request, parent_talo_id: str):
     await send_push_notification(
         talo_owner_id,
         f"@{user['user_id']} Replied your talo",
-        f"💬 {talo.get('content', '')[:50]}...",
+        "You got a 💬 to your post.",
         icon=user.get("profile_photo"),
         data={"url": f"/post/{parent_talo_id}"}
     )
