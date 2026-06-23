@@ -690,6 +690,12 @@
                 <div class="talo-stats">
                     <span>❤️ {{ talo.likes }} likes</span>
                     <span>💬 {{ talo.reply_count }} replies</span>
+                    <button class="stat-btn share-btn" 
+                            data-id="{{ talo.id }}" 
+                            data-content="{{ talo.content }}" 
+                            data-user="{{ talo.user_id }}">
+                        📤 <span>Share</span>
+                    </button>
                 </div>
             </div>
             {% else %}
@@ -1282,6 +1288,51 @@ function showFlashNotification(message, type = 'success') {
             if (e.target === followersModal) closeFollowersModal();
             if (e.target === followingModal) closeFollowingModal();
         };
+
+// Share functionality
+function shareTalo(taloId, content, userId) {
+    const url = `${window.location.origin}/post/${taloId}`;
+    const shareText = `📝 Post by @${userId}:\n"${content.substring(0, 200)}${content.length > 200 ? '...' : ''}"\n\n🔗 View full post: ${url}`;
+    
+    if (navigator.share) {
+        navigator.share({
+            title: `Post by @${userId} on GuAn`,
+            text: shareText,
+            url: url
+        }).catch(err => {
+            if (err.name !== 'AbortError') {
+                console.error('Share error:', err);
+                fallbackShare(shareText);
+            }
+        });
+    } else {
+        fallbackShare(shareText);
+    }
+}
+
+function fallbackShare(shareText) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(shareText)
+            .then(() => showFlashNotification('📋 Share text copied to clipboard!', 'success'))
+            .catch(() => prompt('Copy this text to share:', shareText));
+    } else {
+        prompt('Copy this text to share:', shareText);
+    }
+}
+
+// Delegate click for share buttons
+document.addEventListener('click', function(e) {
+    const shareBtn = e.target.closest('.share-btn');
+    if (shareBtn) {
+        e.preventDefault();
+        const taloId = shareBtn.dataset.id;
+        const content = shareBtn.dataset.content;
+        const userId = shareBtn.dataset.user;
+        shareTalo(taloId, content, userId);
+    }
+});
+
+        
     </script>
 
 <script src="https://js.paystack.co/v1/inline.js" async defer></script>
