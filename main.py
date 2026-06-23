@@ -1092,7 +1092,7 @@ async def create_talo(request: Request):
     
     return {"message": "Talo created successfully", "talo_id": talo["id"]}
 
-   
+ """  
 @app.post("/api/create_reply/{parent_talo_id}")
 async def create_reply(request: Request, parent_talo_id: str):
     session_token = request.cookies.get("session_token")
@@ -1175,6 +1175,7 @@ async def create_reply(request: Request, parent_talo_id: str):
     await save_jsonbin_data(data)
     
     return {"message": "Reply created successfully", "reply_id": reply["id"]}
+"""
 
 @app.post("/api/like/{talo_id}")
 async def like_talo(talo_id: str, request: Request):
@@ -2813,91 +2814,17 @@ async def create_reply(request: Request, parent_talo_id: str):
             data["notifications"].append(notification)
     
     await save_jsonbin_data(data)
-    
+    # Example for like_talo (inside the else block after adding like)
+    await send_push_notification(
+        talo_owner_id,
+        f"@{user['user_id']} Replied your talo",
+        f"💬 {talo.get('content', '')[:50]}...",
+        icon=user.get("profile_photo"),
+        data={"url": f"/post/{parent_talo_id}"}
+    )
     return {"message": "Reply created successfully", "reply_id": reply["id"]}
 
-# Similarly update like_talo endpoint:
 
-@app.post("/api/like/{talo_id}")
-async def like_talo(talo_id: str, request: Request):
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    data = await get_jsonbin_data()
-    user = None
-    
-    for u in data.get("users", []):
-        if u.get("session_token") == session_token:
-            user = u
-            break
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    
-    talo_owner_id = None
-    for talo in data["talos"]:
-        if talo["id"] == talo_id:
-            talo_owner_id = talo["user_id"]
-            break
-    
-    if "likes" not in data:
-        data["likes"] = []
-    
-    like_index = None
-    for i, like in enumerate(data["likes"]):
-        if like.get("talo_id") == talo_id and like.get("user_id") == user["user_id"]:
-            like_index = i
-            break
-    
-    if like_index is not None:
-        data["likes"].pop(like_index)
-        for talo in data["talos"]:
-            if talo["id"] == talo_id:
-                talo["likes"] -= 1
-                await save_jsonbin_data(data)
-                return {"liked": False, "count": talo["likes"]}
-    else:
-        data["likes"].append({
-            "talo_id": talo_id,
-            "user_id": user["user_id"],
-            "created_at": datetime.now().isoformat()
-        })
-        
-        for talo in data["talos"]:
-            if talo["id"] == talo_id:
-                talo["likes"] += 1
-                
-                # Only send notification if talo owner follows the liker
-                if talo_owner_id and talo_owner_id != user["user_id"]:
-                    follows_liker = False
-                    for follow in data.get("follows", []):
-                        if follow.get("follower_id") == talo_owner_id and follow.get("following_id") == user["user_id"]:
-                            follows_liker = True
-                            break
-                    
-                    if follows_liker:
-                        if "notifications" not in data:
-                            data["notifications"] = []
-                        
-                        notification = {
-                            "id": str(uuid.uuid4()),
-                            "user_id": talo_owner_id,
-                            "type": "like",
-                            "message": f"@{user['user_id']} liked your talo",
-                            "related_talo_id": talo_id,
-                            "from_user_id": user["user_id"],
-                            "read": False,
-                            "created_at": datetime.now().isoformat()
-                        }
-                        data["notifications"].append(notification)
-                
-                await save_jsonbin_data(data)
-                return {"liked": True, "count": talo["likes"]}
-	
-    
-    await save_jsonbin_data(data)
-    return {"liked": False, "count": 0}
 
 # Add endpoint to get latest talo timestamp
 @app.get("/api/get_latest_talo_timestamp")
@@ -3089,6 +3016,16 @@ async def create_retalo(request: Request):
             data["notifications"].append(notification)
     
     await save_jsonbin_data(data)
+    
+    # Re-talo or re-post
+    await send_push_notification(
+        original_user_id,
+        f"@{user['user_id']} reposted your talo",
+        f"💬 {talo.get('content', '')[:50]}...",
+        icon=user.get("profile_photo"),
+        data={"url": f"/post/{original_user_id}"}
+    )
+    
     
     return {"message": "Post reposted successfully", "retalo_id": retalo["id"], "retalo_count": original_talo["retalos"] + 1}
 
