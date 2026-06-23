@@ -4794,6 +4794,84 @@ document.getElementById('taloContent').placeholder =
     `What's happening? (max ${MAX_CHARS} characters)`;
 </script>
 
+
+<script>
+    // Push Notification Setup
+    (function() {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            console.log('Push notifications not supported');
+            return;
+        }
+
+        // Make sure the user is logged in (we have a session)
+        const loggedIn = {{ user is not none | tojson }};
+        if (!loggedIn) return;
+
+        // Ask for permission
+        if (Notification.permission === 'default') {
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                    registerServiceWorker();
+                }
+            });
+        } else if (Notification.permission === 'granted') {
+            registerServiceWorker();
+        }
+
+        async function registerServiceWorker() {
+            try {
+                const registration = await navigator.serviceWorker.register('/sw.js', {
+                    scope: '/'
+                });
+                console.log('Service Worker registered');
+
+                // Subscribe to push
+                const subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: '{{ vapid_public_key }}'  // will be passed from backend
+                });
+
+                // Send subscription to server
+                await fetch('/api/register_push_subscription', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subscription: subscription })
+                });
+                console.log('Push subscription sent to server');
+
+                // Optional: store the subscription locally to unsubscribe later
+                localStorage.setItem('pushSubscription', JSON.stringify(subscription));
+
+            } catch (error) {
+                console.error('Service Worker registration or subscription failed:', error);
+            }
+        }
+
+        // Unsubscribe on logout (optional) – we can listen for logout link click
+        document.addEventListener('click', function(e) {
+            const logoutLink = e.target.closest('a[href="/logout"]');
+            if (logoutLink) {
+                // Attempt to unsubscribe before navigating
+                navigator.serviceWorker.ready.then(reg => {
+                    reg.pushManager.getSubscription().then(sub => {
+                        if (sub) {
+                            fetch('/api/delete_push_subscription', {
+                                method: 'DELETE',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ endpoint: sub.endpoint })
+                            });
+                            sub.unsubscribe();
+                            localStorage.removeItem('pushSubscription');
+                        }
+                    });
+                });
+            }
+        });
+
+        // Also try to clean up old subscriptions on page load (already handled by registration)
+    })();
+</script>
+
 <input type="file" id="mediaInput" accept="image/*,video/*" multiple style="display:none" onchange="handleMediaSelection(this.files)">
 
 </body>

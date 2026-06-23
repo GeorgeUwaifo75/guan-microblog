@@ -10,6 +10,9 @@ from typing import Optional, List, Dict, Any
 import hashlib
 import secrets
 import uuid
+
+from pywebpush import webpush, WebPushException
+
 import json
 import base64
 import httpx
@@ -20,10 +23,18 @@ from pathlib import Path
 import os
 import re
 
+
 # Add these imports at the top
 from functools import lru_cache
 import time
 from contextlib import asynccontextmanager
+
+
+VAPID_PRIVATE_KEY = "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgMZbv9VRFq_07qGbgy4XkssjOu5-DNykJEreOIkpm3-ahRANCAAR6YXHOELUlOeN8zX0Cw5RVFQ9WoOl1cDEPCLXccc95s9JGGkXyTE9QctSjzjEAdgh9hHZbQAbAr6XY5T4GSVn0"
+VAPID_PUBLIC_KEY = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEemFxzhC1JTnjfM19AsOUVRUPVqDpdXAxDwi13HHPebPSRhpF8kxPUHLUo84xAHYIfYR2W0AGwK-l2OU-BklZ9A"
+VAPID_CLAIMS = {
+    "sub": "mailto:geocorpsys@gmail.com"   # replace with your email
+}
 
 # ===== BANNED WORDS CONFIGURATION =====
 BANNED_WORDS = {
@@ -808,7 +819,8 @@ async def dashboard(request: Request):
         "paystack_public_key": PAYSTACK_PUBLIC_KEY,
         "promoted_shown_count": promoted_shown_count,
         "promoted_total_count": promoted_total_count,
-        "user_email": user.get("email", "")
+        "user_email": user.get("email", ""),
+        "vapid_public_key": VAPID_PUBLIC_KEY
     })
 
 @app.get("/api/get_promoted_posts")
@@ -1000,7 +1012,8 @@ async def view_post(request: Request, talo_id: str, reply_id: str = None):
         "user": user,
         "talo": talo,
         "replies": replies,
-        "highlight_reply_id": reply_id
+        "highlight_reply_id": reply_id,
+        "vapid_public_key": VAPID_PUBLIC_KEY
     })
 
 @app.post("/api/create_talo")
@@ -1231,6 +1244,15 @@ async def like_talo(talo_id: str, request: Request):
                 await save_jsonbin_data(data)
                 return {"liked": True, "count": talo["likes"]}
     
+    # Example for like_talo (inside the else block after adding like)
+    await send_push_notification(
+        talo_owner_id,
+        f"@{user['user_id']} liked your talo",
+        f"💎 {talo.get('content', '')[:50]}...",
+        icon=user.get("profile_photo"),
+        data={"url": f"/post/{talo_id}"}
+    )
+    
     await save_jsonbin_data(data)
     return {"liked": False, "count": 0}
 
@@ -1301,6 +1323,13 @@ async def follow_user(user_id_to_follow: str, request: Request):
         }
         data["notifications"].append(notification)
         
+        await send_push_notification(
+            user_id_to_follow,
+            f"@{user['user_id']} started following you",
+            f"👥 New follower!",
+            icon=user.get("profile_photo"),
+            data={"url": f"/profile/{user['user_id']}"}
+        )
         await save_jsonbin_data(data)
         return {"following": True, "followers_count": target_user["followers_count"]}
 
@@ -2844,6 +2873,7 @@ async def like_talo(talo_id: str, request: Request):
                 
                 await save_jsonbin_data(data)
                 return {"liked": True, "count": talo["likes"]}
+	
     
     await save_jsonbin_data(data)
     return {"liked": False, "count": 0}
@@ -3344,6 +3374,119 @@ async def confirm_premium_payment(request: Request):
     return {"message": "Premium upgrade successful", "is_premium": True}
 
 
+@app.post("/api/register_push_subscription")
+async def register_push_subscription(request: Request):
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    data = await get_jsonbin_data()
+    user = None
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    body = await request.json()
+    subscription = body.get("subscription")
+    if not subscription or not subscription.get("endpoint"):
+        raise HTTPException(status_code=400, detail="Invalid subscription")
+
+    # Ensure subscriptions list exists for this user
+    if "push_subscriptions" not in data:
+        data["push_subscriptions"] = []
+
+    # Remove any existing subscription with the same endpoint (avoid duplicates)
+    data["push_subscriptions"] = [
+        s for s in data["push_subscriptions"]
+        if not (s.get("user_id") == user["user_id"] and s.get("endpoint") == subscription["endpoint"])
+    ]
+
+    # Save the new subscription
+    data["push_subscriptions"].append({
+        "user_id": user["user_id"],
+        "endpoint": subscription["endpoint"],
+        "keys": subscription.get("keys", {}),
+        "created_at": datetime.now().isoformat()
+    })
+
+    await save_jsonbin_data(data)
+    return {"success": True}
+
+@app.delete("/api/delete_push_subscription")
+async def delete_push_subscription(request: Request):
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    data = await get_jsonbin_data()
+    user = None
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    body = await request.json()
+    endpoint = body.get("endpoint")
+    if not endpoint:
+        raise HTTPException(status_code=400, detail="Endpoint missing")
+
+    data["push_subscriptions"] = [
+        s for s in data.get("push_subscriptions", [])
+        if not (s.get("user_id") == user["user_id"] and s.get("endpoint") == endpoint)
+    ]
+    await save_jsonbin_data(data)
+    return {"success": True}
+
+
+async def send_push_notification(user_id: str, title: str, body: str, icon: str = None, data: dict = None):
+    """Send a push notification to all subscriptions of a user."""
+    if not user_id:
+        return
+
+    db_data = await get_jsonbin_data()
+    subscriptions = [
+        s for s in db_data.get("push_subscriptions", [])
+        if s.get("user_id") == user_id
+    ]
+    if not subscriptions:
+        return
+
+    # Prepare notification payload
+    payload = {
+        "title": title,
+        "body": body,
+        "icon": icon or "/static/ram-icon.png",   # Make sure you have a square icon
+        "data": data or {},
+        "badge": "/static/badge.png"              # optional, for Android
+    }
+
+    # Send to each subscription
+    for sub in subscriptions:
+        try:
+            webpush(
+                subscription_info={
+                    "endpoint": sub["endpoint"],
+                    "keys": sub["keys"]
+                },
+                data=json.dumps(payload),
+                vapid_private_key=VAPID_PRIVATE_KEY,
+                vapid_claims=VAPID_CLAIMS
+            )
+        except WebPushException as e:
+            # If subscription is expired, remove it
+            if e.response and e.response.status_code == 410:
+                db_data["push_subscriptions"] = [
+                    s for s in db_data.get("push_subscriptions", [])
+                    if s.get("endpoint") != sub["endpoint"]
+                ]
+                await save_jsonbin_data(db_data)
+            else:
+                print(f"Push error: {e}")
 
 
 @app.get("/api/health")
