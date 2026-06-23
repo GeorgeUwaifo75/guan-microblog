@@ -819,8 +819,7 @@ async def dashboard(request: Request):
         "paystack_public_key": PAYSTACK_PUBLIC_KEY,
         "promoted_shown_count": promoted_shown_count,
         "promoted_total_count": promoted_total_count,
-        "user_email": user.get("email", ""),
-        "vapid_public_key": VAPID_PUBLIC_KEY
+        "user_email": user.get("email", "")
     })
 
 @app.get("/api/get_promoted_posts")
@@ -1012,8 +1011,7 @@ async def view_post(request: Request, talo_id: str, reply_id: str = None):
         "user": user,
         "talo": talo,
         "replies": replies,
-        "highlight_reply_id": reply_id,
-        "vapid_public_key": VAPID_PUBLIC_KEY
+        "highlight_reply_id": reply_id
     })
 
 @app.post("/api/create_talo")
@@ -1241,17 +1239,20 @@ async def like_talo(talo_id: str, request: Request):
                     }
                     data["notifications"].append(notification)
                 
+                
+                # Example for like_talo (inside the else block after adding like)
+                await send_push_notification(
+                    talo_owner_id,
+                    f"@{user['user_id']} liked your talo",
+                    f"💎 {talo.get('content', '')[:50]}...",
+                    icon=user.get("profile_photo"),
+                    data={"url": f"/post/{talo_id}"}
+                )
+                
                 await save_jsonbin_data(data)
                 return {"liked": True, "count": talo["likes"]}
     
-    # Example for like_talo (inside the else block after adding like)
-    await send_push_notification(
-        talo_owner_id,
-        f"@{user['user_id']} liked your talo",
-        f"💎 {talo.get('content', '')[:50]}...",
-        icon=user.get("profile_photo"),
-        data={"url": f"/post/{talo_id}"}
-    )
+    
     
     await save_jsonbin_data(data)
     return {"liked": False, "count": 0}
@@ -1332,6 +1333,17 @@ async def follow_user(user_id_to_follow: str, request: Request):
         )
         await save_jsonbin_data(data)
         return {"following": True, "followers_count": target_user["followers_count"]}
+
+
+
+from fastapi.responses import FileResponse
+
+@app.get("/sw.js")
+async def service_worker():
+    sw_path = STATIC_DIR / "sw.js"
+    if not sw_path.exists():
+        raise HTTPException(status_code=404, detail="Service worker not found")
+    return FileResponse(sw_path, media_type="application/javascript")
 
 @app.get("/api/get_follow_status/{profile_user_id}")
 async def get_follow_status(profile_user_id: str, request: Request):
