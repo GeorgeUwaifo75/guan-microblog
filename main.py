@@ -3464,50 +3464,6 @@ async def delete_push_subscription(request: Request):
     return {"success": True}
 
 
-async def send_push_notification(user_id: str, title: str, body: str, icon: str = None, data: dict = None):
-    """Send a push notification to all subscriptions of a user."""
-    if not user_id:
-        return
-
-    db_data = await get_jsonbin_data()
-    subscriptions = [
-        s for s in db_data.get("push_subscriptions", [])
-        if s.get("user_id") == user_id
-    ]
-    if not subscriptions:
-        return
-
-    # Prepare notification payload
-    payload = {
-        "title": title,
-        "body": body,
-        "icon": icon or "/static/ram-icon.png",   # Make sure you have a square icon
-        "data": data or {},
-        "badge": "/static/badge.png"              # optional, for Android
-    }
-
-    # Send to each subscription
-    for sub in subscriptions:
-        try:
-            webpush(
-                subscription_info={
-                    "endpoint": sub["endpoint"],
-                    "keys": sub["keys"]
-                },
-                data=json.dumps(payload),
-                vapid_private_key=VAPID_PRIVATE_KEY,
-                vapid_claims=VAPID_CLAIMS
-            )
-        except WebPushException as e:
-            # If subscription is expired, remove it
-            if e.response and e.response.status_code == 410:
-                db_data["push_subscriptions"] = [
-                    s for s in db_data.get("push_subscriptions", [])
-                    if s.get("endpoint") != sub["endpoint"]
-                ]
-                await save_jsonbin_data(db_data)
-            else:
-                print(f"Push error: {e}")
 
 
 @app.get("/api/health")
@@ -3580,6 +3536,52 @@ async def startup_event():
             # Start the promotion expiry background task
             asyncio.create_task(promotion_expiry_loop())
             logger.info("Promotion expiry checker started")
+
+
+async def send_push_notification(user_id: str, title: str, body: str, icon: str = None, data: dict = None):
+    """Send a push notification to all subscriptions of a user."""
+    if not user_id:
+        return
+
+    db_data = await get_jsonbin_data()
+    subscriptions = [
+        s for s in db_data.get("push_subscriptions", [])
+        if s.get("user_id") == user_id
+    ]
+    if not subscriptions:
+        return
+
+    # Prepare notification payload
+    payload = {
+        "title": title,
+        "body": body,
+        "icon": icon or "/static/ram-icon.png",   # Make sure you have a square icon
+        "data": data or {},
+        "badge": "/static/badge.png"              # optional, for Android
+    }
+
+    # Send to each subscription
+    for sub in subscriptions:
+        try:
+            webpush(
+                subscription_info={
+                    "endpoint": sub["endpoint"],
+                    "keys": sub["keys"]
+                },
+                data=json.dumps(payload),
+                vapid_private_key=VAPID_PRIVATE_KEY,
+                vapid_claims=VAPID_CLAIMS
+            )
+        except WebPushException as e:
+            # If subscription is expired, remove it
+            if e.response and e.response.status_code == 410:
+                db_data["push_subscriptions"] = [
+                    s for s in db_data.get("push_subscriptions", [])
+                    if s.get("endpoint") != sub["endpoint"]
+                ]
+                await save_jsonbin_data(db_data)
+            else:
+                print(f"Push error: {e}")
 
             
 async def check_and_expire_promotions():
