@@ -819,7 +819,8 @@ async def dashboard(request: Request):
         "paystack_public_key": PAYSTACK_PUBLIC_KEY,
         "promoted_shown_count": promoted_shown_count,
         "promoted_total_count": promoted_total_count,
-        "user_email": user.get("email", "")
+        "user_email": user.get("email", ""),
+        "vapid_public_key": VAPID_PUBLIC_KEY
     })
 
 @app.get("/api/get_promoted_posts")
@@ -954,7 +955,8 @@ async def view_profile(request: Request, user_id: str):
         "profile_user": profile_user,
         "talos": user_talos[:50],
         "paystack_public_key": PAYSTACK_PUBLIC_KEY,
-        "user_email": current_user.get("email", "")
+        "user_email": current_user.get("email", ""),
+        "vapid_public_key": VAPID_PUBLIC_KEY
     })
 
 @app.get("/post/{talo_id}", response_class=HTMLResponse)
@@ -1011,7 +1013,8 @@ async def view_post(request: Request, talo_id: str, reply_id: str = None):
         "user": user,
         "talo": talo,
         "replies": replies,
-        "highlight_reply_id": reply_id
+        "highlight_reply_id": reply_id,
+        "vapid_public_key": VAPID_PUBLIC_KEY
     })
 
 @app.post("/api/create_talo")
@@ -1240,16 +1243,19 @@ async def like_talo(talo_id: str, request: Request):
                     data["notifications"].append(notification)
                 
                 
-                    # Example for like_talo (inside the else block after adding like)
-                    await send_push_notification(
-                        talo_owner_id,
-                        f"@{user['user_id']} liked your talo",
-                        f"💎 {talo.get('content', '')[:50]}...",
-                        icon=user.get("profile_photo"),
-                        data={"url": f"/post/{talo_id}"}
-                    )
+                    
                 
                 await save_jsonbin_data(data)
+                
+                # Example for like_talo (inside the else block after adding like)
+                await send_push_notification(
+                    talo_owner_id,
+                    f"@{user['user_id']} liked your talo",
+                    f"💎 {talo.get('content', '')[:50]}...",
+                    icon=user.get("profile_photo"),
+                    data={"url": f"/post/{talo_id}"}
+                )
+                
                 return {"liked": True, "count": talo["likes"]}
     
     
@@ -1324,6 +1330,9 @@ async def follow_user(user_id_to_follow: str, request: Request):
         }
         data["notifications"].append(notification)
         
+        
+        await save_jsonbin_data(data)
+        
         await send_push_notification(
             user_id_to_follow,
             f"@{user['user_id']} started following you",
@@ -1331,7 +1340,7 @@ async def follow_user(user_id_to_follow: str, request: Request):
             icon=user.get("profile_photo"),
             data={"url": f"/profile/{user['user_id']}"}
         )
-        await save_jsonbin_data(data)
+        
         return {"following": True, "followers_count": target_user["followers_count"]}
 
 
