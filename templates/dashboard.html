@@ -2182,7 +2182,7 @@
                data-photos='{{ talo.photos|tojson }}'>
                  🔄 <span class="retalo-count">{{ talo.retalos }}</span>
               </button>
-            <a href="/post/{{ talo.id }}" class="reply-btn">💬 <span>{{ talo.reply_count }}</span></a>
+            <a href="/post/{{ talo.id }}" class="reply-btn" onclick="event.stopPropagation();">💬 <span>{{ talo.reply_count }}</span></a>
 
             <button class="stat-btn share-btn" 
                     data-id="{{ talo.id }}" 
@@ -4799,6 +4799,7 @@ document.addEventListener('click', function(e) {
     const shareBtn = e.target.closest('.share-btn');
     if (shareBtn) {
         e.preventDefault();
+        e.stopPropagation();       // <-- add this
         const taloId = shareBtn.dataset.id;
         const content = shareBtn.dataset.content;
         const userId = shareBtn.dataset.user;
