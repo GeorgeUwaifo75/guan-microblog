@@ -2094,7 +2094,7 @@
 <div id="talosFeed">
     {% set promoted_shown = false %}
     {% for talo in talos %}
-    <div class="talo-card" data-talo-id="{{ talo.id }}"  onclick="viewPost('{{ talo.id }}')">
+    <div class="talo-card" data-talo-id="{{ talo.id }}">
         {% if talo.promoted and not promoted_shown %}
             {% set promoted_shown = true %}
             <div class="promoted-header">
@@ -2182,7 +2182,7 @@
                data-photos='{{ talo.photos|tojson }}'>
                  🔄 <span class="retalo-count">{{ talo.retalos }}</span>
               </button>
-            <a href="/post/{{ talo.id }}" class="reply-btn" onclick="event.stopPropagation();">💬 <span>{{ talo.reply_count }}</span></a>
+            <a href="/post/{{ talo.id }}" class="reply-btn">💬 <span>{{ talo.reply_count }}</span></a>
 
             <button class="stat-btn share-btn" 
                     data-id="{{ talo.id }}" 
@@ -2190,6 +2190,7 @@
                     data-user="{{ talo.user_id }}">
                 📤 
             </button>
+
 		<span class="stat-btn" style="cursor: default;">
     					👁️ <span class="view-count">{{ talo.views }}</span>
 		</span>
@@ -4493,29 +4494,14 @@ window.addEventListener('resize', function() {
         if (el.dataset.time) el.textContent = formatTimeAgo(el.dataset.time);
     });
     
-    //document.querySelectorAll('.like-btn').forEach(btn => {
-    //    btn.addEventListener('click', () => likeTalo(btn.dataset.id, btn));
-    //});
-
     document.querySelectorAll('.like-btn').forEach(btn => {
-             		btn.addEventListener('click', function(e) {
-        		e.stopPropagation();
-        		likeTalo(this.dataset.id, this);
-   			 });
-	});
+        btn.addEventListener('click', () => likeTalo(btn.dataset.id, btn));
+    });
     
-    //document.querySelectorAll('.dislike-btn').forEach(btn => {
-    //    btn.addEventListener('click', () => dislikeTalo(btn.dataset.id, btn));
-    //});
+    document.querySelectorAll('.dislike-btn').forEach(btn => {
+        btn.addEventListener('click', () => dislikeTalo(btn.dataset.id, btn));
+    });
     
-     document.querySelectorAll('.dislike-btn').forEach(btn => {
-             		btn.addEventListener('click', function(e) {
-        		e.stopPropagation();
-        		dislikeTalo(this.dataset.id, this);
-   			 });
-	});
-
-
     // Re-attach retalo event listeners
     document.querySelectorAll('.retalo-btn').forEach(btn => {
         btn.removeEventListener('click', retaloHandler);
@@ -4799,7 +4785,6 @@ document.addEventListener('click', function(e) {
     const shareBtn = e.target.closest('.share-btn');
     if (shareBtn) {
         e.preventDefault();
-        e.stopPropagation();       // <-- add this
         const taloId = shareBtn.dataset.id;
         const content = shareBtn.dataset.content;
         const userId = shareBtn.dataset.user;
