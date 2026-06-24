@@ -4504,10 +4504,18 @@ window.addEventListener('resize', function() {
    			 });
 	});
     
-    document.querySelectorAll('.dislike-btn').forEach(btn => {
-        btn.addEventListener('click', () => dislikeTalo(btn.dataset.id, btn));
-    });
+    //document.querySelectorAll('.dislike-btn').forEach(btn => {
+    //    btn.addEventListener('click', () => dislikeTalo(btn.dataset.id, btn));
+    //});
     
+     document.querySelectorAll('.dislike-btn').forEach(btn => {
+             		btn.addEventListener('click', function(e) {
+        		e.stopPropagation();
+        		dislikeTalo(this.dataset.id, this);
+   			 });
+	});
+
+
     // Re-attach retalo event listeners
     document.querySelectorAll('.retalo-btn').forEach(btn => {
         btn.removeEventListener('click', retaloHandler);
