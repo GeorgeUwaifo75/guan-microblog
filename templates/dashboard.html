@@ -2094,7 +2094,7 @@
 <div id="talosFeed">
     {% set promoted_shown = false %}
     {% for talo in talos %}
-    <div class="talo-card" data-talo-id="{{ talo.id }}">
+    <div class="talo-card" data-talo-id="{{ talo.id }}"  onclick="viewPost('{{ talo.id }}')">
         {% if talo.promoted and not promoted_shown %}
             {% set promoted_shown = true %}
             <div class="promoted-header">
