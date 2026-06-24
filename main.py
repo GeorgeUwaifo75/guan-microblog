@@ -1269,6 +1269,58 @@ async def like_talo(talo_id: str, request: Request):
     await save_jsonbin_data(data)
     return {"liked": False, "count": 0}
 
+@app.post("/api/dislike/{talo_id}")
+async def dislike_talo(talo_id: str, request: Request):
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await get_jsonbin_data()
+    user = None
+    for u in data.get("users", []):
+        if u.get("session_token") == session_token:
+            user = u
+            break
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    # Ensure dislikes collection exists
+    if "dislikes" not in data:
+        data["dislikes"] = []
+    
+    # Check if user already disliked this talo
+    dislike_index = None
+    for i, d in enumerate(data["dislikes"]):
+        if d.get("talo_id") == talo_id and d.get("user_id") == user["user_id"]:
+            dislike_index = i
+            break
+    
+    # Find the talo
+    talo = None
+    for t in data["talos"]:
+        if t["id"] == talo_id:
+            talo = t
+            break
+    if not talo:
+        raise HTTPException(status_code=404, detail="Talo not found")
+    
+    if dislike_index is not None:
+        # Remove dislike (toggle off)
+        data["dislikes"].pop(dislike_index)
+        talo["dislikes"] = max(0, talo.get("dislikes", 0) - 1)
+        await save_jsonbin_data(data)
+        return {"disliked": False, "count": talo["dislikes"]}
+    else:
+        # Add dislike (toggle on)
+        data["dislikes"].append({
+            "talo_id": talo_id,
+            "user_id": user["user_id"],
+            "created_at": datetime.now().isoformat()
+        })
+        talo["dislikes"] = talo.get("dislikes", 0) + 1
+        await save_jsonbin_data(data)
+        return {"disliked": True, "count": talo["dislikes"]}
+
 @app.post("/api/follow/{user_id_to_follow}")
 async def follow_user(user_id_to_follow: str, request: Request):
     session_token = request.cookies.get("session_token")
