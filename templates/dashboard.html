@@ -4493,9 +4493,16 @@ window.addEventListener('resize', function() {
         if (el.dataset.time) el.textContent = formatTimeAgo(el.dataset.time);
     });
     
+    //document.querySelectorAll('.like-btn').forEach(btn => {
+    //    btn.addEventListener('click', () => likeTalo(btn.dataset.id, btn));
+    //});
+
     document.querySelectorAll('.like-btn').forEach(btn => {
-        btn.addEventListener('click', () => likeTalo(btn.dataset.id, btn));
-    });
+             		btn.addEventListener('click', function(e) {
+        		e.stopPropagation();
+        		likeTalo(this.dataset.id, this);
+   			 });
+	});
     
     document.querySelectorAll('.dislike-btn').forEach(btn => {
         btn.addEventListener('click', () => dislikeTalo(btn.dataset.id, btn));
