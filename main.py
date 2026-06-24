@@ -248,6 +248,7 @@ Get started by following interesting accounts and sharing your first talo.
                 "dislikes": 0,
                 "retalos": 0,
                 "reply_count": 0,
+                "views": 0,
                 "created_at": datetime.now().isoformat(),
                 "promoted": True,
                 "promotion_level": 1,
@@ -989,7 +990,10 @@ async def view_post(request: Request, talo_id: str, reply_id: str = None):
             "request": request,
             "error": "Post not found"
         })
-    
+    # Increment view count
+    talo["views"] = talo.get("views", 0) + 1
+    await save_jsonbin_data(data)   # save the updated data
+
     for u in data.get("users", []):
         if u["user_id"] == talo["user_id"]:
             talo["user_name"] = f"{u['first_name']} {u['last_name']}"

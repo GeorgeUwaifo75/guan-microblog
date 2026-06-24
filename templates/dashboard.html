@@ -2094,7 +2094,7 @@
 <div id="talosFeed">
     {% set promoted_shown = false %}
     {% for talo in talos %}
-    <div class="talo-card" data-talo-id="{{ talo.id }}">
+    <div class="talo-card" data-talo-id="{{ talo.id }}" onclick="viewPost('{{ talo.id }}')">
         {% if talo.promoted and not promoted_shown %}
             {% set promoted_shown = true %}
             <div class="promoted-header">
@@ -2190,6 +2190,9 @@
                     data-user="{{ talo.user_id }}">
                 📤 
             </button>
+		<span class="stat-btn" style="cursor: default;">
+    					👁️ <span class="view-count">{{ talo.views }}</span>
+		</span>
         </div>
     </div>
     {% else %}
@@ -2681,6 +2684,17 @@ window.openPromotionModalFromPost = function(taloId) {
                         🔄 <span class="retalo-count">0</span>
                     </button>
                     <a href="/post/${taloId}" class="reply-btn">💬 <span>0</span></a>
+
+                  <button class="stat-btn share-btn" 
+                    data-id="{{ talo.id }}" 
+                    data-content="{{ talo.content }}" 
+                    data-user="{{ talo.user_id }}">
+                   📤 
+                 </button>
+		<span class="stat-btn" style="cursor: default;">
+   					 👁️ <span class="view-count">{{ talo.views }}</span>
+		</span>
+
                 </div>
             </div>
         `;
