@@ -341,6 +341,10 @@
                 width: calc(50% - 4px) !important;
             }
         }
+
+.stat-btn.view-count {
+    cursor: default;
+}
     </style>
 </head>
 <body>
@@ -412,6 +416,7 @@
                                     data-user="{{ post.user_id }}">
                                 📤 <span>Share</span>
                             </button>
+                             <span class="stat-btn" style="cursor: default;">👁️ {{ post.views }}</span>
                         </div>
                     </div>
                     {% endfor %}

@@ -572,6 +572,9 @@
     100% { transform: rotate(360deg); }
 }
 
+.stat-btn.view-count {
+    cursor: default;
+}
     </style>
 </head>
 <body>
@@ -696,6 +699,7 @@
                             data-user="{{ talo.user_id }}">
                         📤 
                     </button>
+                    <span class="stat-btn" style="cursor: default;">👁️ {{ talo.views }}</span>
                 </div>
             </div>
             {% else %}
