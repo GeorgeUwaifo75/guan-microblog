@@ -990,6 +990,10 @@ async def view_post(request: Request, talo_id: str, reply_id: str = None):
             "error": "Post not found"
         })
     
+    # Increment view count
+    talo["views"] = talo.get("views", 0) + 1
+    await save_jsonbin_data(data)   # save the updated data
+    
     for u in data.get("users", []):
         if u["user_id"] == talo["user_id"]:
             talo["user_name"] = f"{u['first_name']} {u['last_name']}"
@@ -1056,6 +1060,7 @@ async def create_talo(request: Request):
         "dislikes": 0,
         "retalos": 0,
         "reply_count": 0,
+        "views": 0,                     # <--- add this line
         "created_at": datetime.now().isoformat(),
         "promoted": False,
         "promotion_level": 0
