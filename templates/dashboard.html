@@ -4909,6 +4909,24 @@ function viewPost(taloId, event) {
 }
 
 
+
+  // Hide splash screen when page is fully loaded
+  window.addEventListener('load', function() {
+    var splash = document.getElementById('splash-screen');
+    if (splash) {
+      // Optionally show for at least 1.5 seconds
+      setTimeout(function() {
+        splash.style.opacity = '0';
+        setTimeout(function() {
+          splash.style.display = 'none';
+        }, 500);
+      }, 1500);
+    }
+  });
+
+
+
+
 </script>
 
 <input type="file" id="mediaInput" accept="image/*,video/*" multiple style="display:none" onchange="handleMediaSelection(this.files)">
