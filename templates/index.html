@@ -193,14 +193,7 @@
     </style>
 </head>
 <body>
-<div id="splash-screen">
-  <div class="splash-content">
-    <div class="ram-icon">🐏</div>
-    <h1>GuAn</h1>
-    <p>Freedom of expression is a right...</p>
-    <div class="loader"></div>
-  </div>
-</div>
+
     <div class="header">
         <div class="logo">
             <div class="ram-icon">🐏</div>
@@ -514,20 +507,7 @@
     }
 
 
-  // Hide splash screen when page is fully loaded
-  window.addEventListener('load', function() {
-    var splash = document.getElementById('splash-screen');
-    if (splash) {
-      // Optionally show for at least 1.5 seconds
-      setTimeout(function() {
-        splash.style.opacity = '0';
-        setTimeout(function() {
-          splash.style.display = 'none';
-        }, 500);
-      }, 1500);
-    }
-  });
-
+ 
 </script>
 
 <script>
