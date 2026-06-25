@@ -4,6 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+<!-- PWA Meta Tags -->
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#cc0000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
     <title>{{ profile_user.first_name }}'s Profile - GuAn</title>
     <style>
         * {
@@ -1346,6 +1352,25 @@ function viewPost(taloId, event) {
     window.location.href = `/post/${taloId}`;
 }       
     </script>
+
+<script>
+  // Register service worker if supported
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => {
+          console.log('Service Worker registered.');
+          // Check for updates periodically
+          setInterval(() => {
+            reg.update();
+          }, 60 * 60 * 1000); // every hour
+        })
+        .catch(err => {
+          console.warn('SW registration failed:', err);
+        });
+    });
+  }
+</script>
 
 <script src="https://js.paystack.co/v1/inline.js" async defer></script>
 </body>

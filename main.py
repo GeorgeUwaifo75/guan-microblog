@@ -3457,7 +3457,9 @@ async def delete_push_subscription(request: Request):
     await save_jsonbin_data(data)
     return {"success": True}
 
-
+@app.get("/offline", response_class=HTMLResponse)
+async def offline_page(request: Request):
+    return templates.TemplateResponse("offline.html", {"request": request})
 
 
 @app.get("/api/health")
