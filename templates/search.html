@@ -383,7 +383,7 @@
             <div id="postsList">
                 {% if results.posts %}
                     {% for post in results.posts %}
-                    <div class="talo-card" onclick="viewPost('{{ post.id }}')">
+                    <div class="talo-card" onclick="viewPost('{{ post.id }}', event)">
                         <div class="talo-header">
                             {% if post.user_photo %}
                             <img class="talo-user-photo" src="{{ post.user_photo }}" alt="">
@@ -484,9 +484,13 @@
             event.target.classList.add('active');
         }
         
-        function viewPost(postId) {
-            window.location.href = `/post/${postId}`;
-        }
+       function viewPost(postId, event) {
+    	const interactive = event.target.closest('button, a, .stat-btn, .photo-item, .post-actions-btn, .reply-btn, .like-btn, .dislike-btn, .retalo-btn, .share-btn');
+    	if (interactive) {
+        return;
+    	}
+    	window.location.href = `/post/${postId}`;
+	}
         
         function viewProfile(userId) {
             window.location.href = `/profile/${userId}`;

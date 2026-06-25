@@ -670,7 +670,7 @@
         <div id="talosFeed">
             <h3 style="margin-bottom: 15px;">Talos by @{{ profile_user.user_id }}</h3>
             {% for talo in talos %}
-            <div class="talo-card">
+            <div class="talo-card" onclick="viewPost('{{ talo.id }}', event)">
                 <div class="talo-header">
                     {% if profile_user.profile_photo %}
                     <img class="talo-user-photo" src="{{ profile_user.profile_photo }}" alt="">
@@ -1336,7 +1336,15 @@ document.addEventListener('click', function(e) {
     }
 });
 
-        
+ // Universal function to navigate to the post page, unless clicking on interactive elements
+function viewPost(taloId, event) {
+    // If the click target is an interactive element, do nothing
+    const interactive = event.target.closest('button, a, .stat-btn, .photo-item, .post-actions-btn, .reply-btn, .like-btn, .dislike-btn, .retalo-btn, .share-btn');
+    if (interactive) {
+        return;
+    }
+    window.location.href = `/post/${taloId}`;
+}       
     </script>
 
 <script src="https://js.paystack.co/v1/inline.js" async defer></script>

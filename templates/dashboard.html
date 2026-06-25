@@ -2098,7 +2098,7 @@
 <div id="talosFeed">
     {% set promoted_shown = false %}
     {% for talo in talos %}
-    <div class="talo-card" data-talo-id="{{ talo.id }}">
+    <div class="talo-card" data-talo-id="{{ talo.id }}" onclick="viewPost('{{ talo.id }}', event)">
         {% if talo.promoted and not promoted_shown %}
             {% set promoted_shown = true %}
             <div class="promoted-header">
@@ -2755,7 +2755,7 @@ window.openPromotionModalFromPost = function(taloId) {
                     if (post.content.length > 100) contentPreview += '...';
                     const highlightedContent = highlightSearchText(escapeHtml(contentPreview), query);
                     html += `
-                        <div class="search-result-item" onclick="viewPost('${post.id}')">
+                        <div class="search-result-item" onclick="viewPost('${post.id}', event)">
                             <div class="search-result-post">
                                 <strong>@${escapeHtml(post.user_id)}</strong><br>
                                 ${highlightedContent}
@@ -4878,6 +4878,18 @@ document.getElementById('taloContent').placeholder =
 
         // Also try to clean up old subscriptions on page load (already handled by registration)
     })();
+
+// Universal function to navigate to the post page, unless clicking on interactive elements
+function viewPost(taloId, event) {
+    // If the click target is an interactive element, do nothing
+    const interactive = event.target.closest('button, a, .stat-btn, .photo-item, .post-actions-btn, .reply-btn, .like-btn, .dislike-btn, .retalo-btn, .share-btn');
+    if (interactive) {
+        return;
+    }
+    window.location.href = `/post/${taloId}`;
+}
+
+
 </script>
 
 <input type="file" id="mediaInput" accept="image/*,video/*" multiple style="display:none" onchange="handleMediaSelection(this.files)">
