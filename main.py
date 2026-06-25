@@ -1412,10 +1412,6 @@ async def service_worker():
         raise HTTPException(status_code=404, detail="Service worker not found")
     return FileResponse(sw_path, media_type="application/javascript")
 
-@app.get("/manifest.json")
-async def manifest():
-    return FileResponse("static/manifest.json", media_type="application/json")
-
 @app.get("/api/get_follow_status/{profile_user_id}")
 async def get_follow_status(profile_user_id: str, request: Request):
     session_token = request.cookies.get("session_token")
