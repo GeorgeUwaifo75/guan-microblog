@@ -49,4 +49,14 @@
       "type": "image/png"
     }
   ]
+
+"splash_pages": [
+    {
+      "src": "/splash.html",
+      "media": "screen and (orientation: portrait)"
+    }
+  ]
+
+
+
 }
