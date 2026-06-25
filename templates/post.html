@@ -1959,5 +1959,25 @@ document.addEventListener('click', function(e) {
     })();
 </script>
 
+<script>
+  // Register service worker if supported
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => {
+          console.log('Service Worker registered.');
+          // Check for updates periodically
+          setInterval(() => {
+            reg.update();
+          }, 60 * 60 * 1000); // every hour
+        })
+        .catch(err => {
+          console.warn('SW registration failed:', err);
+        });
+    });
+  }
+</script>
+
+
 </body>
 </html>

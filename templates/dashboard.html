@@ -4898,10 +4898,27 @@ function viewPost(taloId, event) {
     window.location.href = `/post/${taloId}`;
 }
 
-
-
-
 </script>
+
+<script>
+  // Register service worker if supported
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => {
+          console.log('Service Worker registered.');
+          // Check for updates periodically
+          setInterval(() => {
+            reg.update();
+          }, 60 * 60 * 1000); // every hour
+        })
+        .catch(err => {
+          console.warn('SW registration failed:', err);
+        });
+    });
+  }
+</script>
+
 
 <input type="file" id="mediaInput" accept="image/*,video/*" multiple style="display:none" onchange="handleMediaSelection(this.files)">
 
