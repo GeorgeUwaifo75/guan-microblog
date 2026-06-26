@@ -1850,53 +1850,48 @@ async def delete_user(user_id: str, request: Request):
     session_token = request.cookies.get("session_token")
     if not session_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    
+
     data = await get_jsonbin_data()
     admin = None
-    
     for a in data.get("admins", []):
         if a.get("session_token") == session_token:
             admin = a
             break
-    
-    # Only Super Admin can delete users
-    if not admin or admin.get("role") != "super_admin":
+
+    if not admin:
+        raise HTTPException(status_code=401, detail="Admin not found")
+
+    if admin.get("role") != "super_admin":
         raise HTTPException(status_code=403, detail="Only Super Administrator can delete users")
-    
-    # Find and delete user
+
+    # Protect the support account
+    if user_id == WA_GUAN_USER_ID:
+        raise HTTPException(status_code=403, detail="The support account cannot be deleted")
+
+    # Find user to delete
     user_index = None
     for i, user in enumerate(data.get("users", [])):
         if user["user_id"] == user_id:
             user_index = i
             break
-    
+
     if user_index is None:
         raise HTTPException(status_code=404, detail="User not found")
-    
-    # Delete user's talos
+
+    # Remove all associated data
     data["talos"] = [t for t in data.get("talos", []) if t.get("user_id") != user_id]
-    
-    # Delete user's replies
     data["replies"] = [r for r in data.get("replies", []) if r.get("user_id") != user_id]
-    
-    # Delete user's likes
     data["likes"] = [l for l in data.get("likes", []) if l.get("user_id") != user_id]
-    
-    # Delete user's follows
+    data["dislikes"] = [d for d in data.get("dislikes", []) if d.get("user_id") != user_id]
     data["follows"] = [f for f in data.get("follows", []) if f.get("follower_id") != user_id and f.get("following_id") != user_id]
-    
-    # Delete user's notifications
     data["notifications"] = [n for n in data.get("notifications", []) if n.get("user_id") != user_id and n.get("from_user_id") != user_id]
-    
-    # Delete user's payments
     data["payments"] = [p for p in data.get("payments", []) if p.get("user_id") != user_id]
-    
-    # Delete user's premium requests
     data["premium_requests"] = [pr for pr in data.get("premium_requests", []) if pr.get("user_id") != user_id]
-    
-    # Delete the user
+    data["promotions"] = [p for p in data.get("promotions", []) if p.get("user_id") != user_id]
+
+    # Finally, remove the user
     data["users"].pop(user_index)
-    
+
     await save_jsonbin_data(data)
     return {"message": f"User {user_id} and all associated data deleted successfully"}
 

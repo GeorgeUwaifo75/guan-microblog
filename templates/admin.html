@@ -684,19 +684,33 @@
         }
         
         async function deleteUser(userId) {
-            if (!isSuperAdmin) {
-                alert('Only Super Administrator can delete users');
-                return;
-            }
-            if (confirm('⚠️ WARNING: This will permanently delete the user and all their data. Are you absolutely sure?')) {
-                const response = await fetch(`/api/admin/delete_user/${userId}`, { method: 'POST' });
-                if (response.ok) {
-                    location.reload();
-                } else {
-                    alert('Failed to delete user');
-                }
-            }
-        }
+    		if (!isSuperAdmin) {
+        		alert('Only Super Administrator can delete users');
+        		return;
+    		}
+
+    	// Prevent deletion of the support account
+    		if (userId === 'wa_guan') {
+       		 alert('⚠️ The support account (@wa_guan) cannot be deleted.');
+        	return;
+    		}
+
+    		if (!confirm('⚠️ WARNING: This will permanently delete the user and all their data. Are you absolutely sure?')) {
+       		 return;
+   		 }
+
+   		 try {
+       		 const response = await fetch(`/api/admin/delete_user/${userId}`, { method: 'POST' });
+       		 if (response.ok) {
+            		location.reload();
+        		} else {
+            		const errorData = await response.json();
+            		alert('Failed to delete user: ' + (errorData.detail || 'Unknown error'));
+        		}
+    		} catch (error) {
+        		alert('Network error: ' + error.message);
+   		 }
+	}
         
         async function toggleAdminStatus(adminId, currentlyActive) {
             if (!isSuperAdmin) {
