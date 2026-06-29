@@ -949,7 +949,7 @@
                 <div class="post-content" id="postContent">{{ talo.content }}</div>
 
              {% if talo.photos and talo.photos|length > 0 %}
-                <div class="talo-photos photo-count-{{ talo.photos|length }}">
+                <div class="post-photos photo-count-{{ talo.photos|length }}">
                     {% for media in talo.photos %}
                         {% if media.type == 'video' %}
                             <div class="photo-item" style="cursor:default;">
@@ -957,9 +957,6 @@
                                     <source src="{{ media.url }}" type="video/mp4">
                                     Your browser does not support the video tag.
                                 </video>
-                                {% if talo.photos|length > 1 %} <!-- should never happen with video-only rule, but safe -->
-                                <div class="photo-overlay">🎬</div>
-                                {% endif %}
                             </div>
                         {% else %}
                             <div class="photo-item" onclick="event.stopPropagation(); viewPhoto('{{ media.url }}')">
@@ -972,7 +969,7 @@
                     {% endfor %}
                 </div>
                 {% endif %}
-                
+   
                 <div class="post-stats">
                     <button class="stat-btn like-btn" data-id="{{ talo.id }}">💎 <span class="like-count">{{ talo.likes }}</span></button>
                     <button class="stat-btn dislike-btn" data-id="{{ talo.id }}">👎 <span class="dislike-count">{{ talo.dislikes }}</span></button>
