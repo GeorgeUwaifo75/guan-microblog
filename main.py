@@ -417,6 +417,7 @@ async def get_jsonbin_data(force_refresh=False, fast_mode=False) -> Dict:
                 continue
             # fallback to cached data or raise
     # ...
+
 async def save_jsonbin_data(data: Dict) -> bool:
     """Save data to jsonbinbro API"""
     try:
@@ -437,6 +438,10 @@ async def save_jsonbin_data(data: Dict) -> bool:
             
             if response.status_code == 200:
                 logger.info("Data saved successfully")
+                # ✅ CRITICAL FIX: Update the cache immediately with the new data
+                # This ensures that the session token and other changes are reflected
+                # in subsequent requests without forcing a full API fetch.
+                api_cache.set("jsonbin_data", data)
                 return True
             else:
                 raise HTTPException(status_code=503, detail=f"Failed to save: Status {response.status_code}")
