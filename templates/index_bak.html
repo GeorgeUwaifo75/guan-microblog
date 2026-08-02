@@ -409,19 +409,7 @@
             clearTimeout(timeoutId);
             
             if (response.ok) {
-                // The server now returns a small JSON confirmation (with the
-                // session cookie already set) instead of a redirect, so this
-                // request completes quickly. We navigate ourselves, once,
-                // rather than letting fetch() silently follow a redirect and
-                // download the entire dashboard page as part of the login call.
-                let redirectTo = '/dashboard';
-                try {
-                    const result = await response.json();
-                    if (result && result.redirect) {
-                        redirectTo = result.redirect;
-                    }
-                } catch (e) {}
-                window.location.href = redirectTo;
+                window.location.href = '/dashboard';
             } else {
                 let errorMsg = 'Login failed';
                 try {

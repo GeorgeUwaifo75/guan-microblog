@@ -4268,22 +4268,6 @@ function loadPaystackScript() {
     const pullToRefreshEl = document.getElementById('pullToRefresh');
     const refreshText = pullToRefreshEl ? pullToRefreshEl.querySelector('.refresh-text') : null;
     
-    // Returns true when the create-talo textarea is visible on screen AND has
-    // at least one character in it. While true, pull-to-refresh should be
-    // disabled so an in-progress post can't be lost/interrupted by a pull
-    // gesture (e.g. while the user is scrolling within the textarea itself).
-    function isTaloComposerBlockingRefresh() {
-        const textarea = document.getElementById('taloContent');
-        if (!textarea) return false;
-        if (textarea.value.trim().length === 0) return false;
-        
-        const createSection = document.getElementById('createTaloSection');
-        if (createSection && (createSection.style.display === 'none' || createSection.offsetParent === null)) {
-            return false;
-        }
-        return true;
-    }
-    
     function initPullToRefresh() {
         if (!scrollableContent) return;
         if (window.innerWidth > 768) return;
@@ -4293,7 +4277,7 @@ function loadPaystackScript() {
         let isRefreshingPull = false;
         
         scrollableContent.addEventListener('touchstart', function(e) {
-            if (scrollableContent.scrollTop <= 0 && !isRefreshingPull && !isTaloComposerBlockingRefresh()) {
+            if (scrollableContent.scrollTop <= 0 && !isRefreshingPull) {
                 startY = e.touches[0].clientY;
                 isAtTop = true;
             } else {
@@ -4302,7 +4286,7 @@ function loadPaystackScript() {
         });
         
         scrollableContent.addEventListener('touchmove', function(e) {
-            if (!isAtTop || isRefreshingPull || isTaloComposerBlockingRefresh()) return;
+            if (!isAtTop || isRefreshingPull) return;
             const currentY = e.touches[0].clientY;
             const pullDistance = currentY - startY;
             if (pullDistance > 0) {
@@ -4321,7 +4305,7 @@ function loadPaystackScript() {
         });
         
         scrollableContent.addEventListener('touchend', function(e) {
-            if (!isAtTop || isRefreshingPull || isTaloComposerBlockingRefresh()) {
+            if (!isAtTop || isRefreshingPull) {
                 if (pullToRefreshEl) {
                     pullToRefreshEl.style.transform = '';
                 }

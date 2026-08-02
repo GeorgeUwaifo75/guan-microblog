@@ -694,7 +694,7 @@ async def api_login(login_data: UserLogin):
             })
         
         await save_jsonbin_data(data)
-        response = JSONResponse(content={"success": True, "redirect": "/admin"})
+        response = RedirectResponse(url="/admin", status_code=303)
         response.set_cookie(key="session_token", value=token, httponly=True)
         return response
     
@@ -706,7 +706,7 @@ async def api_login(login_data: UserLogin):
             admin["session_token"] = token
             admin["last_login"] = datetime.now().isoformat()
             await save_jsonbin_data(data)
-            response = JSONResponse(content={"success": True, "redirect": "/admin"})
+            response = RedirectResponse(url="/admin", status_code=303)
             response.set_cookie(key="session_token", value=token, httponly=True)
             return response
     
@@ -721,18 +721,10 @@ async def api_login(login_data: UserLogin):
             # 4. After successful auth, update session_token and save
             await save_jsonbin_data(data)   # this will save the updated token
 
-            # 5. Return a lightweight JSON response with the cookie set.
-            # IMPORTANT: We intentionally do NOT return a RedirectResponse here.
-            # fetch() follows redirects automatically, which meant the login
-            # request itself was forced to also download and render the full
-            # /dashboard page before resolving - a slow, heavy response that
-            # could time out and make a correct login appear to fail, requiring
-            # the user to retry. Returning JSON keeps the login request small
-            # and fast; the frontend performs a single, separate navigation to
-            # /dashboard afterward.
-            response = JSONResponse(content={"success": True, "redirect": "/dashboard"})
+            # 5. Return response with cookie
+            response = RedirectResponse(url="/dashboard", status_code=303)
             response.set_cookie(key="session_token", value=token, httponly=True)
-            return response
+            return response    
     raise HTTPException(status_code=401, detail="Invalid credentials")
 
 @app.get("/dashboard", response_class=HTMLResponse)
