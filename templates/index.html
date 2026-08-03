@@ -263,14 +263,14 @@
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal('login')">&times;</span>
             <h3>Login to GuAn</h3>
-            <form id="loginForm">
+            <form id="loginForm" autocomplete="off">
                 <div class="form-group">
                     <label>User ID</label>
-                    <input type="text" id="login_user_id" required>
+                    <input type="text" id="login_user_id" autocomplete="off" required>
                 </div>
                 <div class="form-group">
                     <label>Password</label>
-                    <input type="password" id="login_password" required>
+                    <input type="password" id="login_password" autocomplete="new-password" required>
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
             </form>
@@ -337,6 +337,10 @@
             document.getElementById('loginModal').style.display = 'flex';
             // Reset login form and loading state
             document.getElementById('loginForm').reset();
+            // Belt-and-suspenders: some browsers restore field values from
+            // bfcache/autofill even after form.reset(), so clear explicitly too.
+            document.getElementById('login_user_id').value = '';
+            document.getElementById('login_password').value = '';
             const loginBtn = document.querySelector('#loginForm button[type="submit"]');
             if (loginBtn) {
                 loginBtn.disabled = false;
@@ -415,12 +419,22 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_id, password }),
-                signal: controller.signal
+                signal: controller.signal,
+                cache: 'no-store'
             });
             
             clearTimeout(timeoutId);
             
             if (response.ok) {
+                // Clear any leftover session data from a previous account that
+                // may have logged in on this device/browser (notification
+                // timestamps, push subscription reference, etc.) so the new
+                // session starts completely clean rather than inheriting
+                // another user's residue.
+                localStorage.removeItem('lastSeenTimestamp');
+                localStorage.removeItem('lastNotificationCheck');
+                localStorage.removeItem('pushSubscription');
+                
                 // The server now returns a small JSON confirmation (with the
                 // session cookie already set) instead of a redirect, so this
                 // request completes quickly. We navigate ourselves, once,
@@ -441,6 +455,9 @@
                     errorMsg = error.detail || errorMsg;
                 } catch(e) {}
                 alert('Login failed: ' + errorMsg);
+                // Clear the password field so a retry can't accidentally
+                // resubmit the same rejected (or browser-restored) value.
+                document.getElementById('login_password').value = '';
                 setButtonLoading(loginBtn, false, originalText);
                 isLoggingIn = false;
             }

@@ -662,8 +662,14 @@ async def api_signup(user_data: UserSignup):
 
 @app.post("/api/login")
 async def api_login(login_data: UserLogin):
-    # 1. Fetch data once with fast mode (using cache)
-    data = await get_jsonbin_data(fast_mode=True)
+    # 1. Force a fresh fetch of the latest data for every login attempt.
+    # We intentionally bypass the shared cache here (force_refresh=True):
+    # that cache can hold data for up to 5 minutes, and login must never
+    # authenticate against stale residue - e.g. a password that was just
+    # changed, an account that was just deactivated, or a session token
+    # left over from a different login. fast_mode still keeps retries/
+    # timeouts short so this stays quick.
+    data = await get_jsonbin_data(force_refresh=True, fast_mode=True)
     
     # 2. Ensure wa_guan exists (async, non-blocking)
     if not any(u.get('user_id') == WA_GUAN_USER_ID for u in data.get('users', [])):
