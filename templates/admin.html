@@ -348,6 +348,9 @@
                                     {% else %}
                                     <span class="badge badge-inactive">Inactive</span>
                                     {% endif %}
+                                    {% if user.must_change_password %}
+                                    <br><span class="badge" style="background:#6c1fc7; color:#fff; margin-top:4px; display:inline-block;">Reset Pending</span>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     {% if user.is_premium %}
@@ -364,6 +367,7 @@
                                         {% if user.is_active %}Deactivate{% else %}Activate{% endif %}
                                     </button>
                                     {% if is_super_admin %}
+                                    <button class="btn-sm btn-deactivate" style="background:#6c1fc7;" onclick="resetUserPassword('{{ user.user_id }}')">Reset Password</button>
                                     <button class="btn-sm btn-delete" onclick="deleteUser('{{ user.user_id }}')">Delete</button>
                                     {% endif %}
                                 </td>
@@ -680,6 +684,29 @@
                 } else {
                     alert('Failed to update user status');
                 }
+            }
+        }
+        
+        async function resetUserPassword(userId) {
+            if (!isSuperAdmin) {
+                alert('Only Super Administrator can reset user passwords');
+                return;
+            }
+
+            if (!confirm(`Reset the password for @${userId} to the default temporary password ("0000")?\n\nThey will be required to set a new password the next time they log in, and will be logged out of any active session.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/admin/reset_user_password/${userId}`, { method: 'POST' });
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.message || `Password for @${userId} has been reset.`);
+                } else {
+                    alert('Failed to reset password: ' + (result.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Network error: ' + error.message);
             }
         }
         

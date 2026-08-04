@@ -632,6 +632,7 @@ async def api_signup(user_data: UserSignup):
         "background_image": None,
         "is_active": True,
         "is_premium": False,
+        "must_change_password": False,
         "user_category": "Normal",
         "followers_count": 0,
         "following_count": 0,
@@ -1564,6 +1565,7 @@ async def update_profile(request: Request):
         if verify_password(current_password, user["password_hash"]):
             # Update to new password
             user["password_hash"] = hash_password(new_password)
+            user["must_change_password"] = False
             password_changed = True
             logger.info(f"Password changed for user: {user['user_id']}")
         else:
@@ -1661,6 +1663,7 @@ async def admin_panel(request: Request):
             "country": u.get("country"),
             "is_active": u.get("is_active", True),
             "is_premium": u.get("is_premium", False),
+            "must_change_password": u.get("must_change_password", False),
             "talos_count": u.get("talos_count", 0),
             "created_at": u.get("created_at", ""),
             "last_active": u.get("last_active", "")
@@ -1861,6 +1864,49 @@ async def deactivate_user(user_id: str, request: Request):
             await save_jsonbin_data(data)
             return {"message": f"User {'activated' if user['is_active'] else 'deactivated'}"}
     
+    raise HTTPException(status_code=404, detail="User not found")
+
+DEFAULT_RESET_PASSWORD = "0000"
+
+@app.post("/api/admin/reset_user_password/{user_id}")
+async def reset_user_password(user_id: str, request: Request):
+    """Super Admin only - Reset a user's password to the default temporary
+    password when there's an account issue (locked out, compromised, etc).
+    The account is flagged so the user is required to set a new password
+    the next time they log in, and any existing session is invalidated so
+    the reset takes effect immediately."""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    data = await get_jsonbin_data()
+    admin = None
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+
+    if not admin or not admin.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    if admin.get("role") != "super_admin":
+        raise HTTPException(status_code=403, detail="Only Super Administrator can reset user passwords")
+
+    for user in data.get("users", []):
+        if user["user_id"] == user_id:
+            user["password_hash"] = hash_password(DEFAULT_RESET_PASSWORD)
+            user["must_change_password"] = True
+            # Invalidate any active session so the old login can't keep being
+            # used, and so the user is forced through the login screen with
+            # the new temporary password.
+            user["session_token"] = None
+            await save_jsonbin_data(data)
+            logger.info(f"Password reset by super admin {admin['user_id']} for user {user_id}")
+            return {
+                "message": f"Password for @{user_id} has been reset to the default temporary password. "
+                           f"They'll be required to set a new password the next time they log in."
+            }
+
     raise HTTPException(status_code=404, detail="User not found")
 
 @app.post("/api/admin/delete_user/{user_id}")

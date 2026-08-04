@@ -2334,6 +2334,35 @@
         </div>
     </div>
 
+    <!-- Forced Password Change Modal - shown when a Super Administrator has
+         reset this account's password. Intentionally has no close button and
+         no backdrop-click handler so it can't be dismissed until the user
+         sets a new password. -->
+    <div id="forcePasswordModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:99999; align-items:center; justify-content:center;">
+        <div style="background:#fff; max-width:420px; width:90%; border-radius:12px; padding:24px; box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+            <h3 style="color:#cc0000; margin-bottom:8px;">🔐 Password Reset Required</h3>
+            <p style="font-size:14px; color:#444; margin-bottom:16px;">
+                An administrator has reset your password. For your security, please set a new password before continuing.
+            </p>
+            <form id="forcePasswordForm" autocomplete="off">
+                <div class="form-group">
+                    <label>Current (Temporary) Password</label>
+                    <input type="password" id="forceCurrentPassword" autocomplete="off" placeholder="Enter the temporary password" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;">
+                </div>
+                <div class="form-group" style="margin-top:10px;">
+                    <label>New Password</label>
+                    <input type="password" id="forceNewPassword" autocomplete="new-password" placeholder="Enter new password (min 6 characters)" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;">
+                </div>
+                <div class="form-group" style="margin-top:10px;">
+                    <label>Confirm New Password</label>
+                    <input type="password" id="forceConfirmPassword" autocomplete="new-password" placeholder="Confirm new password" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;">
+                </div>
+                <div id="forcePasswordError" style="color:#dc3545; font-size:12px; margin-top:8px; display:none;"></div>
+                <button type="button" id="forcePasswordSubmitBtn" class="btn btn-primary" style="width:100%; margin-top:16px;" onclick="submitForcedPasswordChange()">Set New Password</button>
+            </form>
+        </div>
+    </div>
+
     <!-- Followers/Following Modals -->
     <div id="followersModal" class="modal-overlay" style="display: none;">
         <div class="modal-content-userlist">
@@ -3491,6 +3520,65 @@ async function checkForBannedWords(content) {
         }
     }
     
+    // ========== FORCED PASSWORD CHANGE (after Super Admin reset) ==========
+    async function submitForcedPasswordChange() {
+        const errorEl = document.getElementById('forcePasswordError');
+        if (errorEl) errorEl.style.display = 'none';
+        
+        const currentPassword = document.getElementById('forceCurrentPassword').value;
+        const newPassword = document.getElementById('forceNewPassword').value;
+        const confirmPassword = document.getElementById('forceConfirmPassword').value;
+        
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            if (errorEl) { errorEl.textContent = 'Please fill in all fields.'; errorEl.style.display = 'block'; }
+            return;
+        }
+        if (newPassword.length < 6) {
+            if (errorEl) { errorEl.textContent = 'New password must be at least 6 characters.'; errorEl.style.display = 'block'; }
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            if (errorEl) { errorEl.textContent = 'New passwords do not match.'; errorEl.style.display = 'block'; }
+            return;
+        }
+        
+        const submitBtn = document.getElementById('forcePasswordSubmitBtn');
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Updating...'; }
+        
+        const formData = new FormData();
+        formData.append('current_password', currentPassword);
+        formData.append('new_password', newPassword);
+        
+        try {
+            const response = await fetch('/api/update_profile', { method: 'POST', body: formData });
+            const result = await response.json();
+            if (response.ok && result.password_changed) {
+                alert('Your password has been updated. Please log in again with your new password.');
+                window.location.href = '/logout';
+            } else {
+                if (errorEl) {
+                    errorEl.textContent = result.detail || 'Failed to update password. Please check the temporary password and try again.';
+                    errorEl.style.display = 'block';
+                }
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Set New Password'; }
+            }
+        } catch (error) {
+            if (errorEl) {
+                errorEl.textContent = 'Network error. Please try again.';
+                errorEl.style.display = 'block';
+            }
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Set New Password'; }
+        }
+    }
+    
+    function checkForcedPasswordChange() {
+        const mustChangePassword = {{ 'true' if user.must_change_password else 'false' }};
+        if (mustChangePassword) {
+            const modal = document.getElementById('forcePasswordModal');
+            if (modal) modal.style.display = 'flex';
+        }
+    }
+    
     // ========== FOLLOW FUNCTIONS ==========
     async function checkFollowStatus(profileUserId) {
         try {
@@ -4563,6 +4651,7 @@ window.addEventListener('resize', function() {
     //initRealTimeNotifications();
     initPullToRefresh();
     initFabVisibilityControl();
+    checkForcedPasswordChange();
     
     const currentProfileUserId = '{{ user.user_id }}';
     if (currentProfileUserId !== loggedInUserId) {
