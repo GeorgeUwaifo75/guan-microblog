@@ -336,7 +336,7 @@
                         </thead>
                         <tbody>
                             {% for user in users %}
-                            <tr class="user-row">
+                            <tr>
                                 <td><strong>@{{ user.user_id }}</strong></td>
                                 <td>{{ user.first_name }} {{ user.last_name }}</td>
                                 <td>{{ user.email }}</td>
@@ -375,11 +375,6 @@
                             {% endfor %}
                         </tbody>
                     </table>
-                </div>
-                <div id="usersPagination" style="display:flex; align-items:center; justify-content:center; gap:14px; margin-top:16px; padding-top:12px; border-top:1px solid #eee;">
-                    <button type="button" id="usersPrevBtn" class="btn-sm btn-deactivate" onclick="goToUsersPage(-1)">&laquo; Prev</button>
-                    <span id="usersPageInfo" style="font-size:13px; color:#555;"></span>
-                    <button type="button" id="usersNextBtn" class="btn-sm btn-deactivate" onclick="goToUsersPage(1)">Next &raquo;</button>
                 </div>
             </div>
         </div>
@@ -1002,50 +997,9 @@
             }
         }
         
-        // ========== USERS TABLE PAGINATION ==========
-        const USERS_PER_PAGE = 10;
-        let currentUsersPage = 1;
-        
-        function paginateUsersTable() {
-            const rows = document.querySelectorAll('#usersTab tbody tr.user-row');
-            const totalUsers = rows.length;
-            const totalPages = Math.max(1, Math.ceil(totalUsers / USERS_PER_PAGE));
-            
-            if (currentUsersPage > totalPages) currentUsersPage = totalPages;
-            if (currentUsersPage < 1) currentUsersPage = 1;
-            
-            const start = (currentUsersPage - 1) * USERS_PER_PAGE;
-            const end = start + USERS_PER_PAGE;
-            
-            rows.forEach((row, index) => {
-                row.style.display = (index >= start && index < end) ? '' : 'none';
-            });
-            
-            const pageInfo = document.getElementById('usersPageInfo');
-            if (pageInfo) {
-                pageInfo.textContent = totalUsers === 0
-                    ? 'No users'
-                    : `Page ${currentUsersPage} of ${totalPages} (${totalUsers} users)`;
-            }
-            
-            const prevBtn = document.getElementById('usersPrevBtn');
-            const nextBtn = document.getElementById('usersNextBtn');
-            if (prevBtn) prevBtn.disabled = currentUsersPage <= 1;
-            if (nextBtn) nextBtn.disabled = currentUsersPage >= totalPages;
-            
-            const pagination = document.getElementById('usersPagination');
-            if (pagination) pagination.style.display = totalPages <= 1 ? 'none' : 'flex';
-        }
-        
-        function goToUsersPage(direction) {
-            currentUsersPage += direction;
-            paginateUsersTable();
-        }
-        
         // Load data on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadPremiumRequests();
-            paginateUsersTable();
         });
     </script>
 
