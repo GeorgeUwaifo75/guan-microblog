@@ -537,6 +537,7 @@
     </div>
 </div>
 
+<!-- Reports Tab -->
 <div id="reportsTab" class="tab-content">
     <div class="section">
         <h2>📈 Platform Reports</h2>
@@ -556,8 +557,6 @@
     </div>
 </div>
 
-
-  <!--  </div>  -->
 
     <!-- Create Admin Modal -->
     <div id="createAdminModal" class="modal">
@@ -628,6 +627,18 @@
 let allUsersData = [];
 let currentReportsPage = 1;
 const USERS_PER_PAGE = 10;
+
+function changeReportsPage(delta) {
+    const totalUsers = allUsersData.length;
+    const totalPages = Math.ceil(totalUsers / USERS_PER_PAGE) || 1;
+    
+    const newPage = currentReportsPage + delta;
+    if (newPage < 1 || newPage > totalPages) return;
+    
+    currentReportsPage = newPage;
+    loadReports();
+}
+
 
 async function loadReports() {
     const reportsDiv = document.getElementById('reportsData');
@@ -778,16 +789,6 @@ async function loadReports() {
     }
 }
 
-function changeReportsPage(delta) {
-    const totalUsers = allUsersData.length;
-    const totalPages = Math.ceil(totalUsers / USERS_PER_PAGE) || 1;
-    
-    const newPage = currentReportsPage + delta;
-    if (newPage < 1 || newPage > totalPages) return;
-    
-    currentReportsPage = newPage;
-    loadReports();
-}
         
         async function toggleUserStatus(userId, currentlyActive) {
             const action = currentlyActive ? 'deactivate' : 'activate';
