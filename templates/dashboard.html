@@ -807,83 +807,159 @@
             text-decoration: underline;
         }
         
-        /* Enhanced Photo Grid Styles - 4:5 Aspect Ratio with Max Size 1080x1350 */
-        .talo-photos {
-            display: grid;
-            gap: 8px;
-            margin: 10px 0;
-        }
+        /* Enhanced Photo Grid Styles - Responsive with proper containment */
+.talo-photos {
+    display: grid;
+    gap: 8px;
+    margin: 10px 0;
+    width: 100%;
+}
+        /* 1 photo - full width, maintain aspect ratio, fit container */
+.talo-photos.photo-count-1 {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+}
+
+.talo-photos.photo-count-1 .photo-item {
+    aspect-ratio: auto;
+    max-width: 100%;
+    margin: 0 auto;
+    height: auto;
+}
+
+.talo-photos.photo-count-1 .photo-item img {
+    width: 100%;
+    height: auto;
+    max-height: 500px;
+    object-fit: contain;
+    border-radius: 12px;
+}
         
-        /* 1 photo - full width, 4:5 aspect ratio, max-width 540px */
-        .talo-photos.photo-count-1 {
-            grid-template-columns: 1fr;
-            max-width: 540px;
-        }
-        
-        .talo-photos.photo-count-1 .photo-item {
-            aspect-ratio: 4 / 5;
-            max-width: 540px;
-            margin: 0 auto;
-        }
-        
-        /* 2 photos - side by side, each 4:5 aspect ratio, max-width 270px each */
-        .talo-photos.photo-count-2 {
-            grid-template-columns: 1fr 1fr;
-            max-width: 560px;
-        }
-        
-        .talo-photos.photo-count-2 .photo-item {
-            aspect-ratio: 4 / 5;
-            max-width: 270px;
-        }
+       /* 2 photos - side by side, responsive */
+.talo-photos.photo-count-2 {
+    grid-template-columns: 1fr 1fr;
+    max-width: 100%;
+}
+
+.talo-photos.photo-count-2 .photo-item {
+    aspect-ratio: auto;
+    max-width: 100%;
+    height: auto;
+}
+
+.talo-photos.photo-count-2 .photo-item img {
+    width: 100%;
+    height: auto;
+    max-height: 300px;
+    object-fit: cover;
+    border-radius: 12px;
+}
         
         /* 3 photos - first takes full width, next two side by side */
-        .talo-photos.photo-count-3 {
-            grid-template-columns: 1fr 1fr;
-            grid-template-areas: 
-                "main main"
-                "sub1 sub2";
-            max-width: 560px;
-        }
+.talo-photos.photo-count-3 {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: 
+        "main main"
+        "sub1 sub2";
+    max-width: 100%;
+}
+
+.talo-photos.photo-count-3 .photo-item:first-child {
+    grid-area: main;
+    aspect-ratio: auto;
+    max-width: 100%;
+    height: auto;
+}
+
+.talo-photos.photo-count-3 .photo-item:first-child img {
+    width: 100%;
+    height: auto;
+    max-height: 400px;
+    object-fit: cover;
+    border-radius: 12px;
+}
+
+.talo-photos.photo-count-3 .photo-item:nth-child(2),
+.talo-photos.photo-count-3 .photo-item:nth-child(3) {
+    aspect-ratio: auto;
+    max-width: 100%;
+    height: auto;
+}
+
+.talo-photos.photo-count-3 .photo-item:nth-child(2) img,
+.talo-photos.photo-count-3 .photo-item:nth-child(3) img {
+    width: 100%;
+    height: auto;
+    max-height: 250px;
+    object-fit: cover;
+    border-radius: 12px;
+}
         
-        .talo-photos.photo-count-3 .photo-item:first-child {
-            grid-area: main;
-            aspect-ratio: 4 / 5;
-            max-width: 560px;
-        }
+        /* 4 photos - 2x2 grid */
+.talo-photos.photo-count-4 {
+    grid-template-columns: 1fr 1fr;
+    max-width: 100%;
+}
+
+.talo-photos.photo-count-4 .photo-item {
+    aspect-ratio: auto;
+    max-width: 100%;
+    height: auto;
+}
+
+.talo-photos.photo-count-4 .photo-item img {
+    width: 100%;
+    height: auto;
+    max-height: 250px;
+    object-fit: cover;
+    border-radius: 12px;
+}
         
-        .talo-photos.photo-count-3 .photo-item:nth-child(2) {
-            grid-area: sub1;
-            aspect-ratio: 4 / 5;
-            max-width: 270px;
-        }
-        
-        .talo-photos.photo-count-3 .photo-item:nth-child(3) {
-            grid-area: sub2;
-            aspect-ratio: 4 / 5;
-            max-width: 270px;
-        }
-        
-        /* 4 photos - 2x2 grid, each 4:5 aspect ratio, max-width 270px each */
-        .talo-photos.photo-count-4 {
-            grid-template-columns: 1fr 1fr;
-            max-width: 560px;
-        }
-        
-        .talo-photos.photo-count-4 .photo-item {
-            aspect-ratio: 4 / 5;
-            max-width: 270px;
-        }
-        
-        .photo-item {
-            position: relative;
-            overflow: hidden;
-            border-radius: 12px;
-            background: #f0f0f0;
-            cursor: pointer;
-            width: 100%;
-        }
-        
+.photo-item {
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+    background: #f0f0f0;
+    cursor: pointer;
+    width: 100%;
+    height: auto;
+}
+
+.photo-item video {
+    width: 100%;
+    height: auto;
+    max-height: 400px;
+    object-fit: contain;
+    border-radius: 12px;
+}
+
+/* Mobile adjustments for photos */
+@media (max-width: 768px) {
+    .talo-photos.photo-count-1 .photo-item img {
+        max-height: 350px;
+    }
+    
+    .talo-photos.photo-count-2 .photo-item img {
+        max-height: 200px;
+    }
+    
+    .talo-photos.photo-count-3 .photo-item:first-child img {
+        max-height: 250px;
+    }
+    
+    .talo-photos.photo-count-3 .photo-item:nth-child(2) img,
+    .talo-photos.photo-count-3 .photo-item:nth-child(3) img {
+        max-height: 150px;
+    }
+    
+    .talo-photos.photo-count-4 .photo-item img {
+        max-height: 150px;
+    }
+    
+    .talo-photos {
+        gap: 4px;
+    }
+}        
         .photo-item img {
             width: 100%;
             height: 100%;
@@ -1953,12 +2029,14 @@
     }
 }
 
+/*
        .talo-photos .photo-item video {
             width: 100%;
             height: 100%;
             object-fit: cover;
             border-radius: 12px;
         }
+        */
 
 /* Preserve line breaks in post/reply content */
 .talo-content,

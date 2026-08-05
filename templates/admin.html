@@ -537,14 +537,27 @@
     </div>
 </div>
 
-        <!-- Reports Tab -->
-        <div id="reportsTab" class="tab-content">
-            <div class="section">
-                <h2>📈 Platform Reports</h2>
-                <div id="reportsData">Loading reports...</div>
+<div id="reportsTab" class="tab-content">
+    <div class="section">
+        <h2>📈 Platform Reports</h2>
+        <div id="reportsData">Loading reports...</div>
+    </div>
+    <!-- Pagination controls -->
+    <div id="reportsPagination" style="display: none; background: white; padding: 15px; border-radius: 10px; margin-top: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <span id="reportsPageInfo">Page 1 of 1</span>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-sm" id="reportsPrevPage" onclick="changeReportsPage(-1)" style="background: #cc0000; color: white; padding: 8px 16px;">← Previous</button>
+                <button class="btn-sm" id="reportsNextPage" onclick="changeReportsPage(1)" style="background: #cc0000; color: white; padding: 8px 16px;">Next →</button>
             </div>
         </div>
     </div>
+</div>
+
+
+  <!--  </div>  -->
 
     <!-- Create Admin Modal -->
     <div id="createAdminModal" class="modal">
@@ -611,69 +624,170 @@
             }
         }
         
-        async function loadReports() {
-            const reportsDiv = document.getElementById('reportsData');
-            reportsDiv.innerHTML = '<div style="text-align: center;">Loading reports...</div>';
+        // Reports Pagination Variables
+let allUsersData = [];
+let currentReportsPage = 1;
+const USERS_PER_PAGE = 10;
+
+async function loadReports() {
+    const reportsDiv = document.getElementById('reportsData');
+    const paginationDiv = document.getElementById('reportsPagination');
+    reportsDiv.innerHTML = '<div style="text-align: center;">Loading reports...</div>';
+    
+    try {
+        const response = await fetch('/api/admin/get_reports');
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Store all users data for pagination
+            allUsersData = data.users || [];
+            const totalUsers = allUsersData.length;
+            const totalPages = Math.ceil(totalUsers / USERS_PER_PAGE) || 1;
             
-            try {
-                const response = await fetch('/api/admin/get_reports');
-                const data = await response.json();
-                
-                if (response.ok) {
-                    reportsDiv.innerHTML = `
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-                            <div style="background: #f9f9f9; padding: 15px; border-radius: 10px;">
-                                <h3 style="color: #cc0000;">👥 User Statistics</h3>
-                                <p><strong>Total Users:</strong> ${data.user_reports.total_users}</p>
-                                <p><strong>Active Users:</strong> ${data.user_reports.active_users}</p>
-                                <p><strong>Inactive Users:</strong> ${data.user_reports.inactive_users}</p>
-                                <p><strong>Premium Users:</strong> ${data.user_reports.premium_users}</p>
-                                <p><strong>Male/Female:</strong> ${data.user_reports.male_users}/${data.user_reports.female_users}</p>
-                                <p><strong>Daily Active:</strong> ${data.user_reports.daily_active}</p>
-                                <p><strong>New Users (7d):</strong> ${data.user_reports.users_last_7_days}</p>
-                                <p><strong>New Users (30d):</strong> ${data.user_reports.users_last_30_days}</p>
-                            </div>
-                            <div style="background: #f9f9f9; padding: 15px; border-radius: 10px;">
-                                <h3 style="color: #cc0000;">📝 Post Statistics</h3>
-                                <p><strong>Total Talos:</strong> ${data.post_reports.total_talos}</p>
-                                <p><strong>Total Replies:</strong> ${data.post_reports.total_replies}</p>
-                                <p><strong>Talos Today:</strong> ${data.post_reports.talos_today}</p>
-                                <p><strong>Replies Today:</strong> ${data.post_reports.replies_today}</p>
-                                <p><strong>Talos (7d):</strong> ${data.post_reports.talos_last_7_days}</p>
-                                <p><strong>Replies (7d):</strong> ${data.post_reports.replies_last_7_days}</p>
-                                <p><strong>Total Likes:</strong> ${data.post_reports.total_likes}</p>
-                                <p><strong>Total Follows:</strong> ${data.post_reports.total_follows}</p>
-                            </div>
-                            <div style="background: #f9f9f9; padding: 15px; border-radius: 10px;">
-                                <h3 style="color: #cc0000;">💰 Financial Reports</h3>
-                                <p><strong>Total Revenue:</strong> ₦${data.financial_reports.total_amount.toFixed(2)}</p>
-                                <p><strong>Total Payments:</strong> ${data.financial_reports.total_payments}</p>
-                                <p><strong>Revenue (7d):</strong> ₦${data.financial_reports.amount_last_7_days.toFixed(2)}</p>
-                                <p><strong>Payments (7d):</strong> ${data.financial_reports.payments_last_7_days}</p>
-                                <p><strong>Revenue (30d):</strong> ₦${data.financial_reports.amount_last_30_days.toFixed(2)}</p>
-                                <p><strong>Payments (30d):</strong> ${data.financial_reports.payments_last_30_days}</p>
-                            </div>
-                        </div>
-                        <div style="margin-top: 20px; background: #f9f9f9; padding: 15px; border-radius: 10px;">
-                            <h3 style="color: #cc0000;">🌍 Users by Country</h3>
-                            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                                ${Object.entries(data.user_reports.users_by_country).map(([country, count]) => 
-                                    `<span class="badge" style="background: #ddd;">${country}: ${count}</span>`
-                                ).join('')}
-                            </div>
-                        </div>
-                        <div style="margin-top: 20px; text-align: center; color: #666; font-size: 12px;">
-                            Report generated: ${data.generated_at}
-                        </div>
-                    `;
-                } else {
-                    reportsDiv.innerHTML = '<p style="text-align: center; color: #dc3545;">Failed to load reports</p>';
-                }
-            } catch (error) {
-                console.error('Error loading reports:', error);
-                reportsDiv.innerHTML = '<p style="text-align: center; color: #dc3545;">Error loading reports</p>';
+            // Ensure current page is valid
+            if (currentReportsPage > totalPages) currentReportsPage = totalPages;
+            if (currentReportsPage < 1) currentReportsPage = 1;
+            
+            // Get users for current page
+            const startIndex = (currentReportsPage - 1) * USERS_PER_PAGE;
+            const endIndex = Math.min(startIndex + USERS_PER_PAGE, totalUsers);
+            const pageUsers = allUsersData.slice(startIndex, endIndex);
+            
+            // Build the user table HTML
+            let usersTableHtml = '';
+            if (pageUsers.length > 0) {
+                usersTableHtml = `
+                    <div style="overflow-x: auto; margin-top: 15px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>User ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Country</th>
+                                    <th>Status</th>
+                                    <th>Premium</th>
+                                    <th>Talos</th>
+                                    <th>Registered</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${pageUsers.map(u => `
+                                    <tr>
+                                        <td><strong>@${u.user_id}</strong></td>
+                                        <td>${u.first_name} ${u.last_name}</td>
+                                        <td>${u.email}</td>
+                                        <td>${u.country}</td>
+                                        <td>
+                                            ${u.is_active ? 
+                                                '<span class="badge badge-active">Active</span>' : 
+                                                '<span class="badge badge-inactive">Inactive</span>'}
+                                        </td>
+                                        <td>
+                                            ${u.is_premium ? 
+                                                '<span class="badge badge-premium">🐏 Premium</span>' : 
+                                                'Normal'}
+                                        </td>
+                                        <td>${u.talos_count}</td>
+                                        <td>${u.created_at ? u.created_at.slice(0, 10) : 'N/A'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } else {
+                usersTableHtml = '<p style="text-align: center; padding: 20px; color: #999;">No users found.</p>';
             }
+            
+            // Build the full reports HTML
+            reportsDiv.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 10px;">
+                        <h3 style="color: #cc0000;">👥 User Statistics</h3>
+                        <p><strong>Total Users:</strong> ${data.user_reports.total_users}</p>
+                        <p><strong>Active Users:</strong> ${data.user_reports.active_users}</p>
+                        <p><strong>Inactive Users:</strong> ${data.user_reports.inactive_users}</p>
+                        <p><strong>Premium Users:</strong> ${data.user_reports.premium_users}</p>
+                        <p><strong>Male/Female:</strong> ${data.user_reports.male_users}/${data.user_reports.female_users}</p>
+                        <p><strong>Daily Active:</strong> ${data.user_reports.daily_active}</p>
+                        <p><strong>New Users (7d):</strong> ${data.user_reports.users_last_7_days}</p>
+                        <p><strong>New Users (30d):</strong> ${data.user_reports.users_last_30_days}</p>
+                    </div>
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 10px;">
+                        <h3 style="color: #cc0000;">📝 Post Statistics</h3>
+                        <p><strong>Total Talos:</strong> ${data.post_reports.total_talos}</p>
+                        <p><strong>Total Replies:</strong> ${data.post_reports.total_replies}</p>
+                        <p><strong>Talos Today:</strong> ${data.post_reports.talos_today}</p>
+                        <p><strong>Replies Today:</strong> ${data.post_reports.replies_today}</p>
+                        <p><strong>Talos (7d):</strong> ${data.post_reports.talos_last_7_days}</p>
+                        <p><strong>Replies (7d):</strong> ${data.post_reports.replies_last_7_days}</p>
+                        <p><strong>Total Likes:</strong> ${data.post_reports.total_likes}</p>
+                        <p><strong>Total Follows:</strong> ${data.post_reports.total_follows}</p>
+                    </div>
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 10px;">
+                        <h3 style="color: #cc0000;">💰 Financial Reports</h3>
+                        <p><strong>Total Revenue:</strong> ₦${data.financial_reports.total_amount.toFixed(2)}</p>
+                        <p><strong>Total Payments:</strong> ${data.financial_reports.total_payments}</p>
+                        <p><strong>Revenue (7d):</strong> ₦${data.financial_reports.amount_last_7_days.toFixed(2)}</p>
+                        <p><strong>Payments (7d):</strong> ${data.financial_reports.payments_last_7_days}</p>
+                        <p><strong>Revenue (30d):</strong> ₦${data.financial_reports.amount_last_30_days.toFixed(2)}</p>
+                        <p><strong>Payments (30d):</strong> ${data.financial_reports.payments_last_30_days}</p>
+                    </div>
+                </div>
+                <div style="margin-top: 20px; background: #f9f9f9; padding: 15px; border-radius: 10px;">
+                    <h3 style="color: #cc0000;">🌍 Users by Country</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        ${Object.entries(data.user_reports.users_by_country).map(([country, count]) => 
+                            `<span class="badge" style="background: #ddd;">${country}: ${count}</span>`
+                        ).join('')}
+                    </div>
+                </div>
+                <div style="margin-top: 20px;">
+                    <h3 style="color: #cc0000;">👥 User List</h3>
+                    ${usersTableHtml}
+                </div>
+                <div style="margin-top: 20px; text-align: center; color: #666; font-size: 12px;">
+                    Report generated: ${data.generated_at}
+                </div>
+            `;
+            
+            // Show pagination if there are more than USERS_PER_PAGE users
+            if (totalUsers > USERS_PER_PAGE) {
+                paginationDiv.style.display = 'block';
+                document.getElementById('reportsPageInfo').textContent = 
+                    `Page ${currentReportsPage} of ${totalPages} (${totalUsers} users)`;
+                
+                // Enable/disable buttons
+                document.getElementById('reportsPrevPage').disabled = currentReportsPage <= 1;
+                document.getElementById('reportsPrevPage').style.opacity = currentReportsPage <= 1 ? '0.5' : '1';
+                document.getElementById('reportsNextPage').disabled = currentReportsPage >= totalPages;
+                document.getElementById('reportsNextPage').style.opacity = currentReportsPage >= totalPages ? '0.5' : '1';
+            } else {
+                paginationDiv.style.display = 'none';
+            }
+            
+        } else {
+            reportsDiv.innerHTML = '<p style="text-align: center; color: #dc3545;">Failed to load reports</p>';
+            paginationDiv.style.display = 'none';
         }
+    } catch (error) {
+        console.error('Error loading reports:', error);
+        reportsDiv.innerHTML = '<p style="text-align: center; color: #dc3545;">Error loading reports</p>';
+        document.getElementById('reportsPagination').style.display = 'none';
+    }
+}
+
+function changeReportsPage(delta) {
+    const totalUsers = allUsersData.length;
+    const totalPages = Math.ceil(totalUsers / USERS_PER_PAGE) || 1;
+    
+    const newPage = currentReportsPage + delta;
+    if (newPage < 1 || newPage > totalPages) return;
+    
+    currentReportsPage = newPage;
+    loadReports();
+}
         
         async function toggleUserStatus(userId, currentlyActive) {
             const action = currentlyActive ? 'deactivate' : 'activate';
