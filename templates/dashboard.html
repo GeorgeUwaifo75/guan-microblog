@@ -4766,7 +4766,7 @@ function handleMediaSelection(files) {
 
     // Validate rule: either 1 video OR 1-4 photos, not both.
     if (!isVideo && !areImages) {
-        alert('You can either upload 1 video (max 12s) OR 1-4 photos. Please select valid files.');
+        alert('You can either upload 1 video (max 20s) OR 1-4 photos. Please select valid files.');
         document.getElementById('mediaInput').value = '';
         return;
     }
@@ -4777,8 +4777,8 @@ function handleMediaSelection(files) {
         const video = document.createElement('video');
         video.preload = 'metadata';
         video.onloadedmetadata = function() {
-            if (video.duration > 12) {
-                alert('Video must be 12 seconds or less.');
+            if (video.duration > 20) {
+                alert('Video must be 20 seconds or less.');
                 document.getElementById('mediaInput').value = '';
                 return;
             }
