@@ -2711,12 +2711,7 @@ window.openPromotionModalFromPost = function(taloId) {
             firstTaloCard.style.marginTop = '10px';
         }
         
-        fabBtn.textContent = '✕';
-        fabBtn.style.fontSize = '28px';
-        fabBtn.style.lineHeight = '1';
-        fabBtn.style.display = 'flex';
-        fabBtn.style.alignItems = 'center';
-        fabBtn.style.justifyContent = 'center';
+        fabBtn.style.transform = 'rotate(45deg)';
     }
     
     setTimeout(() => {
@@ -4570,12 +4565,12 @@ function toggleCreateTalo() {
             firstTaloCard.style.marginTop = '10px'; // Desktop default
         }
         
-        fabBtn.textContent = '✕';
-        fabBtn.style.fontSize = '28px';
-        fabBtn.style.lineHeight = '1';
-        fabBtn.style.display = 'flex';
-        fabBtn.style.alignItems = 'center';
-        fabBtn.style.justifyContent = 'center';
+        // Keep the exact same '+' glyph and just rotate it 45deg to form an
+        // 'X' - swapping to a different unicode character (e.g. '✕') made it
+        // read as visibly bigger, since that glyph has different ink/weight
+        // metrics even at an identical font-size. Rotating guarantees the
+        // icon stays pixel-identical in size between the two states.
+        fabBtn.style.transform = 'rotate(45deg)';
         
         setTimeout(() => {
             document.getElementById('taloContent').focus();
@@ -4593,12 +4588,7 @@ function toggleCreateTalo() {
             firstTaloCard.style.marginTop = '10px'; // Desktop default
         }
         
-        fabBtn.textContent = '+';
-        fabBtn.style.fontSize = '28px';
-        fabBtn.style.lineHeight = '1';
-        fabBtn.style.display = 'flex';
-        fabBtn.style.alignItems = 'center';
-        fabBtn.style.justifyContent = 'center';
+        fabBtn.style.transform = 'rotate(0deg)';
     }
 }
 
