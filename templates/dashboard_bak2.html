@@ -1064,14 +1064,8 @@
     position: relative;
 }
 
-/* Only scale on hover for devices that support real hover (mouse/trackpad).
-   On touchscreens, :hover gets applied on tap and then "sticks" until the
-   user taps elsewhere, which made the hexagon button look permanently
-   bigger right after it was clicked. */
-@media (hover: hover) and (pointer: fine) {
-    .new-post-btn:hover {
-        transform: scale(1.05);
-    }
+.new-post-btn:hover {
+    transform: scale(1.05);
 }
 
 /*
@@ -2331,7 +2325,7 @@
     <!-- Floating Action Buttons -->
     <!-- Update the fab-container in dashboard.html -->
 <div class="fab-container" id="fabContainer">
-    <div class="new-post-btn" id="newPostBtn" onclick="toggleCreateTalo()">
+    <div class="new-post-btn" onclick="toggleCreateTalo()">
         <span>+</span>
     </div>
     <div class="home-btn" onclick="refreshTimeline()" id="homeBtn">
@@ -2703,10 +2697,6 @@ window.openPromotionModalFromPost = function(taloId) {
     const fabBtn = document.querySelector('.new-post-btn span');
     const firstTaloCard = document.querySelector('.talo-card:first-of-type');
     const isMobile = window.innerWidth <= 768;
-    
-    // Re-assert the hexagon's original dimensions here too, since this is a
-    // second entry point that opens the composer the same way toggleCreateTalo() does.
-    lockFabSize();
     
     if (createSection.style.display === 'none' || createSection.style.display === '') {
         createSection.style.display = 'block';
@@ -4555,59 +4545,11 @@ function loadPaystackScript() {
    //TOGGLE CREATE VISIBILITY
 
 // Toggle create talo section visibility
-// ========== FAB HEXAGON SIZE LOCK ==========
-// Capture the hexagon button's true rendered dimensions and pin its inline
-// width/height to that exact value on every toggle. This guarantees the
-// button can never visibly grow/shrink (from hover scaling, rotation, or
-// anything else) regardless of what CSS state it's in.
-let fabOriginalWidth = null;
-let fabOriginalHeight = null;
-
-function captureFabOriginalSize() {
-    const newPostBtn = document.getElementById('newPostBtn');
-    if (!newPostBtn) return;
-    // If a lock is already applied, clear it first so we measure the true
-    // CSS-driven size (e.g. 54px desktop vs 48px mobile) rather than
-    // re-reading back our own previously pinned value.
-    const wasLocked = !!(newPostBtn.style.width || newPostBtn.style.height);
-    if (wasLocked) {
-        newPostBtn.style.width = '';
-        newPostBtn.style.height = '';
-    }
-    const rect = newPostBtn.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
-        fabOriginalWidth = rect.width;
-        fabOriginalHeight = rect.height;
-    }
-    if (wasLocked) {
-        lockFabSize();
-    }
-}
-
-function lockFabSize() {
-    const newPostBtn = document.getElementById('newPostBtn');
-    if (!newPostBtn || fabOriginalWidth === null) return;
-    newPostBtn.style.width = fabOriginalWidth + 'px';
-    newPostBtn.style.height = fabOriginalHeight + 'px';
-}
-
-// Re-measure if the viewport crosses the mobile/desktop breakpoint so the
-// lock always reflects the size that's currently correct for the screen.
-let fabResizeTimeout;
-window.addEventListener('resize', () => {
-    clearTimeout(fabResizeTimeout);
-    fabResizeTimeout = setTimeout(captureFabOriginalSize, 150);
-});
-
 function toggleCreateTalo() {
     const createSection = document.getElementById('createTaloSection');
     const fabBtn = document.querySelector('.new-post-btn span');
     const firstTaloCard = document.querySelector('.talo-card:first-of-type');
     const isMobile = window.innerWidth <= 768;
-    
-    // Re-assert the hexagon's original dimensions on every click, before
-    // anything else changes, so it can never end up visibly bigger/smaller.
-    lockFabSize();
     
     if (createSection.style.display === 'none' || createSection.style.display === '') {
         // Show create section
@@ -4663,6 +4605,31 @@ styleSheet.textContent = `
             opacity: 1;
             transform: translateY(0);
         }
+    }
+    
+    .new-post-btn {
+        width: 54px;
+        height: 54px;
+        background: #cc0000;
+        clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        transition: transform 0.2s, background 0.3s;
+        border: none;
+    }
+    
+    .new-post-btn:hover {
+        transform: scale(1.05);
+    }
+    
+    .new-post-btn span {
+        font-size: 28px;
+        color: white;
+        font-weight: bold;
+        transition: transform 0.3s;
     }
 `;
 document.head.appendChild(styleSheet);
@@ -4760,7 +4727,6 @@ window.addEventListener('resize', function() {
     //initRealTimeNotifications();
     initPullToRefresh();
     initFabVisibilityControl();
-    captureFabOriginalSize();
     checkForcedPasswordChange();
     
     const currentProfileUserId = '{{ user.user_id }}';
