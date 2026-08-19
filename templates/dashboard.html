@@ -634,38 +634,6 @@
             font-weight: bold;
             color: #cc0000;
         }
-
-        .wallet-card {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 15px;
-            padding: 10px 14px;
-            background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
-            border: 1px solid #ffd54f;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: transform 0.15s ease;
-        }
-
-        .wallet-card:hover {
-            transform: scale(1.02);
-        }
-
-        .wallet-card-icon {
-            font-size: 22px;
-        }
-
-        .wallet-card-balance {
-            font-size: 16px;
-            font-weight: bold;
-            color: #8a5a00;
-        }
-
-        .wallet-card-label {
-            font-size: 11px;
-            color: #a67c00;
-        }
         
         .trending-card {
             background: white;
@@ -2222,14 +2190,6 @@
                         <div class="stat">
                             <div class="stat-number">{{ user.talos_count }}</div>
                             <div>Talos</div>
-                        </div>
-                    </div>
-
-                    <div class="wallet-card" id="walletCardDesktop" onclick="showWalletBalance()" title="Type @mytac anywhere in the composer to check this too">
-                        <span class="wallet-card-icon">🪙</span>
-                        <div>
-                            <div class="wallet-card-balance" id="walletBalanceDesktop">{{ "%.4f"|format(user.wallet_balance | default(0)) }}</div>
-                            <div class="wallet-card-label">TaC Wallet</div>
                         </div>
                     </div>
                 </div>
@@ -4375,13 +4335,6 @@ let premiumButtonHtml = '';
                     <div class="stat">
                         <div class="stat-number">${userData.talos_count}</div>
                         <div>Talos</div>
-                    </div>
-                </div>
-                <div class="wallet-card" onclick="showWalletBalance(); closeMobileMenu();" title="Type @mytac anywhere in the composer to check this too">
-                    <span class="wallet-card-icon">🪙</span>
-                    <div>
-                        <div class="wallet-card-balance" id="walletBalanceMobile">${Number(userData.wallet_balance).toFixed(4)}</div>
-                        <div class="wallet-card-label">TaC Wallet</div>
                     </div>
                 </div>
             </div>
