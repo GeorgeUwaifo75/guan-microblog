@@ -1494,6 +1494,43 @@
             transform: translateX(-50%) translateY(0);
             opacity: 1;
         }
+
+        .flash-notification.celebrate {
+            background: linear-gradient(135deg, #f7b733 0%, #fc4a1a 100%);
+            padding: 14px 28px;
+            font-size: 15px;
+        }
+
+        .confetti-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            overflow: hidden;
+        }
+
+        .confetti-piece {
+            position: absolute;
+            top: -20px;
+            opacity: 0.95;
+            animation-name: confetti-fall;
+            animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            animation-fill-mode: forwards;
+        }
+
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(110vh) rotate(720deg);
+                opacity: 0.85;
+            }
+        }
         
         .repost-info {
             background: #e8f5e9;
@@ -3298,14 +3335,49 @@ startLiveTimestampUpdates();
         if (existing) existing.remove();
         const notification = document.createElement('div');
         notification.className = `flash-notification ${type}`;
-        let icon = type === 'success' ? '✅' : '❌';
+        let icon = type === 'success' ? '✅' : (type === 'celebrate' ? '🎉' : '❌');
         notification.innerHTML = `<span class="flash-notification-icon">${icon}</span><span class="flash-notification-message">${message}</span>`;
         document.body.appendChild(notification);
         setTimeout(() => notification.classList.add('show'), 10);
+        const displayTime = type === 'celebrate' ? 4200 : 2500;
         setTimeout(() => {
             notification.classList.remove('show');
             setTimeout(() => notification.remove(), 300);
-        }, 2500);
+        }, displayTime);
+    }
+
+    // ========== CONFETTI CELEBRATION ==========
+    // Showers colorful confetti pieces down from the top of the screen.
+    // Used for one-time milestone moments (first login, first Talo, etc).
+    function launchConfetti(durationMs = 3000) {
+        const colors = ['#cc0000', '#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#c77dff', '#20c997'];
+        const container = document.createElement('div');
+        container.className = 'confetti-container';
+        document.body.appendChild(container);
+
+        const pieceCount = 140;
+        for (let i = 0; i < pieceCount; i++) {
+            const piece = document.createElement('div');
+            piece.className = 'confetti-piece';
+            piece.style.left = (Math.random() * 100) + 'vw';
+            piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+            piece.style.width = (6 + Math.random() * 6) + 'px';
+            piece.style.height = (10 + Math.random() * 8) + 'px';
+            piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+            const fallDuration = 2.6 + Math.random() * 1.6;
+            const delay = Math.random() * 0.6;
+            piece.style.animationDuration = fallDuration + 's';
+            piece.style.animationDelay = delay + 's';
+            container.appendChild(piece);
+        }
+
+        setTimeout(() => container.remove(), durationMs + 1500);
+    }
+
+    // Shows a shower of confetti alongside a celebratory message.
+    function celebrate(message) {
+        launchConfetti(3200);
+        showFlashNotification(message, 'celebrate');
     }
     
     async function retalo(taloId, originalUserId, originalContent, originalPhotos = []) {
@@ -3457,8 +3529,13 @@ async function createTaloWithFirebase() {
             selectedMedia = [];
             document.getElementById('photoPreview').innerHTML = '';
             updateMediaCount();
-            showFlashNotification('✓ Post created successfully!', 'success');
-            setTimeout(() => location.reload(), 1000);
+            if (data.first_talo) {
+                celebrate('🎉 Your first Talo is live! Welcome to the conversation.');
+                setTimeout(() => location.reload(), 3200);
+            } else {
+                showFlashNotification('✓ Post created successfully!', 'success');
+                setTimeout(() => location.reload(), 1000);
+            }
         } else {
             const error = await response.json();
             alert('Failed to create post: ' + (error.detail || 'Unknown error'));
@@ -4404,6 +4481,18 @@ function waitForPaystack() {
         }, 100);
     });
 }
+
+// Celebrate a brand-new account's very first login with a confetti shower.
+// The flag is set by index.html right before redirecting here, and is
+// consumed (removed) immediately so it only ever fires once.
+document.addEventListener('DOMContentLoaded', function() {
+    if (sessionStorage.getItem('guan_first_login') === '1') {
+        sessionStorage.removeItem('guan_first_login');
+        setTimeout(() => {
+            celebrate("🎉 Welcome to GuAn, {{ user.first_name }}! Great to have you here.");
+        }, 500);
+    }
+});
 
 // Also ensure Paystack script is properly loaded when the page loads
 document.addEventListener('DOMContentLoaded', function() {

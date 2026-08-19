@@ -446,12 +446,6 @@
                     if (result && result.redirect) {
                         redirectTo = result.redirect;
                     }
-                    // Flag this as the account's first-ever login so the
-                    // dashboard can greet them with a one-time confetti
-                    // celebration once it loads.
-                    if (result && result.first_login) {
-                        sessionStorage.setItem('guan_first_login', '1');
-                    }
                 } catch (e) {}
                 window.location.href = redirectTo;
             } else {

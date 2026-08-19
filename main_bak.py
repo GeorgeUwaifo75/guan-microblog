@@ -637,7 +637,6 @@ async def api_signup(user_data: UserSignup):
         "followers_count": 0,
         "following_count": 0,
         "talos_count": 0,
-        "first_login_done": False,
         "created_at": datetime.now().isoformat(),
         "last_active": datetime.now().isoformat()
     }
@@ -723,19 +722,8 @@ async def api_login(login_data: UserLogin):
             if not user.get("is_active"):
                 raise HTTPException(status_code=403, detail="Account deactivated")
             token = generate_token()
-            # Existing users created before this feature shipped won't have a
-            # "first_login_done" field at all, so relying on that alone would
-            # default to False and wrongly celebrate on their very next login.
-            # We also check whether "session_token" was already on the record:
-            # that key is only ever added the first time someone logs in, so
-            # any account that has logged in before (old or new) already has
-            # it. Only an account with neither field counts as a genuine
-            # first-ever login.
-            has_logged_in_before = "session_token" in user
-            is_first_login = (not user.get("first_login_done", False)) and (not has_logged_in_before)
             user["session_token"] = token
             user["last_active"] = datetime.now().isoformat()
-            user["first_login_done"] = True
     
             # 4. After successful auth, update session_token and save
             await save_jsonbin_data(data)   # this will save the updated token
@@ -749,7 +737,7 @@ async def api_login(login_data: UserLogin):
             # the user to retry. Returning JSON keeps the login request small
             # and fast; the frontend performs a single, separate navigation to
             # /dashboard afterward.
-            response = JSONResponse(content={"success": True, "redirect": "/dashboard", "first_login": is_first_login})
+            response = JSONResponse(content={"success": True, "redirect": "/dashboard"})
             response.set_cookie(key="session_token", value=token, httponly=True)
             return response
     raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -1098,10 +1086,6 @@ async def create_talo(request: Request):
         "promotion_level": 0
     }
     
-    # Was this the user's very first talo? Used by the frontend to trigger a
-    # one-time "first post" celebration.
-    is_first_talo = user.get("talos_count", 0) == 0
-
     if "talos" not in data:
         data["talos"] = []
     data["talos"].insert(0, talo)
@@ -1131,7 +1115,7 @@ async def create_talo(request: Request):
     
     await save_jsonbin_data(data)
     
-    return {"message": "Talo created successfully", "talo_id": talo["id"], "first_talo": is_first_talo}
+    return {"message": "Talo created successfully", "talo_id": talo["id"]}
 
 """  
 @app.post("/api/create_reply/{parent_talo_id}")
