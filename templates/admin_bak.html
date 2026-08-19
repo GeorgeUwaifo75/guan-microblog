@@ -329,7 +329,6 @@
                                 <th>Status</th>
                                 <th>Premium</th>
                                 <th>Talos</th>
-                                <th>Wallet (TaC)</th>
                                 <th>Registered</th>
                                 <th>Last Active</th>
                                 <th>Actions</th>
@@ -361,7 +360,6 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ user.talos_count }}</td>
-                                <td>🪙 {{ "%.4f"|format(user.wallet_balance) }}</td>
                                 <td>{{ user.created_at[:10] if user.created_at else 'N/A' }}</td>
                                 <td>{{ user.last_active[:10] if user.last_active else 'N/A' }}</td>
                                 <td>

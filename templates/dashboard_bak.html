@@ -634,38 +634,6 @@
             font-weight: bold;
             color: #cc0000;
         }
-
-        .wallet-card {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 15px;
-            padding: 10px 14px;
-            background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
-            border: 1px solid #ffd54f;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: transform 0.15s ease;
-        }
-
-        .wallet-card:hover {
-            transform: scale(1.02);
-        }
-
-        .wallet-card-icon {
-            font-size: 22px;
-        }
-
-        .wallet-card-balance {
-            font-size: 16px;
-            font-weight: bold;
-            color: #8a5a00;
-        }
-
-        .wallet-card-label {
-            font-size: 11px;
-            color: #a67c00;
-        }
         
         .trending-card {
             background: white;
@@ -2224,14 +2192,6 @@
                             <div>Talos</div>
                         </div>
                     </div>
-
-                    <div class="wallet-card" id="walletCardDesktop" onclick="showWalletBalance()" title="Type @mytac anywhere in the composer to check this too">
-                        <span class="wallet-card-icon">🪙</span>
-                        <div>
-                            <div class="wallet-card-balance" id="walletBalanceDesktop">{{ "%.4f"|format(user.wallet_balance | default(0)) }}</div>
-                            <div class="wallet-card-label">TaC Wallet</div>
-                        </div>
-                    </div>
                 </div>
 
                 <div class="trending-card">
@@ -2674,8 +2634,7 @@
         is_premium: {{ user.is_premium | tojson }},
         followers_count: {{ user.followers_count }},
         following_count: {{ user.following_count }},
-        talos_count: {{ user.talos_count }},
-        wallet_balance: {{ (user.wallet_balance | default(0)) | tojson }}
+        talos_count: {{ user.talos_count }}
     };
 
     const MAX_CHARS = userData.is_premium ? 500 : 250;
@@ -3420,70 +3379,6 @@ startLiveTimestampUpdates();
         launchConfetti(3200);
         showFlashNotification(message, 'celebrate');
     }
-
-    // Plays a sequence of celebration messages one at a time (each with its
-    // own confetti shower), spaced out so they don't cut each other off.
-    // Used when e.g. a post is both someone's "first Talo" AND crosses a
-    // wallet milestone in the same request.
-    function queueCelebrations(messages) {
-        messages.forEach((message, index) => {
-            setTimeout(() => celebrate(message), index * 4500);
-        });
-    }
-
-    // ========== WALLET / TaC HELPERS ==========
-    const TAC_MILESTONES = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 1];
-
-    // Formats a TaC amount, trimming trailing zeros while keeping enough
-    // precision to show the tiny per-post/per-reply amounts meaningfully.
-    function formatTac(value) {
-        let str = Number(value).toFixed(6).replace(/0+$/, '').replace(/\.$/, '');
-        return str.includes('.') ? str : str + '.0';
-    }
-
-    function milestoneMessage(value) {
-        return `🎉 Milestone unlocked! Your GuAn wallet just hit ${formatTac(value)} TaC!`;
-    }
-
-    // Updates the wallet balance shown in both the desktop sidebar and the
-    // mobile menu, and keeps userData in sync.
-    function updateWalletDisplay(newBalance) {
-        userData.wallet_balance = newBalance;
-        const desktopEl = document.getElementById('walletBalanceDesktop');
-        if (desktopEl) desktopEl.textContent = Number(newBalance).toFixed(4);
-        const mobileEl = document.getElementById('walletBalanceMobile');
-        if (mobileEl) mobileEl.textContent = Number(newBalance).toFixed(4);
-    }
-
-    // Fetches and displays the current wallet balance. Triggered by tapping
-    // the wallet card, or by typing "@mytac" in the composer.
-    async function showWalletBalance() {
-        try {
-            const response = await fetch('/api/wallet_balance');
-            if (response.ok) {
-                const data = await response.json();
-                updateWalletDisplay(data.wallet_balance);
-                showFlashNotification(`🪙 Your GuAn wallet balance: ${formatTac(data.wallet_balance)} TaC`, 'celebrate');
-            } else {
-                showFlashNotification('Could not fetch your wallet balance.', 'error');
-            }
-        } catch (e) {
-            showFlashNotification('Could not fetch your wallet balance.', 'error');
-        }
-    }
-
-    // Watches a composer textarea for the "@mytac" command. If the entire
-    // (trimmed, case-insensitive) content is just "@mytac", intercepts it:
-    // clears the box, shows the wallet balance, and never posts it as content.
-    function checkForWalletCommand(textareaEl) {
-        if (!textareaEl) return;
-        const value = textareaEl.value.trim().toLowerCase();
-        if (value === '@mytac') {
-            textareaEl.value = '';
-            updateCharCounter();
-            showWalletBalance();
-        }
-    }
     
     async function retalo(taloId, originalUserId, originalContent, originalPhotos = []) {
         const btn = document.querySelector(`.retalo-btn[data-id="${taloId}"]`);
@@ -3634,23 +3529,9 @@ async function createTaloWithFirebase() {
             selectedMedia = [];
             document.getElementById('photoPreview').innerHTML = '';
             updateMediaCount();
-
-            if (typeof data.wallet_balance === 'number') {
-                updateWalletDisplay(data.wallet_balance);
-            }
-
-            const celebrations = [];
             if (data.first_talo) {
-                celebrations.push('🎉 Your first Talo is live! Welcome to the conversation.');
-            }
-            (data.milestones_reached || []).forEach(m => celebrations.push(milestoneMessage(m)));
-
-            if (celebrations.length > 0) {
-                queueCelebrations(celebrations);
-                setTimeout(() => location.reload(), celebrations.length * 4500 + 300);
-            } else if (data.tac_earned > 0) {
-                showFlashNotification(`✓ Post created! +${formatTac(data.tac_earned)} TaC earned`, 'success');
-                setTimeout(() => location.reload(), 1200);
+                celebrate('🎉 Your first Talo is live! Welcome to the conversation.');
+                setTimeout(() => location.reload(), 3200);
             } else {
                 showFlashNotification('✓ Post created successfully!', 'success');
                 setTimeout(() => location.reload(), 1000);
@@ -4377,13 +4258,6 @@ let premiumButtonHtml = '';
                         <div>Talos</div>
                     </div>
                 </div>
-                <div class="wallet-card" onclick="showWalletBalance(); closeMobileMenu();" title="Type @mytac anywhere in the composer to check this too">
-                    <span class="wallet-card-icon">🪙</span>
-                    <div>
-                        <div class="wallet-card-balance" id="walletBalanceMobile">${Number(userData.wallet_balance).toFixed(4)}</div>
-                        <div class="wallet-card-label">TaC Wallet</div>
-                    </div>
-                </div>
             </div>
         `;
         const mobileTrendingDiv = document.getElementById('mobileTrendingCard');
@@ -4965,7 +4839,6 @@ window.addEventListener('resize', function() {
     const taloTextarea = document.getElementById('taloContent');
     if (taloTextarea) {
         taloTextarea.addEventListener('input', updateCharCounter);
-        taloTextarea.addEventListener('input', () => checkForWalletCommand(taloTextarea));
         updateCharCounter();
     }
     

@@ -459,39 +459,6 @@ def verify_password(password: str, hashed: str) -> bool:
 def generate_token():
     return secrets.token_urlsafe(32)
 
-# ========== WALLET / TaC (Talo Coin) SYSTEM ==========
-# Milestone thresholds (in TaC) that trigger a one-time congratulatory
-# celebration on the frontend the first time a user's balance reaches them.
-TAC_MILESTONES = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 1]
-
-# Minimum character count a talo/post must have to earn any TaC at all.
-TAC_MIN_TALO_CHARS = 150
-
-TAC_PER_TALO_REGULAR = 0.0001
-TAC_PER_TALO_PREMIUM = 0.001
-TAC_PER_REPLY_REGULAR = 0.00005
-TAC_PER_REPLY_PREMIUM = 0.0005
-
-def award_tac(user: dict, amount: float):
-    """Credits `amount` TaC to a user's wallet (in place) and returns
-    (new_balance, newly_crossed_milestones). Rounded to 6 decimal places to
-    avoid floating point drift from the very small per-action amounts."""
-    if amount <= 0:
-        return round(user.get("wallet_balance", 0.0), 6), []
-
-    old_balance = round(user.get("wallet_balance", 0.0), 6)
-    new_balance = round(old_balance + amount, 6)
-    user["wallet_balance"] = new_balance
-
-    already_reached = user.setdefault("wallet_milestones", [])
-    newly_crossed = []
-    for milestone in TAC_MILESTONES:
-        if new_balance >= milestone and milestone not in already_reached:
-            already_reached.append(milestone)
-            newly_crossed.append(milestone)
-
-    return new_balance, newly_crossed
-
 def organize_replies_hierarchically(replies):
     """Organize replies into a hierarchical tree structure"""
     reply_dict = {}
@@ -671,8 +638,6 @@ async def api_signup(user_data: UserSignup):
         "following_count": 0,
         "talos_count": 0,
         "first_login_done": False,
-        "wallet_balance": 0.0,
-        "wallet_milestones": [],
         "created_at": datetime.now().isoformat(),
         "last_active": datetime.now().isoformat()
     }
@@ -1137,12 +1102,6 @@ async def create_talo(request: Request):
     # one-time "first post" celebration.
     is_first_talo = user.get("talos_count", 0) == 0
 
-    # ----- Wallet: award TaC for qualifying posts -----
-    tac_earned = 0.0
-    if len(content) >= TAC_MIN_TALO_CHARS:
-        tac_earned = TAC_PER_TALO_PREMIUM if user.get("is_premium", False) else TAC_PER_TALO_REGULAR
-    wallet_balance, milestones_reached = award_tac(user, tac_earned)
-
     if "talos" not in data:
         data["talos"] = []
     data["talos"].insert(0, talo)
@@ -1172,14 +1131,7 @@ async def create_talo(request: Request):
     
     await save_jsonbin_data(data)
     
-    return {
-        "message": "Talo created successfully",
-        "talo_id": talo["id"],
-        "first_talo": is_first_talo,
-        "tac_earned": tac_earned,
-        "wallet_balance": wallet_balance,
-        "milestones_reached": milestones_reached
-    }
+    return {"message": "Talo created successfully", "talo_id": talo["id"], "first_talo": is_first_talo}
 
 """  
 @app.post("/api/create_reply/{parent_talo_id}")
@@ -1729,7 +1681,6 @@ async def admin_panel(request: Request):
             "is_premium": u.get("is_premium", False),
             "must_change_password": u.get("must_change_password", False),
             "talos_count": u.get("talos_count", 0),
-            "wallet_balance": round(u.get("wallet_balance", 0.0), 6),
             "created_at": u.get("created_at", ""),
             "last_active": u.get("last_active", "")
         })
@@ -2969,10 +2920,6 @@ async def create_reply(request: Request, parent_talo_id: str):
     
     parent_talo["reply_count"] = len([r for r in data["replies"] if r.get("parent_talo_id") == parent_talo_id])
     
-    # ----- Wallet: award TaC for the reply -----
-    reply_tac = TAC_PER_REPLY_PREMIUM if user.get("is_premium", False) else TAC_PER_REPLY_REGULAR
-    wallet_balance, milestones_reached = award_tac(user, reply_tac)
-    
     # Only send notification if talo owner follows the replier
     if talo_owner_id != user["user_id"]:
         # Check if talo owner follows the replier
@@ -3008,29 +2955,8 @@ async def create_reply(request: Request, parent_talo_id: str):
         icon=user.get("profile_photo"),
         data={"url": f"/post/{parent_talo_id}"}
     )
-    return {
-        "message": "Reply created successfully",
-        "reply_id": reply["id"],
-        "tac_earned": reply_tac,
-        "wallet_balance": wallet_balance,
-        "milestones_reached": milestones_reached
-    }
+    return {"message": "Reply created successfully", "reply_id": reply["id"]}
 
-
-@app.get("/api/wallet_balance")
-async def get_wallet_balance(request: Request):
-    """Returns the logged-in user's current TaC wallet balance.
-    Powers the '@mytac' command and any on-demand wallet refresh."""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    data = await get_jsonbin_data()
-    for u in data.get("users", []):
-        if u.get("session_token") == session_token:
-            return {"wallet_balance": round(u.get("wallet_balance", 0.0), 6)}
-
-    raise HTTPException(status_code=401, detail="User not found")
 
 
 # Add endpoint to get latest talo timestamp
