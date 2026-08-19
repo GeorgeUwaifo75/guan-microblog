@@ -775,18 +775,24 @@ async def dashboard(request: Request):
         return response
     
     user["last_active"] = datetime.now().isoformat()
-    await save_jsonbin_data(data)
-    
-    # Check if this is a first-time login (no last_login or very recent signup)
+    # Track first login properly
     first_login = False
-    if user.get("created_at") and not user.get("last_login"):
+    if not user.get("last_login"):
         first_login = True
         user["last_login"] = datetime.now().isoformat()
-        await save_jsonbin_data(data)
+    # If last_login exists but is more than 5 minutes after created_at, it's not first login
+    elif user.get("created_at"):
+        created_dt = datetime.fromisoformat(user["created_at"])
+        last_login_dt = datetime.fromisoformat(user["last_login"])
+        # If last_login was set within the last 5 minutes of creation
+        if (last_login_dt - created_dt).total_seconds() < 300:
+            first_login = True
+    
+    await save_jsonbin_data(data)
     
     # Check if this is the user's first post
     is_first_post = is_users_first_post(user["user_id"], data)
-    
+
     followed_user_ids = set()
     for follow in data.get("follows", []):
         if follow.get("follower_id") == user["user_id"]:

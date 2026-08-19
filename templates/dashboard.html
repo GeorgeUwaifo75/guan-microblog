@@ -3516,13 +3516,11 @@ startLiveTimestampUpdates();
         input.click();
     }
  
-//fetch   
 async function createTaloWithFirebase() {
     const content = document.getElementById('taloContent').value;
     if (!content.trim()) { alert('Please enter some content'); return; }
     if (content.length > MAX_CHARS) { alert(`Content cannot exceed ${MAX_CHARS} characters`); return; }
 
-   
     // Banned words check (existing)
     const bannedCheck = await checkForBannedWords(content);
     if (bannedCheck && bannedCheck.contains_banned) {
@@ -3568,30 +3566,31 @@ async function createTaloWithFirebase() {
             body: JSON.stringify({ content: content, photos: mediaUrls })
         });
 
+        // FIX: Use a different variable name for the response data
+        const result = await response.json();
+
         if (response.ok) {
-            const data = await response.json();
             // Clear form, update UI and reload
             document.getElementById('taloContent').value = '';
             selectedMedia = [];
             document.getElementById('photoPreview').innerHTML = '';
             updateMediaCount();
             showFlashNotification('✓ Post created successfully!', 'success');
+            
+            // Check if this is the user's first post from the server response
+            if (result.is_first_post && !localStorage.getItem('firstPostCelebrated')) {
+                localStorage.setItem('firstPostCelebrated', 'true');
+                // Also mark that first post celebration has been done
+                localStorage.setItem('hasPostedBefore', 'true');
+                setTimeout(() => {
+                    triggerCelebration('first_post', '{{ user.user_id }}');
+                }, 1000);
+            }
+            
             setTimeout(() => location.reload(), 1000);
         } else {
-            const error = await response.json();
-            alert('Failed to create post: ' + (error.detail || 'Unknown error'));
+            alert('Failed to create post: ' + (result.detail || 'Unknown error'));
         }
-
-       // Inside createTaloWithFirebase, after the fetch call
-	const data = await response.json();
-	if (data.is_first_post) {
-   		 // This is the user's first post
-    			setTimeout(() => {
-       			 triggerCelebration('first_post', '{{ user.user_id }}');
-   			 }, 1000);
-	}
-
-
     } catch (error) {
         console.error('Error creating post:', error);
         alert('Failed to create post. Please try again.');
@@ -5357,19 +5356,38 @@ function checkAndTriggerCelebrations() {
     // Check if this is the user's first login
     const hasLoggedInBefore = localStorage.getItem('hasLoggedInBefore');
     const username = '{{ user.user_id }}';
+    const firstLoginFlag = localStorage.getItem('firstLoginCelebrated');
     
-    if (!hasLoggedInBefore) {
-        // First login celebration
-        localStorage.setItem('hasLoggedInBefore', 'true');
-        setTimeout(() => {
-            triggerCelebration('first_login', username);
-        }, 500);
+    // Only celebrate first login if not done before AND if the account is new
+    if (!hasLoggedInBefore && !firstLoginFlag) {
+        // Check if user's account is newly created (less than 5 minutes old)
+        const createdAt = '{{ user.created_at }}';
+        if (createdAt) {
+            const createdDate = new Date(createdAt);
+            const now = new Date();
+            const diffMinutes = (now - createdDate) / 60000;
+            
+            if (diffMinutes < 5) {
+                // User just signed up within the last 5 minutes
+                localStorage.setItem('hasLoggedInBefore', 'true');
+                localStorage.setItem('firstLoginCelebrated', 'true');
+                setTimeout(() => {
+                    triggerCelebration('first_login', username);
+                }, 500);
+            } else {
+                // User has logged in before, just mark it
+                localStorage.setItem('hasLoggedInBefore', 'true');
+            }
+        }
     }
     
-    // Check for first post (this is checked via the server)
-    // The server will set a flag when a user creates their first post
+    // Check for first post from server flag - only if not celebrated before
     const firstPostFlag = document.getElementById('firstPostFlag');
-    if (firstPostFlag && firstPostFlag.value === 'true') {
+    const firstPostCelebrated = localStorage.getItem('firstPostCelebrated');
+    
+    if (firstPostFlag && firstPostFlag.value === 'true' && !firstPostCelebrated) {
+        localStorage.setItem('firstPostCelebrated', 'true');
+        localStorage.setItem('hasPostedBefore', 'true');
         setTimeout(() => {
             triggerCelebration('first_post', username);
         }, 800);
@@ -5389,8 +5407,9 @@ window.createTaloWithFirebase = async function() {
     
     // Check if this is the user's first post
     const hasPostedBefore = localStorage.getItem('hasPostedBefore');
-    if (!hasPostedBefore) {
+    if (!hasPostedBefore && result && result.is_first_post) {
         localStorage.setItem('hasPostedBefore', 'true');
+        localStorage.setItem('firstPostCelebrated', 'true');
         // Wait a bit then trigger celebration
         setTimeout(() => {
             triggerCelebration('first_post', '{{ user.user_id }}');
@@ -5399,6 +5418,7 @@ window.createTaloWithFirebase = async function() {
     
     return result;
 };
+
 
 // Initialize celebration check when page loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -5425,7 +5445,10 @@ document.addEventListener('DOMContentLoaded', function() {
             mutations.forEach(function(mutation) {
                 if (mutation.addedNodes.length > 0) {
                     const firstPostFlag = document.getElementById('firstPostFlag');
-                    if (firstPostFlag && firstPostFlag.value === 'true') {
+                    const firstPostCelebrated = localStorage.getItem('firstPostCelebrated');
+                    if (firstPostFlag && firstPostFlag.value === 'true' && !firstPostCelebrated) {
+                        localStorage.setItem('firstPostCelebrated', 'true');
+                        localStorage.setItem('hasPostedBefore', 'true');
                         setTimeout(() => {
                             triggerCelebration('first_post', '{{ user.user_id }}');
                             firstPostFlag.value = 'false';
