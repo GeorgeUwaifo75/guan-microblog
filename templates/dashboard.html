@@ -2063,6 +2063,95 @@
 .stat-btn.view-count {
     cursor: default;
 }
+
+
+/* Confetti Celebration Styles */
+.confetti-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9999;
+    overflow: hidden;
+}
+
+.confetti-piece {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    top: -20px;
+    opacity: 0;
+    animation: confetti-fall linear forwards;
+}
+
+@keyframes confetti-fall {
+    0% {
+        transform: translateY(0) rotate(0deg) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) rotate(720deg) scale(0.5);
+        opacity: 0;
+    }
+}
+
+.celebration-message {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.5);
+    background: linear-gradient(135deg, #ffcc00, #ff6b00);
+    color: #990000;
+    padding: 20px 40px;
+    border-radius: 20px;
+    font-size: 24px;
+    font-weight: bold;
+    z-index: 10000;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    animation: message-popup 3s ease forwards;
+    border: 3px solid white;
+}
+
+.celebration-message .emoji {
+    font-size: 40px;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.celebration-message .sub-text {
+    font-size: 14px;
+    font-weight: normal;
+    color: #660000;
+    display: block;
+    margin-top: 5px;
+}
+
+@keyframes message-popup {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.5);
+    }
+    15% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.1);
+    }
+    25% {
+        transform: translate(-50%, -50%) scale(1);
+    }
+    80% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -60%) scale(0.8);
+    }
+}
     </style>
 </head>
 <body>
@@ -2195,6 +2284,9 @@
         <p id="progressText" style="font-size: 12px; color: #666; margin-top: 5px;">Uploading...</p>
     </div>
 </div>
+
+<!-- Hidden flag for first post detection -->
+<input type="hidden" id="firstPostFlag" value="{{ 'true' if first_post else 'false' }}">
 
 <div id="talosFeed">
     {% set promoted_shown = false %}
@@ -2565,6 +2657,31 @@
     </script>
 
     <script src="https://js.paystack.co/v1/inline.js" async defer></script>
+
+<script>
+// ========== CHECK FOR FIRST LOGIN ==========
+// This runs when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    const firstLoginFlag = localStorage.getItem('firstLoginCelebrated');
+    if (!firstLoginFlag) {
+        // Check if user's account is newly created (less than 5 minutes old)
+        const createdAt = '{{ user.created_at }}';
+        if (createdAt) {
+            const createdDate = new Date(createdAt);
+            const now = new Date();
+            const diffMinutes = (now - createdDate) / 60000;
+            
+            if (diffMinutes < 5) {
+                // User just signed up within the last 5 minutes
+                localStorage.setItem('firstLoginCelebrated', 'true');
+                setTimeout(() => {
+                    triggerCelebration('first_login', '{{ user.user_id }}');
+                }, 500);
+            }
+        }
+    }
+});
+</script>
 
 <script>
     let photoFiles = [];
@@ -3398,7 +3515,8 @@ startLiveTimestampUpdates();
         document.getElementById('createTaloForm').appendChild(input);
         input.click();
     }
-    
+ 
+//fetch   
 async function createTaloWithFirebase() {
     const content = document.getElementById('taloContent').value;
     if (!content.trim()) { alert('Please enter some content'); return; }
@@ -3463,6 +3581,17 @@ async function createTaloWithFirebase() {
             const error = await response.json();
             alert('Failed to create post: ' + (error.detail || 'Unknown error'));
         }
+
+       // Inside createTaloWithFirebase, after the fetch call
+	const data = await response.json();
+	if (data.is_first_post) {
+   		 // This is the user's first post
+    			setTimeout(() => {
+       			 triggerCelebration('first_post', '{{ user.user_id }}');
+   			 }, 1000);
+	}
+
+
     } catch (error) {
         console.error('Error creating post:', error);
         alert('Failed to create post. Please try again.');
@@ -5132,6 +5261,189 @@ function viewPost(taloId, event) {
         });
     });
   }
+
+// ========== CONFETTI CELEBRATION SYSTEM ==========
+function launchConfetti(count = 120, colors = null) {
+    const container = document.createElement('div');
+    container.className = 'confetti-container';
+    document.body.appendChild(container);
+    
+    const defaultColors = ['#ff0000', '#ffcc00', '#00cc00', '#0066ff', '#ff00cc', '#ff6600', '#00ffcc', '#cc00ff'];
+    const confettiColors = colors || defaultColors;
+    
+    // Create confetti pieces
+    for (let i = 0; i < count; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        
+        const size = Math.random() * 8 + 4;
+        const color = confettiColors[Math.floor(Math.random() * confettiColors.length)];
+        const left = Math.random() * 100;
+        const duration = Math.random() * 2 + 2;
+        const delay = Math.random() * 1.5;
+        const shape = Math.random() > 0.5 ? '50%' : '2px';
+        const rotation = Math.random() * 360;
+        
+        piece.style.cssText = `
+            left: ${left}%;
+            width: ${size}px;
+            height: ${size * (Math.random() * 0.5 + 0.8)}px;
+            background: ${color};
+            border-radius: ${shape};
+            animation-duration: ${duration}s;
+            animation-delay: ${delay}s;
+            transform: rotate(${rotation}deg);
+            box-shadow: 0 0 6px rgba(255,255,255,0.3);
+        `;
+        
+        container.appendChild(piece);
+    }
+    
+    // Remove container after all animations finish
+    setTimeout(() => {
+        container.remove();
+    }, 5000);
+}
+
+function showCelebrationMessage(message, subMessage = null, emoji = '🎉') {
+    const existing = document.querySelector('.celebration-message');
+    if (existing) existing.remove();
+    
+    const msg = document.createElement('div');
+    msg.className = 'celebration-message';
+    msg.innerHTML = `
+        <span class="emoji">${emoji}</span>
+        ${message}
+        ${subMessage ? `<span class="sub-text">${subMessage}</span>` : ''}
+    `;
+    document.body.appendChild(msg);
+    
+    // Remove after animation completes
+    setTimeout(() => {
+        msg.remove();
+    }, 3500);
+}
+
+function triggerCelebration(type, username = '') {
+    const messages = {
+        first_login: {
+            message: `🎊 Welcome to GuAn, @${username}!`,
+            sub: 'We\'re thrilled to have you here! 🐏',
+            emoji: '🎊',
+            colors: ['#ffcc00', '#ff6b00', '#cc0000', '#ff4444', '#ffaa00']
+        },
+        first_post: {
+            message: `📝 Your first Talo is live!`,
+            sub: 'The community is waiting to hear from you! 🐏',
+            emoji: '📝',
+            colors: ['#00ccff', '#0066ff', '#00ffcc', '#ff00cc', '#cc00ff']
+        }
+    };
+    
+    const config = messages[type];
+    if (!config) return;
+    
+    // Launch confetti with custom colors
+    launchConfetti(150, config.colors);
+    
+    // Show celebration message
+    setTimeout(() => {
+        showCelebrationMessage(config.message, config.sub, config.emoji);
+    }, 300);
+}
+
+// ========== CHECK FOR FIRST LOGIN/POST ==========
+function checkAndTriggerCelebrations() {
+    // Check if this is the user's first login
+    const hasLoggedInBefore = localStorage.getItem('hasLoggedInBefore');
+    const username = '{{ user.user_id }}';
+    
+    if (!hasLoggedInBefore) {
+        // First login celebration
+        localStorage.setItem('hasLoggedInBefore', 'true');
+        setTimeout(() => {
+            triggerCelebration('first_login', username);
+        }, 500);
+    }
+    
+    // Check for first post (this is checked via the server)
+    // The server will set a flag when a user creates their first post
+    const firstPostFlag = document.getElementById('firstPostFlag');
+    if (firstPostFlag && firstPostFlag.value === 'true') {
+        setTimeout(() => {
+            triggerCelebration('first_post', username);
+        }, 800);
+        // Remove the flag so it doesn't trigger again on refresh
+        firstPostFlag.value = 'false';
+    }
+}
+
+// ========== OVERRIDE createTaloWithFirebase to check for first post ==========
+// Store original function reference
+const originalCreateTaloWithFirebase = window.createTaloWithFirebase;
+
+// Override to add first post check
+window.createTaloWithFirebase = async function() {
+    // Call the original function
+    const result = await originalCreateTaloWithFirebase.call(this);
+    
+    // Check if this is the user's first post
+    const hasPostedBefore = localStorage.getItem('hasPostedBefore');
+    if (!hasPostedBefore) {
+        localStorage.setItem('hasPostedBefore', 'true');
+        // Wait a bit then trigger celebration
+        setTimeout(() => {
+            triggerCelebration('first_post', '{{ user.user_id }}');
+        }, 1000);
+    }
+    
+    return result;
+};
+
+// Initialize celebration check when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if user has first post flag from server
+    const firstPostFlag = document.getElementById('firstPostFlag');
+    if (firstPostFlag && firstPostFlag.value === 'true') {
+        setTimeout(() => {
+            triggerCelebration('first_post', '{{ user.user_id }}');
+            firstPostFlag.value = 'false';
+        }, 800);
+    }
+    
+    // Check for first login
+    checkAndTriggerCelebrations();
+});
+
+// Also check when talos feed loads (for first post detection)
+document.addEventListener('DOMContentLoaded', function() {
+    // If there are no posts in the feed and user just signed up, we'll detect via server flag
+    const talosFeed = document.getElementById('talosFeed');
+    if (talosFeed) {
+        // Use MutationObserver to detect when posts are added
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.addedNodes.length > 0) {
+                    const firstPostFlag = document.getElementById('firstPostFlag');
+                    if (firstPostFlag && firstPostFlag.value === 'true') {
+                        setTimeout(() => {
+                            triggerCelebration('first_post', '{{ user.user_id }}');
+                            firstPostFlag.value = 'false';
+                        }, 1000);
+                    }
+                }
+            });
+        });
+        observer.observe(talosFeed, { childList: true, subtree: true });
+    }
+});
+
+// ========== MANUAL TEST FUNCTION (for development) ==========
+function testCelebration(type = 'first_login') {
+    const username = '{{ user.user_id }}' || 'Guest';
+    triggerCelebration(type, username);
+}
+
 </script>
 
 

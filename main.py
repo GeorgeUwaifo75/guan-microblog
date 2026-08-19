@@ -453,6 +453,13 @@ async def save_jsonbin_data(data: Dict) -> bool:
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
+# ===== FIRST POST TRACKING =====
+async def is_users_first_post(user_id: str, data: Dict) -> bool:
+    """Check if this is the user's first post"""
+    user_talos = [t for t in data.get("talos", []) if t.get("user_id") == user_id]
+    return len(user_talos) == 0
+
+
 def verify_password(password: str, hashed: str) -> bool:
     return hash_password(password) == hashed
 
@@ -659,7 +666,10 @@ async def api_signup(user_data: UserSignup):
             await save_jsonbin_data(data)
             break
     
-    return {"message": "User created successfully", "user_id": user_data.user_id}
+    return {"message": "User created successfully", 
+            "user_id": user_data.user_id,
+            "first_login": True
+            }
 
 @app.post("/api/login")
 async def api_login(login_data: UserLogin):
@@ -767,6 +777,16 @@ async def dashboard(request: Request):
     user["last_active"] = datetime.now().isoformat()
     await save_jsonbin_data(data)
     
+    # Check if this is a first-time login (no last_login or very recent signup)
+    first_login = False
+    if user.get("created_at") and not user.get("last_login"):
+        first_login = True
+        user["last_login"] = datetime.now().isoformat()
+        await save_jsonbin_data(data)
+    
+    # Check if this is the user's first post
+    is_first_post = is_users_first_post(user["user_id"], data)
+    
     followed_user_ids = set()
     for follow in data.get("follows", []):
         if follow.get("follower_id") == user["user_id"]:
@@ -840,7 +860,8 @@ async def dashboard(request: Request):
         "promoted_shown_count": promoted_shown_count,
         "promoted_total_count": promoted_total_count,
         "user_email": user.get("email", ""),
-        "vapid_public_key": VAPID_PUBLIC_KEY
+        "vapid_public_key": VAPID_PUBLIC_KEY,
+        "first_post": is_first_post
     })
 
 @app.get("/api/get_promoted_posts")
@@ -1065,11 +1086,13 @@ async def create_talo(request: Request):
     if contains_banned_words(content):
         raise HTTPException(status_code=400, detail="Your post contains inappropriate language. Please review and try again.")
     
-    # ----- NEW: Character limit based on premium status -----
+    # Check character limit based on premium status
     max_len = 500 if user.get("is_premium", False) else 250
     if len(content) > max_len:
         raise HTTPException(status_code=400, detail=f"Talo cannot exceed {max_len} characters")
-    # --------------------------------------------------------
+    
+    # Check if this is the user's first post
+    is_first_post = is_users_first_post(user["user_id"], data)
     
     talo = {
         "id": str(uuid.uuid4()),
@@ -1080,7 +1103,7 @@ async def create_talo(request: Request):
         "dislikes": 0,
         "retalos": 0,
         "reply_count": 0,
-        "views": 0,                     # <--- add this line
+        "views": 0,
         "created_at": datetime.now().isoformat(),
         "promoted": False,
         "promotion_level": 0
@@ -1092,6 +1115,7 @@ async def create_talo(request: Request):
     user["talos_count"] = user.get("talos_count", 0) + 1
     await save_jsonbin_data(data)
     
+    # Notify followers
     followers = []
     for follow in data.get("follows", []):
         if follow.get("following_id") == user["user_id"]:
@@ -1115,7 +1139,12 @@ async def create_talo(request: Request):
     
     await save_jsonbin_data(data)
     
-    return {"message": "Talo created successfully", "talo_id": talo["id"]}
+    # Return first_post flag for celebration
+    return {
+        "message": "Talo created successfully", 
+        "talo_id": talo["id"],
+        "is_first_post": is_first_post
+    }
 
 """  
 @app.post("/api/create_reply/{parent_talo_id}")
