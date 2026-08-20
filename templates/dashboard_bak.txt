@@ -2137,43 +2137,6 @@
     }
 }
 
-/* New Retalo/Repost Icon Style */
-.retalo-icon-btn {
-    background: none;
-    border: none;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    cursor: pointer;
-    font-size: 16px;
-    color: #666;
-    transition: color 0.2s;
-    padding: 0;
-}
-
-.retalo-icon-btn:hover {
-    color: #28a745;
-}
-
-.retalo-icon-btn svg {
-    width: 20px;
-    height: 20px;
-    stroke: currentColor;
-    stroke-width: 2.5;
-    fill: none;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    transition: transform 0.2s ease;
-}
-
-.retalo-icon-btn:hover svg {
-    transform: rotate(90deg);
-}
-
-/* For the active retalo state (green text) */
-.stat-btn.retaled .retalo-icon-btn {
-    color: #28a745;
-}
     </style>
 </head>
 <body>
@@ -2409,21 +2372,9 @@
             <button class="stat-btn like-btn" data-id="{{ talo.id }}">💎 <span class="like-count">{{ talo.likes }}</span></button>
             <button class="stat-btn dislike-btn" data-id="{{ talo.id }}">👎 <span class="dislike-count">{{ talo.dislikes }}</span></button>
             
-              <button class="stat-btn retalo-btn" data-id="{{ talo.id }}" data-user-id="{{ talo.user_id }}" data-content="{{ talo.content }}" 
+             <button class="stat-btn retalo-btn" data-id="{{ talo.id }}" data-user-id="{{ talo.user_id }}" data-content="{{ talo.content }}" 
    data-photos='{{ talo.photos|tojson }}'>
-    <span class="retalo-icon-btn">
-        <svg viewBox="0 0 24 24">
-            <!-- Top curved arrow (right to left) -->
-            <path d="M16 4h5v5" />
-            <!-- Bottom curved arrow (left to right) -->
-            <path d="M8 20H3v-5" />
-            <!-- Right-side connecting line -->
-            <path d="M21 4l-6 6-4-4" />
-            <!-- Left-side connecting line -->
-            <path d="M3 20l6-6 4 4" />
-        </svg>
-        <span class="retalo-count">{{ talo.retalos }}</span>
-    </span>
+     🔄 <span class="retalo-count">{{ talo.retalos }}</span>
 </button>
             <a href="/post/{{ talo.id }}" class="reply-btn">💬 <span>{{ talo.reply_count }}</span></a>
 
@@ -2955,19 +2906,7 @@ window.openPromotionModalFromPost = function(taloId) {
                     <button class="stat-btn dislike-btn" data-id="${taloId}">👎 <span class="dislike-count">0</span></button>
                     <button class="stat-btn retalo-btn" data-id="{{ talo.id }}" data-user-id="{{ talo.user_id }}" data-content="{{ talo.content }}" 
    data-photos='{{ talo.photos|tojson }}'>
-    <span class="retalo-icon-btn">
-        <svg viewBox="0 0 24 24">
-            <!-- Top curved arrow (right to left) -->
-            <path d="M16 4h5v5" />
-            <!-- Bottom curved arrow (left to right) -->
-            <path d="M8 20H3v-5" />
-            <!-- Right-side connecting line -->
-            <path d="M21 4l-6 6-4-4" />
-            <!-- Left-side connecting line -->
-            <path d="M3 20l6-6 4 4" />
-        </svg>
-        <span class="retalo-count">{{ talo.retalos }}</span>
-    </span>
+     🔄 <span class="retalo-count">{{ talo.retalos }}</span>
 </button>
                     <a href="/post/${taloId}" class="reply-btn">💬 <span>0</span></a>
                 </div>
