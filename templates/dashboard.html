@@ -2100,6 +2100,44 @@
 .stat-btn.view-count {
     cursor: default;
 }
+
+
+/* New Logout Icon Style */
+.logout-icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: white;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+}
+
+.logout-icon-btn:hover {
+    transform: scale(1.1);
+}
+
+.logout-icon-btn svg {
+    width: 28px;
+    height: 28px;
+    stroke: white;
+    stroke-width: 2.5;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Mobile adjustment */
+@media (max-width: 768px) {
+    .logout-icon-btn svg {
+        width: 24px;
+        height: 24px;
+    }
+}
+
+
     </style>
 </head>
 <body>
@@ -2128,7 +2166,21 @@
             <button class="icon-btn" onclick="markAllPostsAsViewed()" id="homeBtnHeader" title="Mark all posts as viewed">
                 🏠
             </button>
-            <a href="/logout"><button class="icon-btn">🚪</button></a>
+            <a href="/logout" aria-label="Logout">
+    <button class="logout-icon-btn">
+        <svg viewBox="0 0 24 24">
+            <!-- Door Frame -->
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <!-- Door Handle -->
+            <line x1="10" y1="12" x2="10" y2="12.01" />
+            <!-- Door itself (angled) -->
+            <path d="M10 21h5a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-5" />
+            <!-- Exit Arrow -->
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
+    </button>
+</a>
         </div>
     </div>
 
