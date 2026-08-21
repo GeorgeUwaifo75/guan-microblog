@@ -3832,6 +3832,9 @@ async function createTaloWithFirebase() {
             } else if (data.tac_earned > 0) {
                 showFlashNotification(`✓ Post created! +${formatTac(data.tac_earned)} TaC earned`, 'success');
                 setTimeout(() => location.reload(), 1200);
+            } else if (data.tac_supply_capped) {
+                showFlashNotification('✓ Post created! The 30,000 TaC supply cap has been reached, so no TaC was earned this time.', 'success');
+                setTimeout(() => location.reload(), 1500);
             } else {
                 showFlashNotification('✓ Post created successfully!', 'success');
                 setTimeout(() => location.reload(), 1000);

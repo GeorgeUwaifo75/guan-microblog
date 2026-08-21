@@ -314,6 +314,14 @@
                 <div class="stat-number">{{ stats.total_payments }}</div>
                 <div>Total Payments</div>
             </div>
+            <div class="stat-card">
+                <div class="stat-number">🪙 {{ "%.4f"|format(stats.tac_total_minted) }}</div>
+                <div>TaC Minted (of {{ "{:,.0f}".format(stats.tac_supply_cap) }} cap)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ "%.4f"|format(stats.tac_remaining_supply) }}</div>
+                <div>TaC Remaining to Mint</div>
+            </div>
         </div>
 
         <!-- Tabs -->

@@ -472,10 +472,62 @@ TAC_PER_TALO_PREMIUM = 0.001
 TAC_PER_REPLY_REGULAR = 0.00005
 TAC_PER_REPLY_PREMIUM = 0.0005
 
-def award_tac(user: dict, amount: float):
-    """Credits `amount` TaC to a user's wallet (in place) and returns
-    (new_balance, newly_crossed_milestones). Rounded to 6 decimal places to
-    avoid floating point drift from the very small per-action amounts."""
+# Lifetime supply cap: once this many TaC have ever been minted (awarded for
+# talos/replies), no more can be created in any form - this is a hard,
+# permanent ceiling on total creation, not a live "coins in circulation"
+# count. Deleting a post burns its TaC back out of that user's wallet, but
+# does NOT free up more room to mint - otherwise a delete/recreate cycle
+# could be used to mint far beyond the cap. Peer-to-peer transfers
+# (@sendtac) move already-minted TaC between wallets and never count
+# against this cap either, since no new TaC is created by a transfer.
+TAC_MAX_SUPPLY = 30000.0
+
+def get_tac_total_minted(data: dict) -> float:
+    return round(data.get("tac_total_minted", 0.0), 6)
+
+def get_tac_remaining_supply(data: dict) -> float:
+    return round(max(0.0, TAC_MAX_SUPPLY - get_tac_total_minted(data)), 6)
+
+def award_tac(data: dict, user: dict, amount: float):
+    """Mints up to `amount` new TaC into a user's wallet (in place),
+    respecting the global TAC_MAX_SUPPLY lifetime cap. If the cap has
+    already been reached, nothing is awarded; if `amount` would push the
+    cumulative minted total past the cap, only the remaining headroom is
+    awarded. Returns (new_balance, newly_crossed_milestones, actually_awarded).
+    Rounded to 6 decimal places to avoid floating point drift from the very
+    small per-action amounts."""
+    if amount <= 0:
+        return round(user.get("wallet_balance", 0.0), 6), [], 0.0
+
+    remaining_supply = get_tac_remaining_supply(data)
+    if remaining_supply <= 0:
+        # Lifetime TaC supply cap has been reached - no further additions.
+        return round(user.get("wallet_balance", 0.0), 6), [], 0.0
+
+    actual_amount = round(min(amount, remaining_supply), 6)
+    if actual_amount <= 0:
+        return round(user.get("wallet_balance", 0.0), 6), [], 0.0
+
+    old_balance = round(user.get("wallet_balance", 0.0), 6)
+    new_balance = round(old_balance + actual_amount, 6)
+    user["wallet_balance"] = new_balance
+
+    data["tac_total_minted"] = round(get_tac_total_minted(data) + actual_amount, 6)
+
+    already_reached = user.setdefault("wallet_milestones", [])
+    newly_crossed = []
+    for milestone in TAC_MILESTONES:
+        if new_balance >= milestone and milestone not in already_reached:
+            already_reached.append(milestone)
+            newly_crossed.append(milestone)
+
+    return new_balance, newly_crossed, actual_amount
+
+def credit_wallet_transfer(user: dict, amount: float):
+    """Credits `amount` TaC to a user's wallet as part of a peer-to-peer
+    @sendtac transfer. This only moves TaC that has already been minted
+    from one wallet to another, so it does NOT count against
+    TAC_MAX_SUPPLY. Returns (new_balance, newly_crossed_milestones)."""
     if amount <= 0:
         return round(user.get("wallet_balance", 0.0), 6), []
 
@@ -497,7 +549,9 @@ def deduct_tac(user: dict, amount: float):
     balance never goes negative - e.g. if a user already sent away TaC via
     @sendtac before deleting the post that originally earned it. Milestones
     already reached are treated as permanent achievements and are not
-    revoked on a later deduction. Returns the new balance."""
+    revoked on a later deduction. Note: this intentionally does NOT reduce
+    tac_total_minted - see TAC_MAX_SUPPLY comment above. Returns the new
+    balance."""
     if amount <= 0:
         return round(user.get("wallet_balance", 0.0), 6)
 
@@ -1155,16 +1209,18 @@ async def create_talo(request: Request):
     # one-time "first post" celebration.
     is_first_talo = user.get("talos_count", 0) == 0
 
-    # ----- Wallet: award TaC for qualifying posts -----
-    tac_earned = 0.0
+    # ----- Wallet: award TaC for qualifying posts (subject to the 30,000
+    # TaC lifetime supply cap - see award_tac) -----
+    tac_eligible = 0.0
     if len(content) >= TAC_MIN_TALO_CHARS:
-        tac_earned = TAC_PER_TALO_PREMIUM if user.get("is_premium", False) else TAC_PER_TALO_REGULAR
-    wallet_balance, milestones_reached = award_tac(user, tac_earned)
+        tac_eligible = TAC_PER_TALO_PREMIUM if user.get("is_premium", False) else TAC_PER_TALO_REGULAR
+    wallet_balance, milestones_reached, tac_earned = award_tac(data, user, tac_eligible)
+    supply_capped = tac_eligible > 0 and tac_earned < tac_eligible
 
     # Record exactly how much TaC this specific talo earned its author, so
     # that if it's later deleted we can reverse precisely this amount -
     # recomputing at delete-time would be wrong if the user's premium status
-    # changes in between.
+    # changes in between (or if the supply cap only allowed a partial award).
     talo["tac_earned"] = tac_earned
 
     if "talos" not in data:
@@ -1202,7 +1258,8 @@ async def create_talo(request: Request):
         "first_talo": is_first_talo,
         "tac_earned": tac_earned,
         "wallet_balance": wallet_balance,
-        "milestones_reached": milestones_reached
+        "milestones_reached": milestones_reached,
+        "tac_supply_capped": supply_capped
     }
 
 """  
@@ -1735,7 +1792,10 @@ async def admin_panel(request: Request):
         "total_talos": len(talos),
         "talos_today": len([t for t in talos if t.get("created_at", "") > today_start]),
         "total_payment_amount": sum([p.get("amount", 0) for p in payments if p.get("status") == "approved"]),
-        "total_payments": len([p for p in payments if p.get("status") == "approved"])
+        "total_payments": len([p for p in payments if p.get("status") == "approved"]),
+        "tac_total_minted": get_tac_total_minted(data),
+        "tac_remaining_supply": get_tac_remaining_supply(data),
+        "tac_supply_cap": TAC_MAX_SUPPLY
     }
     
     # Get all users for the user management table
@@ -2993,9 +3053,11 @@ async def create_reply(request: Request, parent_talo_id: str):
     
     parent_talo["reply_count"] = len([r for r in data["replies"] if r.get("parent_talo_id") == parent_talo_id])
     
-    # ----- Wallet: award TaC for the reply -----
-    reply_tac = TAC_PER_REPLY_PREMIUM if user.get("is_premium", False) else TAC_PER_REPLY_REGULAR
-    wallet_balance, milestones_reached = award_tac(user, reply_tac)
+    # ----- Wallet: award TaC for the reply (subject to the 30,000 TaC
+    # lifetime supply cap - see award_tac) -----
+    reply_tac_eligible = TAC_PER_REPLY_PREMIUM if user.get("is_premium", False) else TAC_PER_REPLY_REGULAR
+    wallet_balance, milestones_reached, reply_tac = award_tac(data, user, reply_tac_eligible)
+    supply_capped = reply_tac < reply_tac_eligible
 
     # Recorded so that a future "delete reply" feature can reverse exactly
     # this amount (there is no reply-deletion endpoint yet).
@@ -3041,7 +3103,8 @@ async def create_reply(request: Request, parent_talo_id: str):
         "reply_id": reply["id"],
         "tac_earned": reply_tac,
         "wallet_balance": wallet_balance,
-        "milestones_reached": milestones_reached
+        "milestones_reached": milestones_reached,
+        "tac_supply_capped": supply_capped
     }
 
 
@@ -3098,9 +3161,11 @@ async def send_tac(payload: SendTacRequest, request: Request):
     if not recipient.get("is_active", True):
         raise HTTPException(status_code=400, detail="This account is currently deactivated and cannot receive TaC.")
 
-    # Move the funds: deduct from sender, credit the recipient.
+    # Move the funds: deduct from sender, credit the recipient. This is a
+    # transfer of already-minted TaC, so it uses credit_wallet_transfer()
+    # rather than award_tac() and does not touch the 30,000 TaC supply cap.
     new_sender_balance = deduct_tac(sender, amount)
-    new_recipient_balance, recipient_milestones_reached = award_tac(recipient, amount)
+    new_recipient_balance, recipient_milestones_reached = credit_wallet_transfer(recipient, amount)
 
     # Alert the recipient that they received TaC from a specific sender.
     if "notifications" not in data:
@@ -3154,6 +3219,31 @@ async def get_wallet_balance(request: Request):
             return {"wallet_balance": round(u.get("wallet_balance", 0.0), 6)}
 
     raise HTTPException(status_code=401, detail="User not found")
+
+
+@app.get("/api/tac_supply")
+async def get_tac_supply(request: Request):
+    """Returns the global TaC lifetime supply status: how much has ever
+    been minted, how much room is left under the 30,000 cap, and whether
+    the cap has been reached. Requires login, but is not tied to any one
+    user's own wallet."""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    data = await get_jsonbin_data()
+    is_authenticated = any(u.get("session_token") == session_token for u in data.get("users", []))
+    if not is_authenticated:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    total_minted = get_tac_total_minted(data)
+    remaining = get_tac_remaining_supply(data)
+    return {
+        "total_supply_cap": TAC_MAX_SUPPLY,
+        "total_minted": total_minted,
+        "remaining_supply": remaining,
+        "supply_exhausted": remaining <= 0
+    }
 
 
 # Add endpoint to get latest talo timestamp
