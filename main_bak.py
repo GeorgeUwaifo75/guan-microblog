@@ -492,20 +492,6 @@ def award_tac(user: dict, amount: float):
 
     return new_balance, newly_crossed
 
-def deduct_tac(user: dict, amount: float):
-    """Debits `amount` TaC from a user's wallet (in place). Floors at 0 so a
-    balance never goes negative - e.g. if a user already sent away TaC via
-    @sendtac before deleting the post that originally earned it. Milestones
-    already reached are treated as permanent achievements and are not
-    revoked on a later deduction. Returns the new balance."""
-    if amount <= 0:
-        return round(user.get("wallet_balance", 0.0), 6)
-
-    old_balance = round(user.get("wallet_balance", 0.0), 6)
-    new_balance = round(max(0.0, old_balance - amount), 6)
-    user["wallet_balance"] = new_balance
-    return new_balance
-
 def organize_replies_hierarchically(replies):
     """Organize replies into a hierarchical tree structure"""
     reply_dict = {}
@@ -553,10 +539,6 @@ class UserLogin(BaseModel):
 class CreateTaloRequest(BaseModel):
     content: str
     photos: List[Dict[str, str]] = []
-
-class SendTacRequest(BaseModel):
-    recipient_id: str
-    amount: float
 
 class UpdateProfileRequest(BaseModel):
     first_name: Optional[str] = None
@@ -1160,12 +1142,6 @@ async def create_talo(request: Request):
     if len(content) >= TAC_MIN_TALO_CHARS:
         tac_earned = TAC_PER_TALO_PREMIUM if user.get("is_premium", False) else TAC_PER_TALO_REGULAR
     wallet_balance, milestones_reached = award_tac(user, tac_earned)
-
-    # Record exactly how much TaC this specific talo earned its author, so
-    # that if it's later deleted we can reverse precisely this amount -
-    # recomputing at delete-time would be wrong if the user's premium status
-    # changes in between.
-    talo["tac_earned"] = tac_earned
 
     if "talos" not in data:
         data["talos"] = []
@@ -2996,10 +2972,6 @@ async def create_reply(request: Request, parent_talo_id: str):
     # ----- Wallet: award TaC for the reply -----
     reply_tac = TAC_PER_REPLY_PREMIUM if user.get("is_premium", False) else TAC_PER_REPLY_REGULAR
     wallet_balance, milestones_reached = award_tac(user, reply_tac)
-
-    # Recorded so that a future "delete reply" feature can reverse exactly
-    # this amount (there is no reply-deletion endpoint yet).
-    reply["tac_earned"] = reply_tac
     
     # Only send notification if talo owner follows the replier
     if talo_owner_id != user["user_id"]:
@@ -3042,101 +3014,6 @@ async def create_reply(request: Request, parent_talo_id: str):
         "tac_earned": reply_tac,
         "wallet_balance": wallet_balance,
         "milestones_reached": milestones_reached
-    }
-
-
-def format_tac_str(value: float) -> str:
-    """Formats a TaC amount trimmed of trailing zeros, mirroring the
-    frontend's formatTac() so notification/messages read consistently."""
-    s = f"{value:.6f}".rstrip('0').rstrip('.')
-    return s if s else "0"
-
-@app.post("/api/send_tac")
-async def send_tac(payload: SendTacRequest, request: Request):
-    """Transfers TaC from the logged-in user's wallet to another user's
-    wallet. Powers the '@sendtac' command - both the guided modal flow
-    (typing '@sendtac' alone) and the one-line directive
-    '@sendtac @beneficiary amount'."""
-    session_token = request.cookies.get("session_token")
-    if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    data = await get_jsonbin_data()
-    sender = None
-    for u in data.get("users", []):
-        if u.get("session_token") == session_token:
-            sender = u
-            break
-
-    if not sender:
-        raise HTTPException(status_code=401, detail="User not found")
-
-    recipient_id = (payload.recipient_id or "").strip().lstrip("@")
-    if not recipient_id:
-        raise HTTPException(status_code=400, detail="Please provide a valid beneficiary account ID.")
-
-    if recipient_id.lower() == sender["user_id"].lower():
-        raise HTTPException(status_code=400, detail="You cannot send TaC to yourself.")
-
-    amount = round(payload.amount, 6) if payload.amount is not None else 0.0
-    if amount <= 0:
-        raise HTTPException(status_code=400, detail="Please enter a valid amount greater than zero.")
-
-    sender_balance = round(sender.get("wallet_balance", 0.0), 6)
-    if amount > sender_balance:
-        raise HTTPException(status_code=400, detail="You cannot send more TaC than you currently have.")
-
-    recipient = None
-    for u in data.get("users", []):
-        if u.get("user_id", "").lower() == recipient_id.lower():
-            recipient = u
-            break
-
-    if not recipient:
-        raise HTTPException(status_code=404, detail=f"No GuAn account found with the ID @{recipient_id}.")
-
-    if not recipient.get("is_active", True):
-        raise HTTPException(status_code=400, detail="This account is currently deactivated and cannot receive TaC.")
-
-    # Move the funds: deduct from sender, credit the recipient.
-    new_sender_balance = deduct_tac(sender, amount)
-    new_recipient_balance, recipient_milestones_reached = award_tac(recipient, amount)
-
-    # Alert the recipient that they received TaC from a specific sender.
-    if "notifications" not in data:
-        data["notifications"] = []
-    data["notifications"].append({
-        "id": str(uuid.uuid4()),
-        "user_id": recipient["user_id"],
-        "type": "tac_received",
-        "message": f"@{sender['user_id']} sent you {format_tac_str(amount)} TaC!",
-        "from_user_id": sender["user_id"],
-        "amount": amount,
-        "read": False,
-        "created_at": datetime.now().isoformat()
-    })
-
-    await save_jsonbin_data(data)
-
-    # Best-effort push notification to the recipient, matching the pattern
-    # used elsewhere (likes, replies, etc.) - failures here shouldn't block
-    # a transfer that already succeeded.
-    try:
-        await send_push_notification(
-            recipient["user_id"],
-            f"@{sender['user_id']} sent you TaC 🪙",
-            f"You received {format_tac_str(amount)} TaC!",
-            icon=sender.get("profile_photo"),
-            data={"url": "/dashboard"}
-        )
-    except Exception:
-        pass
-
-    return {
-        "message": "TaC sent successfully",
-        "amount": amount,
-        "recipient_id": recipient["user_id"],
-        "sender_balance": new_sender_balance
     }
 
 
@@ -3406,11 +3283,6 @@ async def delete_talo(talo_id: str, request: Request):
     # Delete notifications related to this post
     data["notifications"] = [n for n in data.get("notifications", []) if n.get("related_talo_id") != talo_id and n.get("original_talo_id") != talo_id]
     
-    # Reverse any TaC this post originally earned its author, since the
-    # content that qualified it for the reward no longer exists.
-    tac_to_reverse = talo.get("tac_earned", 0.0)
-    new_wallet_balance = deduct_tac(user, tac_to_reverse) if tac_to_reverse else round(user.get("wallet_balance", 0.0), 6)
-    
     # Remove the post
     data["talos"].pop(talo_index)
     
@@ -3419,7 +3291,7 @@ async def delete_talo(talo_id: str, request: Request):
     
     await save_jsonbin_data(data)
     
-    return {"message": "Post deleted successfully", "tac_reversed": tac_to_reverse, "wallet_balance": new_wallet_balance}
+    return {"message": "Post deleted successfully"}
 
 
 # Add this endpoint to main.py to check for banned words

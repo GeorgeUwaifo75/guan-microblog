@@ -2565,36 +2565,6 @@
         </div>
     </div>
 
-    <!-- Send TaC Modal -->
-    <div id="sendTacModal" class="modal-overlay" style="display: none;">
-        <div class="modal-content-userlist" style="max-width: 380px;">
-            <div class="modal-header">
-                <h3>🪙 Send TaC</h3>
-                <span class="close-modal" onclick="closeSendTacModal()">&times;</span>
-            </div>
-            <div style="padding: 20px;">
-                <div class="form-group">
-                    <label>From</label>
-                    <div style="background:#f5f5f5; padding:10px; border-radius:8px; color:#555;">
-                        @<span id="sendTacFromUser"></span> &middot; Balance: <span id="sendTacFromBalance"></span> TaC
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="sendTacRecipient">Beneficiary's Account ID</label>
-                    <input type="text" id="sendTacRecipient" placeholder="@userID" autocomplete="off"
-                           style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box;">
-                </div>
-                <div class="form-group">
-                    <label for="sendTacAmount">Amount (TaC)</label>
-                    <input type="number" id="sendTacAmount" min="0" step="0.000001" placeholder="e.g. 0.0005"
-                           style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box;">
-                </div>
-                <div id="sendTacError" style="color:#cc0000; font-size:13px; margin-bottom:10px; display:none;"></div>
-                <button class="btn btn-primary" style="width:100%; padding:12px; border-radius:25px;" onclick="submitSendTacForm()" id="sendTacSubmitBtn">Send TaC →</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Promotion Modal -->
     <div id="promotionModal" class="promotion-modal">
         <div class="promotion-modal-content">
@@ -2770,15 +2740,7 @@ window.togglePostActions = function(btn) {
             });
             
             if (response.ok) {
-                const data = await response.json();
-                if (typeof data.wallet_balance === 'number') {
-                    updateWalletDisplay(data.wallet_balance);
-                }
-                if (data.tac_reversed > 0) {
-                    showFlashNotification(`✓ Post deleted · -${formatTac(data.tac_reversed)} TaC reversed`, 'success');
-                } else {
-                    showFlashNotification('✓ Post deleted successfully', 'success');
-                }
+                showFlashNotification('✓ Post deleted successfully', 'success');
                 // Remove the post from DOM
                 const postCard = document.querySelector(`.talo-card[data-talo-id="${taloId}"]`);
                 if (postCard) {
@@ -3534,130 +3496,6 @@ startLiveTimestampUpdates();
             showWalletBalance();
         }
     }
-
-    // ========== SEND TaC ("@sendtac") ==========
-    // Matches a full one-line directive: "@sendtac @beneficiaryID amount"
-    const SEND_TAC_DIRECTIVE_RE = /^@sendtac\s+@?(\S+)\s+([0-9]+(?:\.[0-9]+)?)\s*$/i;
-
-    // Called from createTaloWithFirebase() right when the "Talo →" button is
-    // pressed (not on every keystroke, unlike @mytac). Returns true if the
-    // content was a wallet command and normal posting should be skipped.
-    function handleSendTacCommand(rawContent) {
-        const trimmed = rawContent.trim();
-
-        // Bare "@sendtac" -> open the guided transfer modal.
-        if (/^@sendtac$/i.test(trimmed)) {
-            document.getElementById('taloContent').value = '';
-            updateCharCounter();
-            openSendTacModal();
-            return true;
-        }
-
-        // Full directive "@sendtac @user amount" -> transfer immediately.
-        const match = trimmed.match(SEND_TAC_DIRECTIVE_RE);
-        if (match) {
-            document.getElementById('taloContent').value = '';
-            updateCharCounter();
-            const recipientId = match[1];
-            const amount = parseFloat(match[2]);
-            performTacTransfer(recipientId, amount, false);
-            return true;
-        }
-
-        return false;
-    }
-
-    function openSendTacModal() {
-        const fromUserEl = document.getElementById('sendTacFromUser');
-        const fromBalanceEl = document.getElementById('sendTacFromBalance');
-        if (fromUserEl) fromUserEl.textContent = userData.user_id;
-        if (fromBalanceEl) fromBalanceEl.textContent = formatTac(userData.wallet_balance || 0);
-        document.getElementById('sendTacRecipient').value = '';
-        document.getElementById('sendTacAmount').value = '';
-        hideSendTacError();
-        document.getElementById('sendTacModal').style.display = 'flex';
-    }
-
-    function closeSendTacModal() {
-        document.getElementById('sendTacModal').style.display = 'none';
-    }
-
-    function showSendTacError(message) {
-        const errEl = document.getElementById('sendTacError');
-        if (!errEl) return;
-        errEl.textContent = message;
-        errEl.style.display = 'block';
-    }
-
-    function hideSendTacError() {
-        const errEl = document.getElementById('sendTacError');
-        if (!errEl) return;
-        errEl.textContent = '';
-        errEl.style.display = 'none';
-    }
-
-    async function submitSendTacForm() {
-        const recipientRaw = document.getElementById('sendTacRecipient').value.trim();
-        const amountRaw = document.getElementById('sendTacAmount').value.trim();
-        const recipientId = recipientRaw.replace(/^@/, '');
-        const amount = parseFloat(amountRaw);
-
-        hideSendTacError();
-
-        if (!recipientId) {
-            showSendTacError("Please enter the beneficiary's account ID.");
-            return;
-        }
-        if (!amountRaw || isNaN(amount) || amount <= 0) {
-            showSendTacError('Please enter a valid amount greater than zero.');
-            return;
-        }
-        if (amount > (Number(userData.wallet_balance) || 0) + 1e-9) {
-            showSendTacError('You cannot send more TaC than you currently have.');
-            return;
-        }
-
-        const btn = document.getElementById('sendTacSubmitBtn');
-        btn.disabled = true;
-        btn.textContent = 'Sending...';
-        try {
-            await performTacTransfer(recipientId, amount, true);
-        } finally {
-            btn.disabled = false;
-            btn.textContent = 'Send TaC →';
-        }
-    }
-
-    // Sends `amount` TaC to `recipientId`. When `modalMode` is true, errors
-    // are shown inline in the Send TaC modal (and it closes on success);
-    // otherwise (the one-line directive path) errors/success show as a
-    // regular flash notification.
-    async function performTacTransfer(recipientId, amount, modalMode) {
-        try {
-            const response = await fetch('/api/send_tac', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ recipient_id: recipientId, amount: amount })
-            });
-            const data = await response.json();
-            if (response.ok) {
-                updateWalletDisplay(data.sender_balance);
-                showFlashNotification(`✓ Sent ${formatTac(data.amount)} TaC to @${data.recipient_id}!`, 'success');
-                if (modalMode) closeSendTacModal();
-            } else {
-                const message = data.detail || 'Transfer failed. Please try again.';
-                if (modalMode) {
-                    showSendTacError(message);
-                } else {
-                    showFlashNotification(message, 'error');
-                }
-            }
-        } catch (e) {
-            console.error('TaC transfer failed', e);
-            const message = 'Transfer failed. Please try again.';
-            if (modalMode) showSendTacError(message); else showFlashNotification(message, 'error');
-        }
-    }
     
     async function retalo(taloId, originalUserId, originalContent, originalPhotos = []) {
         const btn = document.querySelector(`.retalo-btn[data-id="${taloId}"]`);
@@ -3753,13 +3591,6 @@ startLiveTimestampUpdates();
 async function createTaloWithFirebase() {
     const content = document.getElementById('taloContent').value;
     if (!content.trim()) { alert('Please enter some content'); return; }
-
-    // Intercept "@sendtac" (bare, opens modal) and the full one-line
-    // "@sendtac @user amount" directive before treating this as a post.
-    if (handleSendTacCommand(content)) {
-        return;
-    }
-
     if (content.length > MAX_CHARS) { alert(`Content cannot exceed ${MAX_CHARS} characters`); return; }
 
    
@@ -4248,10 +4079,6 @@ async function loadNotifications() {
                     case 'follow':
                         displayIcon = '👥';
                         displayText = 'Started following you';
-                        break;
-                    case 'tac_received':
-                        displayIcon = '🪙';
-                        displayText = (typeof notif.amount === 'number') ? `Sent you ${formatTac(notif.amount)} TaC` : (notif.message || 'Sent you TaC');
                         break;
                     default:
                         displayIcon = '📢';
