@@ -243,6 +243,62 @@
             border: 1px solid #ddd;
             border-radius: 8px;
         }
+        .db-menu-wrapper {
+            position: relative;
+            display: inline-block;
+            margin-left: 20px;
+        }
+        .db-menu-btn {
+            background: #ffcc00;
+            color: #990000;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .db-menu-btn:hover {
+            background: #ffd633;
+        }
+        .db-menu-dropdown {
+            display: none;
+            position: absolute;
+            top: 115%;
+            right: 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            min-width: 180px;
+            z-index: 1001;
+            overflow: hidden;
+        }
+        .db-menu-dropdown.show {
+            display: block;
+        }
+        .db-menu-dropdown a {
+            display: block;
+            padding: 12px 16px;
+            text-decoration: none;
+            color: #333;
+            font-size: 14px;
+            border-bottom: 1px solid #eee;
+        }
+        .db-menu-dropdown a:last-child {
+            border-bottom: none;
+        }
+        .db-menu-dropdown a:hover {
+            background: #fff8e1;
+        }
+        .restore-warning {
+            background: #fff3f3;
+            border: 1px solid #f5c2c2;
+            color: #990000;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
         @media (max-width: 768px) {
             table, thead, tbody, th, td, tr {
                 display: block;
@@ -274,6 +330,15 @@
         </h1>
         <div>
             <span>Welcome, {{ admin.user_id }} ({{ admin.name }})</span>
+            <div class="db-menu-wrapper">
+                <button type="button" class="db-menu-btn" onclick="toggleDbMenu(event)">🗄️ Database ▾</button>
+                <div id="dbMenuDropdown" class="db-menu-dropdown">
+                    <a href="#" onclick="event.preventDefault(); backupDatabase();">⬇️ Backup DB</a>
+                    {% if admin.role == 'super_admin' %}
+                    <a href="#" onclick="event.preventDefault(); openRestoreDbModal();">⬆️ Restore DB</a>
+                    {% endif %}
+                </div>
+            </div>
             <a href="/dashboard" style="color: #ffcc00; margin-left: 20px;">← Back to Dashboard</a>
             <a href="/logout" style="color: #ffcc00; margin-left: 15px;">Logout</a>
         </div>
@@ -597,6 +662,30 @@
                 </div>
                 <button type="submit" class="btn-create" style="width: 100%;">Create Administrator</button>
                 <button type="button" class="btn-sm btn-deactivate" style="margin-top: 10px; width: 100%;" onclick="closeCreateAdminModal()">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Restore DB Modal -->
+    <div id="restoreDbModal" class="modal">
+        <div class="modal-content">
+            <h3>⚠️ Restore Database</h3>
+            <div class="restore-warning">
+                This will completely <strong>replace all current platform data</strong>
+                (users, posts, wallets, admins - everything) with the contents of the file
+                you upload. This cannot be undone. Consider running a fresh Backup DB first.
+            </div>
+            <form id="restoreDbForm">
+                <div class="form-group">
+                    <label>Backup JSON file</label>
+                    <input type="file" id="restoreDbFile" accept="application/json,.json" required>
+                </div>
+                <div class="form-group">
+                    <label>Type <strong>RESTORE</strong> to confirm</label>
+                    <input type="text" id="restoreDbConfirmText" placeholder="RESTORE" autocomplete="off" required>
+                </div>
+                <button type="submit" class="btn-sm btn-delete" style="width: 100%; padding: 10px;" id="restoreDbSubmitBtn">Restore Database</button>
+                <button type="button" class="btn-sm btn-deactivate" style="margin-top: 10px; width: 100%;" onclick="closeRestoreDbModal()">Cancel</button>
             </form>
         </div>
     </div>
@@ -981,6 +1070,112 @@
             document.getElementById('createAdminModal').style.display = 'none';
             document.getElementById('createAdminForm').reset();
         }
+
+        // ========== DATABASE BACKUP / RESTORE ==========
+        function toggleDbMenu(e) {
+            e.stopPropagation();
+            document.getElementById('dbMenuDropdown').classList.toggle('show');
+        }
+
+        document.addEventListener('click', function() {
+            const menu = document.getElementById('dbMenuDropdown');
+            if (menu) menu.classList.remove('show');
+        });
+
+        async function backupDatabase() {
+            document.getElementById('dbMenuDropdown').classList.remove('show');
+            try {
+                const response = await fetch('/api/admin/backup_db');
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    alert('Backup failed: ' + (err.detail || 'Unknown error'));
+                    return;
+                }
+                const blob = await response.blob();
+
+                let filename = `guan_backup_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
+                const disposition = response.headers.get('Content-Disposition');
+                if (disposition) {
+                    const match = disposition.match(/filename="?([^"]+)"?/);
+                    if (match) filename = match[1];
+                }
+
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Backup failed:', error);
+                alert('Backup failed: ' + error.message);
+            }
+        }
+
+        function openRestoreDbModal() {
+            document.getElementById('dbMenuDropdown').classList.remove('show');
+            if (!isSuperAdmin) {
+                alert('Only Super Administrator can restore the database');
+                return;
+            }
+            document.getElementById('restoreDbModal').style.display = 'flex';
+        }
+
+        function closeRestoreDbModal() {
+            document.getElementById('restoreDbModal').style.display = 'none';
+            document.getElementById('restoreDbForm').reset();
+        }
+
+        document.getElementById('restoreDbForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const fileInput = document.getElementById('restoreDbFile');
+            const confirmText = document.getElementById('restoreDbConfirmText').value.trim();
+
+            if (confirmText !== 'RESTORE') {
+                alert('Please type RESTORE exactly to confirm this action.');
+                return;
+            }
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('Please choose a backup JSON file to restore.');
+                return;
+            }
+
+            if (!confirm('Are you absolutely sure? This will permanently overwrite ALL current platform data with the uploaded backup.')) {
+                return;
+            }
+
+            const submitBtn = document.getElementById('restoreDbSubmitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Restoring...';
+
+            try {
+                const formData = new FormData();
+                formData.append('backup_file', fileInput.files[0]);
+
+                const response = await fetch('/api/admin/restore_db', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert(`✓ Database restored successfully (${result.restored_users} users, ${result.restored_talos} talos). The page will now reload.`);
+                    closeRestoreDbModal();
+                    location.reload();
+                } else {
+                    alert('Restore failed: ' + (result.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Restore failed:', error);
+                alert('Restore failed: ' + error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Restore Database';
+            }
+        });
         
         document.getElementById('createAdminForm').addEventListener('submit', async (e) => {
             e.preventDefault();

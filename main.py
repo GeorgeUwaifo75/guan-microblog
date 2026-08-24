@@ -2,7 +2,7 @@
 # Push notifications removed to fix mobile display issues
 
 from fastapi import FastAPI, HTTPException, Request, Form, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -465,7 +465,7 @@ def generate_token():
 TAC_MILESTONES = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 1]
 
 # Minimum character count a talo/post must have to earn any TaC at all.
-TAC_MIN_TALO_CHARS = 150
+TAC_MIN_TALO_CHARS = 200
 
 TAC_PER_TALO_REGULAR = 0.0001
 TAC_PER_TALO_PREMIUM = 0.001
@@ -714,18 +714,26 @@ async def signup_page(request: Request):
 async def api_signup(user_data: UserSignup):
     data = await get_jsonbin_data()
     
+    # Trim any leading/trailing whitespace from the account ID. Without this,
+    # " johndoe" and "johndoe " would be treated as distinct, un-collidable
+    # accounts, and the stray space would leak into @mentions, profile URLs,
+    # and login lookups.
+    user_id = user_data.user_id.strip()
+    if not user_id:
+        raise HTTPException(status_code=400, detail="User ID cannot be empty")
+    
     if user_data.age < 18:
         raise HTTPException(status_code=400, detail="You must be 18 or older")
     
     for user in data.get("users", []):
-        if user["user_id"] == user_data.user_id:
+        if user["user_id"] == user_id:
             raise HTTPException(status_code=400, detail="User ID already exists")
         if user["email"] == user_data.email:
             raise HTTPException(status_code=400, detail="Email already exists")
     
     new_user = {
         "id": str(uuid.uuid4()),
-        "user_id": user_data.user_id,
+        "user_id": user_id,
         "email": user_data.email,
         "first_name": user_data.first_name,
         "last_name": user_data.last_name,
@@ -759,7 +767,7 @@ async def api_signup(user_data: UserSignup):
             if "follows" not in data:
                 data["follows"] = []
             data["follows"].append({
-                "follower_id": user_data.user_id,
+                "follower_id": user_id,
                 "following_id": WA_GUAN_USER_ID,
                 "created_at": datetime.now().isoformat()
             })
@@ -767,7 +775,7 @@ async def api_signup(user_data: UserSignup):
             await save_jsonbin_data(data)
             break
     
-    return {"message": "User created successfully", "user_id": user_data.user_id}
+    return {"message": "User created successfully", "user_id": user_id}
 
 @app.post("/api/login")
 async def api_login(login_data: UserLogin):
@@ -779,13 +787,18 @@ async def api_login(login_data: UserLogin):
     # left over from a different login. fast_mode still keeps retries/
     # timeouts short so this stays quick.
     data = await get_jsonbin_data(force_refresh=True, fast_mode=True)
+
+    # Trim whitespace the same way signup does, so a stray leading/trailing
+    # space typed (or auto-filled) at login doesn't fail to match an
+    # account ID that was stored trimmed.
+    login_user_id = (login_data.user_id or "").strip()
     
     # 2. Ensure wa_guan exists (async, non-blocking)
     if not any(u.get('user_id') == WA_GUAN_USER_ID for u in data.get('users', [])):
         asyncio.create_task(ensure_wa_guan_account())   # fire and forget
 
     # 3. Authenticate user/admin (same logic as before)
-    if login_data.user_id == SUPER_ADMIN_ID and login_data.password == SUPER_ADMIN_PASSWORD:
+    if login_user_id == SUPER_ADMIN_ID and login_data.password == SUPER_ADMIN_PASSWORD:
         token = generate_token()
         
         super_admin_exists = False
@@ -814,7 +827,7 @@ async def api_login(login_data: UserLogin):
         return response
     
     for admin in data.get("admins", []):
-        if admin["user_id"] == login_data.user_id and verify_password(login_data.password, admin.get("password_hash", "")):
+        if admin["user_id"] == login_user_id and verify_password(login_data.password, admin.get("password_hash", "")):
             if not admin.get("is_active", True):
                 raise HTTPException(status_code=403, detail="Admin account deactivated")
             token = generate_token()
@@ -826,7 +839,7 @@ async def api_login(login_data: UserLogin):
             return response
     
     for user in data.get("users", []):
-        if user["user_id"] == login_data.user_id and verify_password(login_data.password, user["password_hash"]):
+        if user["user_id"] == login_user_id and verify_password(login_data.password, user["password_hash"]):
             if not user.get("is_active"):
                 raise HTTPException(status_code=403, detail="Account deactivated")
             token = generate_token()
@@ -1919,6 +1932,112 @@ async def create_admin(request: Request, admin_data: CreateAdminRequest):
     await save_jsonbin_data(data)
     
     return {"message": f"Administrator {admin_data.admin_id} created successfully"}
+
+
+# ========== DATABASE BACKUP / RESTORE ==========
+# The entire GuAn "database" is a single JSON document stored in JSONBin, so
+# a backup is simply an export of that document, and a restore is simply
+# overwriting it with a previously-exported document.
+GUAN_BACKUP_FORMAT_VERSION = 1
+
+@app.get("/api/admin/backup_db")
+async def backup_db(request: Request):
+    """Any logged-in admin can download a full backup of the platform's
+    data as a single JSON file."""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    admin = None
+    data = await get_jsonbin_data(force_refresh=True)
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            admin = a
+            break
+
+    if not admin:
+        raise HTTPException(status_code=403, detail="Only administrators can back up the database")
+
+    backup_payload = {
+        "app": "GuAn",
+        "backup_format_version": GUAN_BACKUP_FORMAT_VERSION,
+        "exported_at": datetime.now().isoformat(),
+        "exported_by": admin["user_id"],
+        "data": data
+    }
+
+    filename = f"guan_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    return Response(
+        content=json.dumps(backup_payload, indent=2, default=str),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+
+@app.post("/api/admin/restore_db")
+async def restore_db(request: Request, backup_file: UploadFile = File(...)):
+    """Super Admin only - Restores the entire platform database from a
+    previously-downloaded backup JSON file. This is a fully destructive,
+    irreversible operation: the current database is completely replaced,
+    not merged. The frontend is expected to make the user confirm this
+    explicitly before calling this endpoint."""
+    session_token = request.cookies.get("session_token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    data = await get_jsonbin_data()
+    current_admin = None
+    for a in data.get("admins", []):
+        if a.get("session_token") == session_token:
+            current_admin = a
+            break
+
+    if not current_admin or current_admin.get("role") != "super_admin":
+        raise HTTPException(status_code=403, detail="Only Super Administrator can restore the database")
+
+    if not backup_file.filename or not backup_file.filename.lower().endswith(".json"):
+        raise HTTPException(status_code=400, detail="Please upload a .json backup file")
+
+    raw_bytes = await backup_file.read()
+    try:
+        parsed = json.loads(raw_bytes.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        raise HTTPException(status_code=400, detail="That file isn't valid JSON. Please upload an unmodified GuAn backup file.")
+
+    # Accept either a full backup envelope (as produced by /api/admin/backup_db,
+    # with a top-level "data" key) or a raw data dict directly, for
+    # flexibility if someone re-uploads just the inner "data" object.
+    if isinstance(parsed, dict) and "data" in parsed and isinstance(parsed["data"], dict):
+        restored_data = parsed["data"]
+    elif isinstance(parsed, dict):
+        restored_data = parsed
+    else:
+        raise HTTPException(status_code=400, detail="This file doesn't look like a GuAn database backup")
+
+    # Sanity check: a genuine GuAn database is a dict of named collections
+    # (lists). Reject anything that clearly isn't that shape, to avoid
+    # wiping the live database with an unrelated or corrupted JSON file.
+    expected_collections = ["users", "talos", "admins"]
+    if not all(key in restored_data and isinstance(restored_data[key], list) for key in expected_collections):
+        raise HTTPException(status_code=400, detail="This file doesn't look like a valid GuAn database backup (missing expected data)")
+
+    # Make sure the admin performing the restore doesn't lock themselves out:
+    # keep their current session alive in the restored data by re-inserting
+    # their live admin record (with the current session_token) if the
+    # backup predates their session or doesn't include it.
+    restored_admins = restored_data.setdefault("admins", [])
+    if not any(a.get("session_token") == session_token for a in restored_admins):
+        preserved_admin = dict(current_admin)
+        restored_admins.append(preserved_admin)
+
+    await save_jsonbin_data(restored_data)
+
+    return {
+        "message": "Database restored successfully",
+        "restored_users": len(restored_data.get("users", [])),
+        "restored_talos": len(restored_data.get("talos", []))
+    }
+
 
 @app.post("/api/admin/deactivate_admin")
 async def deactivate_admin(request: Request, admin_data: ToggleAdminStatusRequest):
