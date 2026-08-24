@@ -3891,47 +3891,11 @@ async function checkForBannedWords(content) {
     
     // ========== PROFILE EDIT FUNCTIONS ==========
     function openProfileEditModal() {
-        resetProfileEditForm();
         document.getElementById('profileEditModal').classList.add('active');
     }
     
     function closeProfileEditModal() {
         document.getElementById('profileEditModal').classList.remove('active');
-        resetProfileEditForm();
-    }
-
-    // Always starts the modal from a clean slate. Without this, a password
-    // change that was started and then cancelled (modal closed without
-    // saving) would leave stale text sitting in the password fields. The
-    // next time the modal opens - even just to change the photo or name -
-    // that leftover input would trip the "fill in all password fields"
-    // validation and block a save the user never meant to gate behind a
-    // password change. Also resets name/bio/photo preview back to the
-    // user's actual saved values, discarding any unsaved edits.
-    function resetProfileEditForm() {
-        const currentPwd = document.getElementById('editCurrentPassword');
-        const newPwd = document.getElementById('editNewPassword');
-        const confirmPwd = document.getElementById('editConfirmPassword');
-        if (currentPwd) currentPwd.value = '';
-        if (newPwd) newPwd.value = '';
-        if (confirmPwd) confirmPwd.value = '';
-
-        const passwordError = document.getElementById('passwordError');
-        const passwordSuccess = document.getElementById('passwordSuccess');
-        if (passwordError) passwordError.style.display = 'none';
-        if (passwordSuccess) passwordSuccess.style.display = 'none';
-
-        const firstNameEl = document.getElementById('editFirstName');
-        const lastNameEl = document.getElementById('editLastName');
-        const bioEl = document.getElementById('editBio');
-        if (firstNameEl) firstNameEl.value = userData.first_name;
-        if (lastNameEl) lastNameEl.value = userData.last_name;
-        if (bioEl) bioEl.value = userData.bio || '';
-
-        const photoInput = document.getElementById('editProfilePhoto');
-        if (photoInput) photoInput.value = '';
-        const photoPreview = document.getElementById('editProfilePhotoPreview');
-        if (photoPreview) photoPreview.src = userData.profile_photo || '/static/default-avatar.png';
     }
     
     function previewProfilePhoto(input) {
