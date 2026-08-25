@@ -495,7 +495,7 @@ GUAN_CATEGORIES = [
 ]
 GUAN_CATEGORY_NAMES = [c["name"] for c in GUAN_CATEGORIES]
 GUAN_CATEGORY_HASHTAG_MAP = {c["name"]: c["hashtag"] for c in GUAN_CATEGORIES}
-DEFAULT_CATEGORIES = ["Sports", "Entertainment", "Nigeria"]
+DEFAULT_CATEGORIES = ["Sports", "Entertainment", "Jobs", "Nigeria"]
 
 def sanitize_categories(categories) -> List[str]:
     """Keeps only recognized category names, de-duplicated, in master-list
