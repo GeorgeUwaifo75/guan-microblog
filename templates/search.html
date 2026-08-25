@@ -373,10 +373,17 @@
         <a href="/dashboard" class="back-btn">← Back to Dashboard</a>
 
         <div class="search-header">
+            {% if category_name %}
+            <h2>📁 {{ category_name }}</h2>
+            <div class="search-query">
+                Recent posts tagged <strong>"{{ search_query }}"</strong>
+            </div>
+            {% else %}
             <h2>🔍 Search Results</h2>
             <div class="search-query">
                 Showing results for: <strong>"{{ search_query }}"</strong>
             </div>
+            {% endif %}
         </div>
 
         <div class="tabs">

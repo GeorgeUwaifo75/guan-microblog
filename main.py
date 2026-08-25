@@ -459,6 +459,64 @@ def verify_password(password: str, hashed: str) -> bool:
 def generate_token():
     return secrets.token_urlsafe(32)
 
+# ========== INTEREST CATEGORIES / "Subs" ==========
+# Master list of selectable interest categories, each paired with the exact
+# hashtag it maps to for the "Subs" strip and category-based post search.
+# Order here is the display order everywhere (signup, edit profile, strip).
+GUAN_CATEGORIES = [
+    {"name": "Sports", "hashtag": "sports"},
+    {"name": "Games", "hashtag": "games"},
+    {"name": "Football", "hashtag": "football"},
+    {"name": "MMA", "hashtag": "mma"},
+    {"name": "Entertainment", "hashtag": "entertainment"},
+    {"name": "Politics", "hashtag": "politics"},
+    {"name": "Dating", "hashtag": "dating"},
+    {"name": "Lifestyle", "hashtag": "lifestyle"},
+    {"name": "Travel", "hashtag": "travel"},
+    {"name": "Jobs", "hashtag": "jobs"},
+    {"name": "Buy and Sell", "hashtag": "buyandsell"},
+    {"name": "Exercise", "hashtag": "exercise"},
+    {"name": "Cryptocurrency", "hashtag": "cryptocurrency"},
+    {"name": "Artificial Intelligence", "hashtag": "AI"},
+    {"name": "Humanoid", "hashtag": "robotics"},
+    {"name": "FX", "hashtag": "fx"},
+    {"name": "Talo Coin", "hashtag": "TaC"},
+    {"name": "Investment", "hashtag": "investment"},
+    {"name": "Nutrition", "hashtag": "nutrition"},
+    {"name": "Herbal", "hashtag": "herbal"},
+    {"name": "Fashion", "hashtag": "fashion"},
+    {"name": "Technology", "hashtag": "technology"},
+    {"name": "Cosmos", "hashtag": "cosmos"},
+    {"name": "Culture", "hashtag": "culture"},
+    {"name": "Nigerian Languages", "hashtag": "wazobia"},
+    {"name": "Nigeria", "hashtag": "Nigeria"},
+    {"name": "Africa", "hashtag": "Africa"},
+    {"name": "World", "hashtag": "world"},
+]
+GUAN_CATEGORY_NAMES = [c["name"] for c in GUAN_CATEGORIES]
+GUAN_CATEGORY_HASHTAG_MAP = {c["name"]: c["hashtag"] for c in GUAN_CATEGORIES}
+DEFAULT_CATEGORIES = ["Sports", "Entertainment", "Nigeria"]
+
+def sanitize_categories(categories) -> List[str]:
+    """Keeps only recognized category names, de-duplicated, in master-list
+    order - regardless of what order/casing/junk the client sent."""
+    if not categories:
+        return []
+    requested = set(categories)
+    return [name for name in GUAN_CATEGORY_NAMES if name in requested]
+
+def ensure_user_categories(user: dict) -> bool:
+    """Backfills the default interest categories onto any account that
+    predates this feature (i.e. has no 'categories' key at all yet). Does
+    NOT touch accounts that already have the key, even if it's an empty
+    list - an empty list is a deliberate 'no categories' choice (which
+    hides the Subs strip for that user) and must be preserved. Returns True
+    if the user record was changed (so the caller knows to persist it)."""
+    if "categories" not in user:
+        user["categories"] = list(DEFAULT_CATEGORIES)
+        return True
+    return False
+
 # ========== WALLET / TaC (Talo Coin) SYSTEM ==========
 # Milestone thresholds (in TaC) that trigger a one-time congratulatory
 # celebration on the frontend the first time a user's balance reaches them.
@@ -599,6 +657,7 @@ class UserSignup(BaseModel):
     gender: str
     age: int
     country: str
+    categories: Optional[List[str]] = None
 
 class UserLogin(BaseModel):
     user_id: str
@@ -704,7 +763,7 @@ async def home(request: Request):
         except HTTPException:
             pass
     
-    return templates.TemplateResponse("index.html", {"request": request, "user": user})
+    return templates.TemplateResponse("index.html", {"request": request, "user": user, "all_categories": GUAN_CATEGORIES, "default_categories": DEFAULT_CATEGORIES})
 
 @app.get("/signup", response_class=HTMLResponse)
 async def signup_page(request: Request):
@@ -753,6 +812,7 @@ async def api_signup(user_data: UserSignup):
         "first_login_done": False,
         "wallet_balance": 0.0,
         "wallet_milestones": [],
+        "categories": sanitize_categories(user_data.categories) if user_data.categories is not None else list(DEFAULT_CATEGORIES),
         "created_at": datetime.now().isoformat(),
         "last_active": datetime.now().isoformat()
     }
@@ -897,6 +957,7 @@ async def dashboard(request: Request):
         return response
     
     user["last_active"] = datetime.now().isoformat()
+    ensure_user_categories(user)
     await save_jsonbin_data(data)
     
     followed_user_ids = set()
@@ -972,7 +1033,9 @@ async def dashboard(request: Request):
         "promoted_shown_count": promoted_shown_count,
         "promoted_total_count": promoted_total_count,
         "user_email": user.get("email", ""),
-        "vapid_public_key": VAPID_PUBLIC_KEY
+        "vapid_public_key": VAPID_PUBLIC_KEY,
+        "all_categories": GUAN_CATEGORIES,
+        "category_hashtag_map": GUAN_CATEGORY_HASHTAG_MAP
     })
 
 @app.get("/api/get_promoted_posts")
@@ -1031,7 +1094,7 @@ async def search_global(request: Request, q: str = ""):
     }
 
 @app.get("/search", response_class=HTMLResponse)
-async def search_page(request: Request, q: str = ""):
+async def search_page(request: Request, q: str = "", category: str = ""):
     session_token = request.cookies.get("session_token")
     if not session_token:
         return RedirectResponse(url="/", status_code=303)
@@ -1056,10 +1119,16 @@ async def search_page(request: Request, q: str = ""):
         search_results["total_posts"] = len(search_results["posts"])
         search_results["total_users"] = len(search_results["users"])
     
+    # Only trust `category` as a genuine category name from our own master
+    # list (it arrives as a raw query param), so it can't be used to inject
+    # arbitrary text into the page header.
+    category_name = category if category in GUAN_CATEGORY_NAMES else ""
+
     return templates.TemplateResponse("search.html", {
         "request": request,
         "user": user,
         "search_query": q,
+        "category_name": category_name,
         "results": search_results
     })
 
@@ -1713,6 +1782,16 @@ async def update_profile(request: Request):
         user["profile_photo"] = form["profile_photo_url"]
         if "profile_photo_path" in form:
             user["profile_photo_path"] = form["profile_photo_path"]
+    
+    # Update interest categories if provided (JSON-encoded list of names).
+    # An explicit empty list is honored as-is - the user may deliberately
+    # want zero categories, which hides the "Subs" strip on their account.
+    if "categories" in form:
+        try:
+            requested_categories = json.loads(form["categories"])
+        except (json.JSONDecodeError, TypeError):
+            requested_categories = []
+        user["categories"] = sanitize_categories(requested_categories)
     
     # Handle password change
     current_password = form.get("current_password")

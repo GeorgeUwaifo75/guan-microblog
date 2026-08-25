@@ -202,6 +202,88 @@
                 padding: 4px;
             }
         }
+
+        /* "Subs" category strip - a thin bar sitting flush between the
+           fixed header and the fixed search bar. Only rendered at all when
+           the user has at least one interest category selected. */
+        .subs-strip {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            right: 0;
+            height: 38px;
+            z-index: 99;
+            display: flex;
+            align-items: stretch;
+            background: #2b0d0d;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        }
+        .subs-label {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 14px;
+            background: #ffcc00;
+            color: #2b0d0d;
+            font-weight: bold;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+        }
+        .subs-scroll {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 0 10px;
+            scroll-behavior: smooth;
+            scrollbar-width: none;
+        }
+        .subs-scroll::-webkit-scrollbar {
+            display: none;
+        }
+        .subs-chip {
+            flex-shrink: 0;
+            background: #ffcc00;
+            color: #000000;
+            border: none;
+            border-radius: 14px;
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .subs-chip:active {
+            transform: scale(0.96);
+        }
+        @keyframes subsPulse {
+            0%, 100% { box-shadow: inset 0 0 0 0 rgba(255,204,0,0.6); }
+            50% { box-shadow: inset 0 0 0 3px rgba(255,204,0,0.15); }
+        }
+        .subs-strip.subs-pulsing .subs-scroll {
+            animation: subsPulse 2s ease-in-out infinite;
+        }
+
+        /* Push the search bar and content down by exactly the strip's
+           height, but only when the strip actually exists - otherwise
+           layout stays byte-for-byte identical to before this feature. */
+        body.has-subs-strip .search-bar-container {
+            top: 98px;
+        }
+        body.has-subs-strip .scrollable-content {
+            margin-top: 148px;
+        }
+        @media (max-width: 768px) {
+            body.has-subs-strip .search-bar-container {
+                top: 94px;
+            }
+            body.has-subs-strip .scrollable-content {
+                margin-top: 138px;
+            }
+        }
         
         .search-input-group {
             display: flex;
@@ -2140,7 +2222,7 @@
 
     </style>
 </head>
-<body>
+<body{% if user.categories %} class="has-subs-strip"{% endif %}>
 
     <!-- Pull to Refresh Indicator -->
     <div class="pull-to-refresh" id="pullToRefresh">
@@ -2183,7 +2265,18 @@
 </a>
         </div>
     </div>
-
+    {% if user.categories %}
+    <div class="subs-strip" id="subsStrip">
+        <div class="subs-label">Subs</div>
+        <div class="subs-scroll" id="subsScroll">
+            {% for cat_name in user.categories %}
+            {% if category_hashtag_map.get(cat_name) %}
+            <button type="button" class="subs-chip" data-category="{{ cat_name }}" data-hashtag="{{ category_hashtag_map[cat_name] }}" onclick="onSubsChipClick(this)">#{{ category_hashtag_map[cat_name] }}</button>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
     <!-- Fixed Search Bar - with hamburger menu button on left for mobile -->
     <div class="search-bar-container">
         <div class="search-wrapper">
@@ -2485,6 +2578,18 @@
                     <label>Bio</label>
                     <textarea id="editBio" rows="3" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;" placeholder="Tell us about yourself...">{{ user.bio or '' }}</textarea>
                 </div>
+                <div class="form-group">
+                    <label>Interests</label>
+                    <div id="editCategories" style="display:flex; flex-wrap:wrap; gap:8px; max-height:160px; overflow-y:auto; border:1px solid #ddd; border-radius:8px; padding:10px;">
+                        {% for cat in all_categories %}
+                        <label style="display:flex; align-items:center; gap:4px; font-weight:normal; font-size:13px; background:#f5f5f5; padding:4px 8px; border-radius:12px; cursor:pointer;">
+                            <input type="checkbox" class="edit-category-checkbox" value="{{ cat.name }}" {% if cat.name in (user.categories or []) %}checked{% endif %}>
+                            {{ cat.name }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                    <small style="color:#666; font-size:11px;">Selected interests appear as the "Subs" strip on your dashboard. Deselect all to hide it.</small>
+                </div>
 
 
 <!-- Password Change Section -->
@@ -2717,7 +2822,8 @@
         followers_count: {{ user.followers_count }},
         following_count: {{ user.following_count }},
         talos_count: {{ user.talos_count }},
-        wallet_balance: {{ (user.wallet_balance | default(0)) | tojson }}
+        wallet_balance: {{ (user.wallet_balance | default(0)) | tojson }},
+        categories: {{ (user.categories or []) | tojson }}
     };
 
     const MAX_CHARS = userData.is_premium ? 500 : 250;
@@ -3522,6 +3628,77 @@ startLiveTimestampUpdates();
         }
     }
 
+    // ========== "Subs" CATEGORY STRIP ==========
+    const SUBS_HASHTAG_STORAGE_KEY = 'guan_pending_hashtag';
+    const SUBS_CYCLE_MS = 60000;
+    let subsAutoTimer = null;
+    let subsAutoStopped = false;
+
+    function initSubsStrip() {
+        const stripEl = document.getElementById('subsStrip');
+        const scrollEl = document.getElementById('subsScroll');
+        if (!stripEl || !scrollEl) return; // not rendered - user picked no categories
+
+        // Only auto-scroll/pulse if the chip list actually overflows the
+        // visible width - otherwise there's nothing to scroll.
+        if (scrollEl.scrollWidth <= scrollEl.clientWidth + 4) return;
+
+        const stopAuto = () => {
+            subsAutoStopped = true;
+            if (subsAutoTimer) clearInterval(subsAutoTimer);
+            stripEl.classList.remove('subs-pulsing');
+        };
+        // Any manual touch/scroll/drag permanently hands control to the
+        // user for the rest of this page view, per spec.
+        ['touchstart', 'wheel', 'mousedown'].forEach(evt => {
+            scrollEl.addEventListener(evt, stopAuto, { passive: true, once: true });
+        });
+
+        const runCycle = () => {
+            if (subsAutoStopped) return;
+            // Restart the pulse animation cleanly for this cycle.
+            stripEl.classList.remove('subs-pulsing');
+            void stripEl.offsetWidth;
+            stripEl.classList.add('subs-pulsing');
+
+            // Glide left -> right across the chips, then settle back to
+            // the start a few seconds later, ready for the next cycle.
+            scrollEl.scrollTo({ left: scrollEl.scrollWidth - scrollEl.clientWidth, behavior: 'smooth' });
+            setTimeout(() => {
+                if (!subsAutoStopped) scrollEl.scrollTo({ left: 0, behavior: 'smooth' });
+            }, 4000);
+        };
+
+        runCycle();
+        subsAutoTimer = setInterval(runCycle, SUBS_CYCLE_MS);
+    }
+
+    // Tapping a category: remember its hashtag (for the compose-box
+    // auto-append below) and jump to the search results for that hashtag.
+    function onSubsChipClick(btn) {
+        const hashtag = btn.dataset.hashtag;
+        const categoryName = btn.dataset.category || '';
+        if (!hashtag) return;
+        sessionStorage.setItem(SUBS_HASHTAG_STORAGE_KEY, '#' + hashtag);
+        window.location.href = `/search?q=${encodeURIComponent('#' + hashtag)}&category=${encodeURIComponent(categoryName)}`;
+    }
+
+    // Called when the "create Talo" composer opens. If the user recently
+    // tapped a Subs category, pre-fill its hashtag into the composer (only
+    // if it's still empty, and only once).
+    function applyPendingSubsHashtag(composer) {
+        if (!composer) return;
+        const pending = sessionStorage.getItem(SUBS_HASHTAG_STORAGE_KEY);
+        if (!pending) return;
+        sessionStorage.removeItem(SUBS_HASHTAG_STORAGE_KEY);
+        if (!composer.value.trim()) {
+            composer.value = pending + ' ';
+            updateCharCounter();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', initSubsStrip);
+
     // Watches a composer textarea for the "@mytac" command. If the entire
     // (trimmed, case-insensitive) content is just "@mytac", intercepts it:
     // clears the box, shows the wallet balance, and never posts it as content.
@@ -3932,6 +4109,10 @@ async function checkForBannedWords(content) {
         if (photoInput) photoInput.value = '';
         const photoPreview = document.getElementById('editProfilePhotoPreview');
         if (photoPreview) photoPreview.src = userData.profile_photo || '/static/default-avatar.png';
+
+        document.querySelectorAll('.edit-category-checkbox').forEach(cb => {
+            cb.checked = (userData.categories || []).includes(cb.value);
+        });
     }
     
     function previewProfilePhoto(input) {
@@ -3997,6 +4178,9 @@ async function checkForBannedWords(content) {
         formData.append('first_name', document.getElementById('editFirstName').value);
         formData.append('last_name', document.getElementById('editLastName').value);
         formData.append('bio', document.getElementById('editBio').value);
+
+        const selectedCategories = Array.from(document.querySelectorAll('.edit-category-checkbox:checked')).map(cb => cb.value);
+        formData.append('categories', JSON.stringify(selectedCategories));
         
         try {
             const response = await fetch('/api/update_profile', { 
@@ -5063,7 +5247,9 @@ function toggleCreateTalo() {
         fabBtn.style.transform = 'rotate(45deg)';
         
         setTimeout(() => {
-            document.getElementById('taloContent').focus();
+            const composer = document.getElementById('taloContent');
+            applyPendingSubsHashtag(composer);
+            composer.focus();
         }, 300);
     } else {
         // Hide create section
