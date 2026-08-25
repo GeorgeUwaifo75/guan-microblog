@@ -224,8 +224,8 @@
             align-items: center;
             justify-content: center;
             padding: 0 14px;
-            background: #d3d3d3;
-            color: #ffffff;
+            background: #ffcc00;
+            color: #7a0000;
             font-weight: bold;
             font-size: 13px;
             letter-spacing: 0.5px;
@@ -2267,7 +2267,7 @@
     </div>
     {% if user.categories %}
     <div class="subs-strip" id="subsStrip">
-        <div class="subs-label">Subs:</div>
+        <div class="subs-label">Gist</div>
         <div class="subs-scroll" id="subsScroll">
             {% for cat_name in user.categories %}
             {% if category_hashtag_map.get(cat_name) %}
