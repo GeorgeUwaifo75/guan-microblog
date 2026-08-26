@@ -206,13 +206,14 @@
         /* "Subs" category strip - a thin bar sitting flush between the
            fixed header and the fixed search bar. Only rendered at all when
            the user has at least one interest category selected.
-           Dimensions/fonts sized at 90% of the original spec. */
+           Dimensions/fonts sized at ~85.5% of the original spec
+           (90% x a further 5% reduction). */
         .subs-strip {
             position: fixed;
             top: 60px;
             left: 0;
             right: 0;
-            height: 34.2px;
+            height: 32.49px;
             z-index: 99;
             display: flex;
             align-items: stretch;
@@ -224,21 +225,21 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 0 12.6px;
+            padding: 0 11.97px;
             background: linear-gradient(180deg, #ffe066 0%, #ffcc00 55%, #e6b800 100%);
             color: #7a0000;
             font-weight: bold;
-            font-size: 11.7px;
+            font-size: 11.12px;
             letter-spacing: 0.5px;
         }
         .subs-scroll {
             flex: 1;
             display: flex;
             align-items: center;
-            gap: 7.2px;
+            gap: 6.84px;
             overflow-x: auto;
             overflow-y: hidden;
-            padding: 0 9px;
+            padding: 0 8.55px;
             scroll-behavior: smooth;
             scrollbar-width: none;
         }
@@ -251,12 +252,20 @@
             box-shadow: 0 1px 2px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.45);
             color: #000000;
             border: none;
-            border-radius: 12.6px;
-            padding: 4.5px 10.8px;
-            font-size: 10.8px;
+            border-radius: 11.97px;
+            padding: 4.27px 10.26px;
+            font-size: 10.26px;
             font-weight: 600;
             cursor: pointer;
             white-space: nowrap;
+        }
+        /* Desktop-only: use a relative 1% padding on the hashtag chips
+           instead of the fixed px padding above. Mobile (<=768px) keeps
+           the px padding set on .subs-chip untouched. */
+        @media (min-width: 769px) {
+            .subs-chip {
+                padding: 1%;
+            }
         }
         .subs-chip:active {
             transform: scale(0.96);
@@ -273,17 +282,17 @@
            height, but only when the strip actually exists - otherwise
            layout stays byte-for-byte identical to before this feature. */
         body.has-subs-strip .search-bar-container {
-            top: 94.2px;
+            top: 92.49px;
         }
         body.has-subs-strip .scrollable-content {
-            margin-top: 144.2px;
+            margin-top: 142.49px;
         }
         @media (max-width: 768px) {
             body.has-subs-strip .search-bar-container {
-                top: 90.2px;
+                top: 88.49px;
             }
             body.has-subs-strip .scrollable-content {
-                margin-top: 134.2px;
+                margin-top: 132.49px;
             }
         }
         
