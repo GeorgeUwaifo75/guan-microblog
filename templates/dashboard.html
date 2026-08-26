@@ -312,6 +312,24 @@
                 opacity: 0;
                 pointer-events: none;
             }
+
+            /* .subs-strip/.search-bar-container are position:fixed, so
+               sliding them away via transform doesn't free up the space
+               .scrollable-content reserves for them - that reserved space
+               was showing through as a gap of exposed header-red
+               background between the header and the feed while hidden.
+               Collapse the content's top margin down to just the header's
+               own height while chrome is hidden, and smoothly transition
+               it, so the feed rises to sit flush under the header with no
+               gap; it eases back down to normal the moment chrome-hidden
+               is removed (which the JS clears immediately on scroll-up
+               or when re-approaching the top). */
+            .scrollable-content {
+                transition: margin-top 0.25s ease;
+            }
+            body.chrome-hidden .scrollable-content {
+                margin-top: 56px;
+            }
         }
         
         .search-input-group {
