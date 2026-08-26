@@ -3731,16 +3731,19 @@ startLiveTimestampUpdates();
     }
 
     // Called when the "create Talo" composer opens. If the user recently
-    // tapped a Subs category, pre-fill its hashtag into the composer (only
-    // if it's still empty, and only once).
+    // tapped a Subs category, pre-fill its hashtag on its own line, with
+    // an empty line above it for the post text, and put the cursor at the
+    // very start of that empty line so typing naturally goes above the
+    // hashtag. Only applies if the composer is still empty, and only once.
     function applyPendingSubsHashtag(composer) {
         if (!composer) return;
         const pending = sessionStorage.getItem(SUBS_HASHTAG_STORAGE_KEY);
         if (!pending) return;
         sessionStorage.removeItem(SUBS_HASHTAG_STORAGE_KEY);
         if (!composer.value.trim()) {
-            composer.value = pending + ' ';
+            composer.value = '\n' + pending + ' ';
             updateCharCounter();
+            composer.setSelectionRange(0, 0);
         }
     }
 
@@ -5364,6 +5367,17 @@ function toggleCreateTalo() {
         }
         
         fabBtn.style.transform = 'rotate(0deg)';
+
+        // Closing without posting wipes out any hashtag (and whatever else
+        // was typed) that got pre-filled from tapping a Subs category, so
+        // reopening starts from a clean slate - unless the user taps
+        // another category first, which stages a fresh hashtag for the
+        // next time the composer opens.
+        const composer = document.getElementById('taloContent');
+        if (composer) {
+            composer.value = '';
+            updateCharCounter();
+        }
     }
 }
 
