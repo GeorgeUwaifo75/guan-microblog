@@ -286,6 +286,14 @@
             body.has-subs-strip .scrollable-content {
                 margin-top: 132.49px;
             }
+            /* The mobile header is ~56px tall (vs. 60px on desktop), but
+               .subs-strip above still defaults to top:60px with no mobile
+               override. That mismatch left a 4px strip of exposed white
+               space between the header and the strip on mobile. Anchor it
+               to the actual mobile header height instead. */
+            .subs-strip {
+                top: 56px;
+            }
         }
         
         .search-input-group {
