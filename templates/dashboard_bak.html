@@ -205,14 +205,13 @@
 
         /* "Subs" category strip - a thin bar sitting flush between the
            fixed header and the fixed search bar. Only rendered at all when
-           the user has at least one interest category selected.
-           Dimensions/fonts sized at 90% of the original spec. */
+           the user has at least one interest category selected. */
         .subs-strip {
             position: fixed;
             top: 60px;
             left: 0;
             right: 0;
-            height: 34.2px;
+            height: 38px;
             z-index: 99;
             display: flex;
             align-items: stretch;
@@ -224,21 +223,21 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 0 12.6px;
-            background: linear-gradient(180deg, #ffe066 0%, #ffcc00 55%, #e6b800 100%);
+            padding: 0 14px;
+            background: #ffcc00;
             color: #7a0000;
             font-weight: bold;
-            font-size: 11.7px;
+            font-size: 13px;
             letter-spacing: 0.5px;
         }
         .subs-scroll {
             flex: 1;
             display: flex;
             align-items: center;
-            gap: 7.2px;
+            gap: 8px;
             overflow-x: auto;
             overflow-y: hidden;
-            padding: 0 9px;
+            padding: 0 10px;
             scroll-behavior: smooth;
             scrollbar-width: none;
         }
@@ -247,13 +246,12 @@
         }
         .subs-chip {
             flex-shrink: 0;
-            background: linear-gradient(180deg, #ffe066 0%, #ffcc00 55%, #e0af00 100%);
-            box-shadow: 0 1px 2px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.45);
+            background: #ffcc00;
             color: #000000;
             border: none;
-            border-radius: 12.6px;
-            padding: 4.5px 10.8px;
-            font-size: 10.8px;
+            border-radius: 14px;
+            padding: 5px 12px;
+            font-size: 12px;
             font-weight: 600;
             cursor: pointer;
             white-space: nowrap;
@@ -273,17 +271,17 @@
            height, but only when the strip actually exists - otherwise
            layout stays byte-for-byte identical to before this feature. */
         body.has-subs-strip .search-bar-container {
-            top: 94.2px;
+            top: 98px;
         }
         body.has-subs-strip .scrollable-content {
-            margin-top: 144.2px;
+            margin-top: 148px;
         }
         @media (max-width: 768px) {
             body.has-subs-strip .search-bar-container {
-                top: 90.2px;
+                top: 94px;
             }
             body.has-subs-strip .scrollable-content {
-                margin-top: 134.2px;
+                margin-top: 138px;
             }
         }
         
