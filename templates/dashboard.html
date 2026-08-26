@@ -294,6 +294,24 @@
             .subs-strip {
                 top: 56px;
             }
+
+            /* Scroll-hide chrome (mobile only): the Subs strip (when
+               present) and the search bar + hamburger menu smoothly slide
+               up and fade out while the user scrolls the feed down, and
+               slide back in when they scroll up. The header itself is
+               untouched and always stays visible. Purely reactive to
+               actual scroll direction - while idle (not scrolling), these
+               stay exactly as they were, no automatic timers involved. */
+            .subs-strip,
+            .search-bar-container {
+                transition: transform 0.25s ease, opacity 0.25s ease;
+            }
+            body.chrome-hidden .subs-strip,
+            body.chrome-hidden .search-bar-container {
+                transform: translateY(-100%);
+                opacity: 0;
+                pointer-events: none;
+            }
         }
         
         .search-input-group {
@@ -3709,6 +3727,58 @@ startLiveTimestampUpdates();
     }
 
     document.addEventListener('DOMContentLoaded', initSubsStrip);
+
+    // ========== MOBILE SCROLL-HIDE FOR SUBS STRIP + SEARCH BAR ==========
+    // Hides the Subs strip (if present) and the search bar/hamburger menu
+    // while scrolling down the feed, reveals them again on scrolling up.
+    // Mobile only (desktop layout is untouched by the .chrome-hidden CSS).
+    // While idle - not actively scrolling - nothing changes; this only
+    // reacts to real scroll movement, no timers.
+    function initMobileChromeScrollHide() {
+        const scrollContainer = document.getElementById('scrollableContent');
+        if (!scrollContainer) return;
+
+        const isMobileViewport = () => window.innerWidth <= 768;
+        const SCROLL_DELTA_THRESHOLD = 6; // ignore tiny/jitter movements
+
+        let lastScrollTop = scrollContainer.scrollTop;
+        let chromeHidden = false;
+
+        function setChromeHidden(shouldHide) {
+            if (shouldHide === chromeHidden) return;
+            chromeHidden = shouldHide;
+            document.body.classList.toggle('chrome-hidden', shouldHide);
+        }
+
+        scrollContainer.addEventListener('scroll', () => {
+            const currentScrollTop = scrollContainer.scrollTop;
+
+            if (!isMobileViewport()) {
+                setChromeHidden(false);
+                lastScrollTop = currentScrollTop;
+                return;
+            }
+
+            const delta = currentScrollTop - lastScrollTop;
+
+            // Always stay visible near the very top of the feed.
+            if (currentScrollTop <= 10) {
+                setChromeHidden(false);
+            } else if (delta > SCROLL_DELTA_THRESHOLD) {
+                setChromeHidden(true);   // scrolling down -> hide
+            } else if (delta < -SCROLL_DELTA_THRESHOLD) {
+                setChromeHidden(false);  // scrolling up -> show
+            }
+
+            lastScrollTop = currentScrollTop;
+        }, { passive: true });
+
+        window.addEventListener('resize', () => {
+            if (!isMobileViewport()) setChromeHidden(false);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', initMobileChromeScrollHide);
 
     // Watches a composer textarea for the "@mytac" command. If the entire
     // (trimmed, case-insensitive) content is just "@mytac", intercepts it:

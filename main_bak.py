@@ -495,6 +495,7 @@ GUAN_CATEGORIES = [
 ]
 GUAN_CATEGORY_NAMES = [c["name"] for c in GUAN_CATEGORIES]
 GUAN_CATEGORY_HASHTAG_MAP = {c["name"]: c["hashtag"] for c in GUAN_CATEGORIES}
+DEFAULT_CATEGORIES = ["Sports", "Entertainment", "Jobs", "Nigeria"]
 
 def sanitize_categories(categories) -> List[str]:
     """Keeps only recognized category names, de-duplicated, in master-list
@@ -505,30 +506,16 @@ def sanitize_categories(categories) -> List[str]:
     return [name for name in GUAN_CATEGORY_NAMES if name in requested]
 
 def ensure_user_categories(user: dict) -> bool:
-    """Guarantees a user record has a 'categories' key at all (some very
-    old accounts predate the field's existence entirely). New/blank
-    accounts start with NO categories - the user picks their own from
-    scratch, nothing is auto-selected for them. Returns True if the user
-    record was changed (so the caller knows to persist it)."""
+    """Backfills the default interest categories onto any account that
+    predates this feature (i.e. has no 'categories' key at all yet). Does
+    NOT touch accounts that already have the key, even if it's an empty
+    list - an empty list is a deliberate 'no categories' choice (which
+    hides the Subs strip for that user) and must be preserved. Returns True
+    if the user record was changed (so the caller knows to persist it)."""
     if "categories" not in user:
-        user["categories"] = []
+        user["categories"] = list(DEFAULT_CATEGORIES)
         return True
     return False
-
-def run_one_time_category_reset(data: dict) -> bool:
-    """One-time migration: clears every existing user's interest categories
-    back to empty, so every account - old and new alike - starts from a
-    blank slate and picks its own categories rather than inheriting
-    whatever the (now-removed) auto-default used to assign. Guarded by a
-    flag persisted in the data blob so this only ever runs once, the first
-    time any request touches the data after this code ships. Returns True
-    if it just ran (i.e. the caller should persist the change)."""
-    if data.get("categories_reset_v1_applied"):
-        return False
-    for u in data.get("users", []):
-        u["categories"] = []
-    data["categories_reset_v1_applied"] = True
-    return True
 
 # ========== WALLET / TaC (Talo Coin) SYSTEM ==========
 # Milestone thresholds (in TaC) that trigger a one-time congratulatory
@@ -776,7 +763,7 @@ async def home(request: Request):
         except HTTPException:
             pass
     
-    return templates.TemplateResponse("index.html", {"request": request, "user": user, "all_categories": GUAN_CATEGORIES, "default_categories": []})
+    return templates.TemplateResponse("index.html", {"request": request, "user": user, "all_categories": GUAN_CATEGORIES, "default_categories": DEFAULT_CATEGORIES})
 
 @app.get("/signup", response_class=HTMLResponse)
 async def signup_page(request: Request):
@@ -825,7 +812,7 @@ async def api_signup(user_data: UserSignup):
         "first_login_done": False,
         "wallet_balance": 0.0,
         "wallet_milestones": [],
-        "categories": sanitize_categories(user_data.categories) if user_data.categories is not None else [],
+        "categories": sanitize_categories(user_data.categories) if user_data.categories is not None else list(DEFAULT_CATEGORIES),
         "created_at": datetime.now().isoformat(),
         "last_active": datetime.now().isoformat()
     }
@@ -971,7 +958,6 @@ async def dashboard(request: Request):
     
     user["last_active"] = datetime.now().isoformat()
     ensure_user_categories(user)
-    run_one_time_category_reset(data)
     await save_jsonbin_data(data)
     
     followed_user_ids = set()
