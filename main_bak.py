@@ -64,65 +64,6 @@ def filter_banned_words(text: str) -> str:
         return '*' * len(match.group(0))
     return BANNED_PATTERN.sub(replace_word, text)
 
-# ===== @MENTIONS =====
-MENTION_PATTERN = re.compile(r'@(\w+)')
-
-def extract_mentioned_user_ids(content: str, all_users: list, exclude_user_id: str = None) -> list:
-    """Finds @username mentions in post/reply content and returns the
-    matching, actually-existing account user_ids (case-insensitive),
-    de-duplicated, excluding the author's own account since mentioning
-    yourself doesn't need a notification."""
-    if not content:
-        return []
-    mentioned_handles = {m.group(1).lower() for m in MENTION_PATTERN.finditer(content)}
-    if not mentioned_handles:
-        return []
-    matched = []
-    seen = set()
-    for u in all_users:
-        uid = u.get("user_id", "")
-        if uid and uid.lower() in mentioned_handles and uid != exclude_user_id and uid not in seen:
-            matched.append(uid)
-            seen.add(uid)
-    return matched
-
-async def notify_mentioned_users(data: dict, content: str, from_user: dict, related_talo_id: str = None, reply_id: str = None):
-    """Creates a 'mention' notification (and a best-effort push notification)
-    for every existing account @mentioned in a new talo or reply."""
-    mentioned_ids = extract_mentioned_user_ids(content, data.get("users", []), exclude_user_id=from_user["user_id"])
-    if not mentioned_ids:
-        return
-
-    if "notifications" not in data:
-        data["notifications"] = []
-
-    excerpt = content[:50] + ("..." if len(content) > 50 else "")
-    for mentioned_id in mentioned_ids:
-        notification = {
-            "id": str(uuid.uuid4()),
-            "user_id": mentioned_id,
-            "type": "mention",
-            "message": f"@{from_user['user_id']} mentioned you: {excerpt}",
-            "related_talo_id": related_talo_id,
-            "from_user_id": from_user["user_id"],
-            "read": False,
-            "created_at": datetime.now().isoformat()
-        }
-        if reply_id:
-            notification["reply_id"] = reply_id
-        data["notifications"].append(notification)
-
-        try:
-            await send_push_notification(
-                mentioned_id,
-                f"@{from_user['user_id']} mentioned you",
-                excerpt,
-                icon=from_user.get("profile_photo"),
-                data={"url": f"/post/{related_talo_id}" if related_talo_id else "/dashboard"}
-            )
-        except Exception:
-            pass
-
 # ===== PROMOTION SYSTEM =====
 class PromotionRequest(BaseModel):
     talo_id: str
@@ -1404,9 +1345,6 @@ async def create_talo(request: Request):
             "created_at": datetime.now().isoformat()
         }
         data["notifications"].append(notification)
-    
-    # Notify any existing accounts @mentioned in this talo.
-    await notify_mentioned_users(data, content, user, related_talo_id=talo["id"])
     
     await save_jsonbin_data(data)
     
@@ -3362,9 +3300,6 @@ async def create_reply(request: Request, parent_talo_id: str):
                 "created_at": datetime.now().isoformat()
             }
             data["notifications"].append(notification)
-    
-    # Notify any existing accounts @mentioned in this reply.
-    await notify_mentioned_users(data, content, user, related_talo_id=parent_talo_id, reply_id=reply["id"])
     
     await save_jsonbin_data(data)
     # Example for like_talo (inside the else block after adding like)

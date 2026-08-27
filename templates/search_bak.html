@@ -222,197 +222,20 @@
         }
         
         .talo-photos {
-            display: grid;
+            display: flex;
             gap: 8px;
+            flex-wrap: wrap;
             margin: 10px 0;
-            width: 100%;
-        }
-
-        /* 1 photo - full width, scales to fit container */
-        .talo-photos.photo-count-1 {
-            grid-template-columns: 1fr;
-            max-width: 100%;
-        }
-        .talo-photos.photo-count-1 .photo-item {
-            max-width: 100%;
-            margin: 0 auto;
-            height: auto;
-            aspect-ratio: auto;
-        }
-        .talo-photos.photo-count-1 .photo-item img {
-            width: 100%;
-            height: auto;
-            max-height: 600px;
-            object-fit: contain;
-            border-radius: 12px;
-        }
-
-        /* 2 photos - side by side, responsive */
-        .talo-photos.photo-count-2 {
-            grid-template-columns: 1fr 1fr;
-            max-width: 100%;
-        }
-        .talo-photos.photo-count-2 .photo-item {
-            max-width: 100%;
-            height: auto;
-            aspect-ratio: auto;
-        }
-        .talo-photos.photo-count-2 .photo-item img {
-            width: 100%;
-            height: auto;
-            max-height: 350px;
-            object-fit: cover;
-            border-radius: 12px;
-        }
-
-        /* 3 photos - first takes full width, next two side by side */
-        .talo-photos.photo-count-3 {
-            grid-template-columns: 1fr 1fr;
-            grid-template-areas:
-                "main main"
-                "sub1 sub2";
-            max-width: 100%;
-        }
-        .talo-photos.photo-count-3 .photo-item:first-child {
-            grid-area: main;
-            max-width: 100%;
-            height: auto;
-            aspect-ratio: auto;
-        }
-        .talo-photos.photo-count-3 .photo-item:first-child img {
-            width: 100%;
-            height: auto;
-            max-height: 450px;
-            object-fit: cover;
-            border-radius: 12px;
-        }
-        .talo-photos.photo-count-3 .photo-item:nth-child(2),
-        .talo-photos.photo-count-3 .photo-item:nth-child(3) {
-            max-width: 100%;
-            height: auto;
-            aspect-ratio: auto;
-        }
-        .talo-photos.photo-count-3 .photo-item:nth-child(2) img,
-        .talo-photos.photo-count-3 .photo-item:nth-child(3) img {
-            width: 100%;
-            height: auto;
-            max-height: 280px;
-            object-fit: cover;
-            border-radius: 12px;
-        }
-
-        /* 4 photos - 2x2 grid */
-        .talo-photos.photo-count-4 {
-            grid-template-columns: 1fr 1fr;
-            max-width: 100%;
-        }
-        .talo-photos.photo-count-4 .photo-item {
-            max-width: 100%;
-            height: auto;
-            aspect-ratio: auto;
-        }
-        .talo-photos.photo-count-4 .photo-item img {
-            width: 100%;
-            height: auto;
-            max-height: 280px;
-            object-fit: cover;
-            border-radius: 12px;
-        }
-
-        .photo-item {
-            position: relative;
-            overflow: hidden;
-            border-radius: 12px;
-            background: #f0f0f0;
-            cursor: pointer;
-            width: 100%;
-            height: auto;
-        }
-        .photo-item img {
-            width: 100%;
-            height: auto;
-            display: block;
-            transition: transform 0.3s ease;
-        }
-        .photo-item:hover img {
-            transform: scale(1.02);
-        }
-
-        .talo-photos .photo-item video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 12px;
-        }
-
-        /* Overlay for additional photos indicator */
-        .photo-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.6);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
-            z-index: 2;
-            border-radius: 12px;
-        }
-
-        /* Photo viewer modal (tap to enlarge) */
-        .photo-viewer-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            z-index: 1000;
-            display: none;
-            justify-content: center;
-            align-items: center;
-        }
-        .photo-viewer-overlay.active {
-            display: flex;
         }
         
-        @media (max-width: 768px) {
-            .container {
-                padding: 0 12px;
-            }
-
-            .talo-photos {
-                gap: 4px;
-            }
-            .talo-photos.photo-count-1 .photo-item img {
-                max-height: 400px;
-            }
-            .talo-photos.photo-count-2 .photo-item img {
-                max-height: 200px;
-            }
-            .talo-photos.photo-count-3 .photo-item:first-child img {
-                max-height: 280px;
-            }
-            .talo-photos.photo-count-3 .photo-item:nth-child(2) img,
-            .talo-photos.photo-count-3 .photo-item:nth-child(3) img {
-                max-height: 180px;
-            }
-            .talo-photos.photo-count-4 .photo-item img {
-                max-height: 180px;
-            }
-            .photo-item video {
-                max-height: 350px;
-            }
+        .talo-photos img {
+            width: calc(25% - 6px);
+            max-width: 120px;
+            border-radius: 8px;
+            cursor: pointer;
+            object-fit: cover;
         }
-
-.stat-btn.view-count {
-    cursor: default;
-}
-
+        
         .talo-stats {
             display: flex;
             gap: 20px;
@@ -514,121 +337,23 @@
         .footer p {
             margin: 0;
         }
-
-        /* ===== Talo creation (same rules as the main timeline's hexagon
-           FAB + composer, so creating a post works the same way here) ===== */
-        .fab-container {
-            position: fixed;
-            bottom: 65px;
-            right: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            z-index: 200;
-        }
-        .new-post-btn {
-            width: 54px;
-            height: 54px;
-            background: #cc0000;
-            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            transition: transform 0.2s, background 0.3s;
-            border: none;
-        }
-        @media (hover: hover) and (pointer: fine) {
-            .new-post-btn:hover {
-                transform: scale(1.05);
-            }
-        }
-        .new-post-btn span {
-            font-size: 28px;
-            color: white;
-            font-weight: bold;
-            transition: transform 0.3s;
-            line-height: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            height: 100%;
-        }
+        
         @media (max-width: 768px) {
-            .fab-container {
-                bottom: 55px;
-                right: 15px;
+            .container {
+                padding: 0 12px;
             }
-            .new-post-btn {
-                width: 50px;
-                height: 50px;
-            }
-            .new-post-btn span {
-                font-size: 24px;
+            
+            .talo-photos img {
+                width: calc(50% - 4px) !important;
             }
         }
-        .create-talo {
-            display: none;
-            margin: 0 0 15px 0;
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        .create-talo textarea {
-            width: 100%;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 12px;
-            font-size: 16px;
-            resize: none;
-            font-family: inherit;
-        }
-        .create-talo textarea:focus {
-            outline: none;
-            border-color: #cc0000;
-            box-shadow: 0 0 0 3px rgba(204, 0, 0, 0.1);
-        }
-        .char-counter {
-            text-align: right;
-            font-size: 12px;
-            margin-top: 5px;
-            margin-bottom: 10px;
-            color: #666;
-        }
-        .char-counter.warning {
-            color: #ffcc00;
-        }
-        .char-counter.exceed {
-            color: #dc3545;
-            font-weight: bold;
-        }
-        .talo-actions {
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-            margin-top: 10px;
-        }
-        .btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 20px;
-            cursor: pointer;
-        }
-        .btn-primary {
-            background: #cc0000;
-            color: white;
-        }
-        .btn-primary:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
+
+.stat-btn.view-count {
+    cursor: default;
+}
     </style>
 </head>
 <body>
-
 
     <div class="header">
         <div class="logo-area">
@@ -661,15 +386,6 @@
             {% endif %}
         </div>
 
-        <!-- Talo composer - opened via the hexagon FAB below -->
-        <div class="create-talo" id="createTaloSection">
-            <textarea id="taloContent" rows="3" placeholder="What's happening? (max {{ 500 if user.is_premium else 250 }} characters)" maxlength="{{ 500 if user.is_premium else 250 }}"></textarea>
-            <div class="char-counter" id="charCounter">{{ 500 if user.is_premium else 250 }} characters remaining</div>
-            <div class="talo-actions">
-                <button type="button" id="submitTaloBtn" class="btn btn-primary" onclick="createTaloFromSearch()">Talo →</button>
-            </div>
-        </div>
-
         <div class="tabs">
             <button class="tab-btn active" onclick="showTab('posts')">📝 Posts ({{ results.total_posts }})</button>
             <button class="tab-btn" onclick="showTab('users')">👥 Users ({{ results.total_users }})</button>
@@ -696,23 +412,9 @@
                         </div>
                         <div class="talo-content" id="postContent_{{ post.id }}">{{ post.content }}</div>
                         {% if post.photos and post.photos|length > 0 %}
-                        <div class="talo-photos photo-count-{{ post.photos|length }}">
-                            {% for media in post.photos %}
-                                {% if media.type == 'video' %}
-                                <div class="photo-item" style="cursor:default;" onclick="event.stopPropagation();">
-                                    <video controls style="width:100%; height:100%; object-fit:cover; border-radius:12px;">
-                                        <source src="{{ media.url }}" type="video/mp4">
-                                        Your browser does not support the video tag.
-                                    </video>
-                                </div>
-                                {% else %}
-                                <div class="photo-item" onclick="event.stopPropagation(); viewPhoto('{{ media.url }}')">
-                                    <img src="{{ media.url }}" alt="Photo">
-                                    {% if loop.index == 4 and post.photos|length > 4 %}
-                                    <div class="photo-overlay">+{{ post.photos|length - 4 }}</div>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
+                        <div class="talo-photos">
+                            {% for photo in post.photos[:3] %}
+                                <img src="{{ photo.url }}" alt="Photo">
                             {% endfor %}
                         </div>
                         {% endif %}
@@ -778,135 +480,6 @@
     <div class="footer">
         <p>&copy; 2026 GuAn Microblogging Platform. All rights reserved.</p>
     </div>
-
-    <!-- Photo Viewer (tap to enlarge) -->
-    <div id="photoViewerOverlay" class="photo-viewer-overlay" onclick="closePhotoViewer()">
-        <img id="viewerImage" src="" alt="Full size image" style="max-width: 90%; max-height: 80vh; border-radius: 10px; object-fit: contain;" onclick="event.stopPropagation()">
-        <button onclick="closePhotoViewer()" style="position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 20px; cursor: pointer;">✖</button>
-    </div>
-
-    <!-- Talo creation FAB - same hexagon button as the main timeline -->
-    <div class="fab-container" id="fabContainer">
-        <div class="new-post-btn" id="newPostBtn" onclick="toggleCreateTaloFromSearch()">
-            <span id="newPostBtnIcon">+</span>
-        </div>
-    </div>
-
-    <script>
-        function viewPhoto(url) {
-            document.getElementById('viewerImage').src = url;
-            document.getElementById('photoViewerOverlay').classList.add('active');
-        }
-        function closePhotoViewer() {
-            document.getElementById('photoViewerOverlay').classList.remove('active');
-        }
-
-        // ===== Talo creation from the category/search results page =====
-        const SEARCH_PAGE_MAX_CHARS = {{ 500 if user.is_premium else 250 }};
-        const SUBS_HASHTAG_STORAGE_KEY = 'guan_pending_hashtag';
-
-        function updateCharCounterSearch() {
-            const textarea = document.getElementById('taloContent');
-            const counter = document.getElementById('charCounter');
-            const remaining = SEARCH_PAGE_MAX_CHARS - textarea.value.length;
-            counter.textContent = `${remaining} characters remaining`;
-            counter.classList.toggle('warning', remaining <= 30 && remaining >= 0);
-            counter.classList.toggle('exceed', remaining < 0);
-        }
-
-        // Same pre-fill behavior as the main timeline's composer: if the
-        // user got here by tapping a Subs/category hashtag, stage that
-        // hashtag on its own line with the cursor above it.
-        function applyPendingHashtagOnSearchPage() {
-            const pending = sessionStorage.getItem(SUBS_HASHTAG_STORAGE_KEY);
-            const textarea = document.getElementById('taloContent');
-            if (!pending || !textarea) return;
-            sessionStorage.removeItem(SUBS_HASHTAG_STORAGE_KEY);
-            if (!textarea.value.trim()) {
-                textarea.value = '\n' + pending + ' ';
-                updateCharCounterSearch();
-                textarea.setSelectionRange(0, 0);
-            }
-        }
-
-        function toggleCreateTaloFromSearch() {
-            const section = document.getElementById('createTaloSection');
-            const icon = document.getElementById('newPostBtnIcon');
-            const isOpen = section.style.display === 'block';
-
-            if (!isOpen) {
-                section.style.display = 'block';
-                icon.style.transform = 'rotate(45deg)';
-                setTimeout(() => {
-                    const textarea = document.getElementById('taloContent');
-                    applyPendingHashtagOnSearchPage();
-                    textarea.focus();
-                }, 100);
-            } else {
-                section.style.display = 'none';
-                icon.style.transform = 'rotate(0deg)';
-                // Closing without posting wipes any pre-filled hashtag (and
-                // whatever else was typed), same as the main timeline -
-                // reopening starts clean unless another category is tapped.
-                const textarea = document.getElementById('taloContent');
-                textarea.value = '';
-                updateCharCounterSearch();
-            }
-        }
-
-        async function createTaloFromSearch() {
-            const textarea = document.getElementById('taloContent');
-            const content = textarea.value;
-            if (!content.trim()) { alert('Please enter some content'); return; }
-            if (content.length > SEARCH_PAGE_MAX_CHARS) {
-                alert(`Content cannot exceed ${SEARCH_PAGE_MAX_CHARS} characters`);
-                return;
-            }
-
-            const submitBtn = document.getElementById('submitTaloBtn');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Posting...';
-
-            try {
-                const bannedCheckResponse = await fetch('/api/check_banned_words', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ content: content })
-                });
-                const bannedCheck = await bannedCheckResponse.json().catch(() => ({}));
-                if (bannedCheck && bannedCheck.contains_banned) {
-                    alert('Your post contains inappropriate language. Please review and try again.');
-                    return;
-                }
-
-                const response = await fetch('/api/create_talo', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ content: content, photos: [] })
-                });
-
-                if (response.ok) {
-                    textarea.value = '';
-                    updateCharCounterSearch();
-                    location.reload();
-                } else {
-                    const error = await response.json().catch(() => ({}));
-                    alert('Failed to create post: ' + (error.detail || 'Unknown error'));
-                }
-            } catch (error) {
-                console.error('Error creating post:', error);
-                alert('Failed to create post. Please try again.');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Talo →';
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const textarea = document.getElementById('taloContent');
-            if (textarea) textarea.addEventListener('input', updateCharCounterSearch);
-        });
-    </script>
 
     <script>
         function showTab(tabName) {

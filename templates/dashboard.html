@@ -217,7 +217,7 @@
             z-index: 99;
             display: flex;
             align-items: stretch;
-            background: rgba(43, 13, 13, 0.8);  /* Changed from #2b0d0d to 80% opacity */
+            background: rgba(43, 13, 13, 0.8);
             box-shadow: 0 2px 4px rgba(0,0,0,0.15);
         }
         .subs-label {
@@ -4578,6 +4578,10 @@ async function loadNotifications() {
                         displayIcon = '🪙';
                         displayText = (typeof notif.amount === 'number') ? `Sent you ${formatTac(notif.amount)} TaC` : (notif.message || 'Sent you TaC');
                         break;
+                    case 'mention':
+                        displayIcon = '📣';
+                        displayText = 'Mentioned you';
+                        break;
                     default:
                         displayIcon = '📢';
                         displayText = notif.message || 'New notification';
@@ -4642,6 +4646,10 @@ window.viewAndMarkNotification = async function(notificationId, type, relatedTal
                 window.location.href = `/post/${relatedTaloId}`;
             }
         } else if (type === 'like' || type === 'retalo') {
+            if (relatedTaloId) {
+                window.location.href = `/post/${relatedTaloId}`;
+            }
+        } else if (type === 'mention') {
             if (relatedTaloId) {
                 window.location.href = `/post/${relatedTaloId}`;
             }
@@ -5835,7 +5843,7 @@ document.getElementById('taloContent').placeholder =
         // Also try to clean up old subscriptions on page load (already handled by registration)
     })();
 
-// Universal function to navigate to the post page, unless clicking on interactive elements.subs-strip
+// Universal function to navigate to the post page, unless clicking on interactive elements
 function viewPost(taloId, event) {
     // If the click target is an interactive element, do nothing
     const interactive = event.target.closest('button, a, .stat-btn, .photo-item, .post-actions-btn, .reply-btn, .like-btn, .dislike-btn, .retalo-btn, .share-btn');
