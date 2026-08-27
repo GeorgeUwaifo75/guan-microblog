@@ -625,6 +625,44 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+
+
+/* New Logout Icon Style */
+.logout-icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: white;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+}
+
+.logout-icon-btn:hover {
+    transform: scale(1.1);
+}
+
+.logout-icon-btn svg {
+    width: 28px;
+    height: 28px;
+    stroke: yellow;
+    stroke-width: 2.5;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Mobile adjustment */
+@media (max-width: 768px) {
+    .logout-icon-btn svg {
+        width: 24px;
+        height: 24px;
+    }
+}
+
+
     </style>
 </head>
 <body>
