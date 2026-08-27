@@ -351,6 +351,52 @@
 .stat-btn.view-count {
     cursor: default;
 }
+
+/* Floating Action Buttons */
+.fab-container {
+    position: fixed;
+    bottom: 65px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 200;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.fab-container.hidden {
+    opacity: 0;
+    transform: translateX(20px);
+    pointer-events: none;
+}
+
+.new-post-btn {
+    width: 54px;
+    height: 54px;
+    background: #cc0000;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    transition: transform 0.2s, background 0.3s;
+    border: none;
+    position: relative;
+}
+
+.new-post-btn span {
+    font-size: 28px;
+    color: white;
+    font-weight: bold;
+    transition: transform 0.3s;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
     </style>
 </head>
 <body>
@@ -386,6 +432,30 @@
             {% endif %}
         </div>
 
+
+<!-- Create Talo Section - hidden by default -->
+<div class="create-talo" id="createTaloSection" style="display: none;">
+    <form id="createTaloForm" enctype="multipart/form-data">
+        <textarea name="content" id="taloContent" rows="3" placeholder="What's happening? (max 250 characters)" maxlength="250"></textarea>
+        <div class="char-counter" id="charCounter">250 characters remaining</div>
+        <div id="photoPreview" class="photo-preview"></div>
+        <div class="talo-actions">
+            <div class="photo-buttons">
+                <button type="button" class="photo-btn" onclick="selectMedia()">📷 Add Photo/Video</button>
+                <span id="mediaCount" style="font-size:12px; color:#666; margin-left:8px;">0 files selected</span>
+            </div>
+            <button type="button" id="submitTaloBtn" class="btn btn-primary" onclick="createTaloWithFirebase()">Talo →</button>
+        </div>
+    </form>
+    <div id="uploadProgress" style="display: none; margin-top: 10px;">
+        <div style="background: #f0f0f0; border-radius: 10px; overflow: hidden;">
+            <div id="progressBar" style="width: 0%; height: 4px; background: #cc0000; transition: width 0.3s;"></div>
+        </div>
+        <p id="progressText" style="font-size: 12px; color: #666; margin-top: 5px;">Uploading...</p>
+    </div>
+</div>
+
+
         <div class="tabs">
             <button class="tab-btn active" onclick="showTab('posts')">📝 Posts ({{ results.total_posts }})</button>
             <button class="tab-btn" onclick="showTab('users')">👥 Users ({{ results.total_users }})</button>
@@ -412,9 +482,23 @@
                         </div>
                         <div class="talo-content" id="postContent_{{ post.id }}">{{ post.content }}</div>
                         {% if post.photos and post.photos|length > 0 %}
-                        <div class="talo-photos">
-                            {% for photo in post.photos[:3] %}
-                                <img src="{{ photo.url }}" alt="Photo">
+                        <div class="talo-photos photo-count-{{ post.photos|length }}">
+                            {% for media in post.photos %}
+                                {% if media.type == 'video' %}
+                                    <div class="photo-item" style="cursor:default;">
+                                        <video controls style="width:100%; height:100%; object-fit:cover; border-radius:12px;">
+                                            <source src="{{ media.url }}" type="video/mp4">
+                                            Your browser does not support the video tag.
+                                        </video>
+                                    </div>
+                                {% else %}
+                                    <div class="photo-item" onclick="event.stopPropagation(); viewPhoto('{{ media.url }}')">
+                                        <img src="{{ media.url }}" alt="Photo">
+                                        {% if loop.index == 4 and post.photos|length > 4 %}
+                                        <div class="photo-overlay">+{{ post.photos|length - 4 }}</div>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
                             {% endfor %}
                         </div>
                         {% endif %}
@@ -579,8 +663,205 @@ document.addEventListener('click', function(e) {
     }
 });
 
+</script>
 
-    </script>
+<script>
+  // ========== FAB TOGGLE ==========
+let selectedMedia = [];
+const MAX_CHARS = 250;
+
+function toggleCreateTalo() {
+    const createSection = document.getElementById('createTaloSection');
+    const fabBtn = document.querySelector('.new-post-btn span');
+    
+    if (createSection.style.display === 'none' || createSection.style.display === '') {
+        createSection.style.display = 'block';
+        createSection.style.animation = 'slideDown 0.3s ease';
+        fabBtn.style.transform = 'rotate(45deg)';
+        setTimeout(() => {
+            document.getElementById('taloContent').focus();
+        }, 300);
+    } else {
+        createSection.style.display = 'none';
+        fabBtn.style.transform = 'rotate(0deg)';
+        document.getElementById('taloContent').value = '';
+        updateCharCounter();
+    }
+}
+
+function selectMedia() {
+    document.getElementById('mediaInput').click();
+}
+
+function handleMediaSelection(files) {
+    const isVideo = files.length === 1 && files[0].type.startsWith('video/');
+    const areImages = files.length >= 1 && files.length <= 4 && Array.from(files).every(f => f.type.startsWith('image/'));
+
+    // Validate rule: either 1 video OR 1-4 photos, not both.
+    if (!isVideo && !areImages) {
+        alert('You can either upload 1 video (max 20s) OR 1-4 photos. Please select valid files.');
+        document.getElementById('mediaInput').value = '';
+        return;
+    }
+
+    if (isVideo) {
+        // Validate video duration
+        const videoFile = files[0];
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.onloadedmetadata = function() {
+            if (video.duration > 20) {
+                alert('Video must be 20 seconds or less.');
+                document.getElementById('mediaInput').value = '';
+                return;
+            }
+            // Accepted: clear any existing media and add video
+            selectedMedia = [{ file: videoFile, type: 'video', previewUrl: URL.createObjectURL(videoFile), duration: video.duration }];
+            updateMediaPreview();
+            updateMediaCount();
+        };
+        video.src = URL.createObjectURL(videoFile);
+        video.onerror = function() {
+            alert('Unable to read video file. Please try another.');
+            document.getElementById('mediaInput').value = '';
+        };
+    } else {
+        // Images: clear previous media, add each image
+        selectedMedia = [];
+        for (let f of files) {
+            selectedMedia.push({ file: f, type: 'image', previewUrl: URL.createObjectURL(f) });
+        }
+        updateMediaPreview();
+        updateMediaCount();
+    }
+    document.getElementById('mediaInput').value = ''; // reset
+}
+
+
+function updateCharCounter() {
+   		 const textarea = document.getElementById('taloContent');
+    		const counterDiv = document.getElementById('charCounter');
+   		 const submitBtn = document.getElementById('submitTaloBtn');
+    		const currentLength = textarea.value.length;
+    		const remaining = MAX_CHARS - currentLength;
+   		 if (remaining >= 0) {
+        		counterDiv.textContent = `${remaining} characters remaining`;
+        		counterDiv.classList.remove('exceed');
+        		if (remaining <= 20) counterDiv.classList.add('warning');
+       			 else counterDiv.classList.remove('warning');
+        		submitBtn.disabled = false;
+    		} else {
+        counterDiv.textContent = `${Math.abs(remaining)} characters over limit`;
+        counterDiv.classList.add('exceed');
+        submitBtn.disabled = true;
+    }
+}
+
+async function createTaloWithFirebase() {
+    const content = document.getElementById('taloContent').value;
+    if (!content.trim()) { alert('Please enter some content'); return; }
+
+    // Intercept "@sendtac" (bare, opens modal) and the full one-line
+    // "@sendtac @user amount" directive before treating this as a post.
+    if (handleSendTacCommand(content)) {
+        return;
+    }
+
+    if (content.length > MAX_CHARS) { alert(`Content cannot exceed ${MAX_CHARS} characters`); return; }
+
+   
+    // Banned words check (existing)
+    const bannedCheck = await checkForBannedWords(content);
+    if (bannedCheck && bannedCheck.contains_banned) {
+        alert('Your post contains inappropriate language. Please review and try again.');
+        return;
+    }
+
+    const submitBtn = document.getElementById('submitTaloBtn');
+    const progressDiv = document.getElementById('uploadProgress');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Uploading...';
+    progressDiv.style.display = 'block';
+
+    try {
+        const mediaUrls = [];
+        for (let i = 0; i < selectedMedia.length; i++) {
+            const item = selectedMedia[i];
+            progressBar.style.width = `${((i + 1) / (selectedMedia.length + 1)) * 100}%`;
+            progressText.textContent = `Uploading ${item.type} ${i + 1}/${selectedMedia.length}...`;
+            
+            const fileExt = item.file.name.split('.').pop();
+            const fileName = `${loggedInUserId}/${Date.now()}/${i}_${Date.now()}.${fileExt}`;
+            const folder = item.type === 'video' ? 'videos' : 'talos';
+            const storageRef = window.firebaseRef(window.firebaseStorage, `${folder}/${fileName}`);
+            const snapshot = await window.uploadBytes(storageRef, item.file);
+            const downloadURL = await window.getDownloadURL(snapshot.ref);
+            mediaUrls.push({
+                url: downloadURL,
+                path: `${folder}/${fileName}`,
+                type: item.type,
+                duration: item.duration || null
+            });
+        }
+
+        progressBar.style.width = '100%';
+        progressText.textContent = 'Creating post...';
+
+        const response = await fetch('/api/create_talo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: content, photos: mediaUrls })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            // Clear form, update UI and reload
+            document.getElementById('taloContent').value = '';
+            selectedMedia = [];
+            document.getElementById('photoPreview').innerHTML = '';
+            updateMediaCount();
+
+            if (typeof data.wallet_balance === 'number') {
+                updateWalletDisplay(data.wallet_balance);
+            }
+
+            const celebrations = [];
+            if (data.first_talo) {
+                celebrations.push('🎉 Your first Talo is live! Welcome to the conversation.');
+            }
+            (data.milestones_reached || []).forEach(m => celebrations.push(milestoneMessage(m)));
+
+            if (celebrations.length > 0) {
+                queueCelebrations(celebrations);
+                setTimeout(() => location.reload(), celebrations.length * 4500 + 300);
+            } else if (data.tac_earned > 0) {
+                showFlashNotification(`✓ Post created! +${formatTac(data.tac_earned)} TaC earned`, 'success');
+                setTimeout(() => location.reload(), 1200);
+            } else if (data.tac_supply_capped) {
+                showFlashNotification('✓ Post created! The 30,000 TaC supply cap has been reached, so no TaC was earned this time.', 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showFlashNotification('✓ Post created successfully!', 'success');
+                setTimeout(() => location.reload(), 1000);
+            }
+        } else {
+            const error = await response.json();
+            alert('Failed to create post: ' + (error.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error creating post:', error);
+        alert('Failed to create post. Please try again.');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Talo →';
+        progressDiv.style.display = 'none';
+        progressBar.style.width = '0%';
+    }
+}
+
+</script>
 
 <script>
   // Register service worker if supported
@@ -600,5 +881,14 @@ document.addEventListener('click', function(e) {
     });
   }
 </script>
+
+<!-- Floating Action Button -->
+<div class="fab-container" id="fabContainer">
+    <div class="new-post-btn" id="newPostBtn" onclick="toggleCreateTalo()">
+        <span>+</span>
+    </div>
+</div>
+
+
 </body>
 </html>
