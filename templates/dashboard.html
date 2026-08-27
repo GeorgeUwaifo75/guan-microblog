@@ -217,7 +217,7 @@
             z-index: 99;
             display: flex;
             align-items: stretch;
-            background: #2b0d0d;
+            background: rgba(43, 13, 13, 0.8);  /* Changed from #2b0d0d to 80% opacity */
             box-shadow: 0 2px 4px rgba(0,0,0,0.15);
         }
         .subs-label {
@@ -5835,7 +5835,7 @@ document.getElementById('taloContent').placeholder =
         // Also try to clean up old subscriptions on page load (already handled by registration)
     })();
 
-// Universal function to navigate to the post page, unless clicking on interactive elements
+// Universal function to navigate to the post page, unless clicking on interactive elements.subs-strip
 function viewPost(taloId, event) {
     // If the click target is an interactive element, do nothing
     const interactive = event.target.closest('button, a, .stat-btn, .photo-item, .post-actions-btn, .reply-btn, .like-btn, .dislike-btn, .retalo-btn, .share-btn');
