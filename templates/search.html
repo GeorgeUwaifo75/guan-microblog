@@ -607,7 +607,7 @@
         }
         .talo-actions {
             display: flex;
-            justify-content: flex-end;
+            justify-content: space-between;
             align-items: center;
             margin-top: 10px;
         }
@@ -625,44 +625,44 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
-
-
-/* New Logout Icon Style */
-.logout-icon-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: white;
-    padding: 5px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.2s ease;
-}
-
-.logout-icon-btn:hover {
-    transform: scale(1.1);
-}
-
-.logout-icon-btn svg {
-    width: 28px;
-    height: 28px;
-    stroke: yellow;
-    stroke-width: 2.5;
-    fill: none;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-}
-
-/* Mobile adjustment */
-@media (max-width: 768px) {
-    .logout-icon-btn svg {
-        width: 24px;
-        height: 24px;
-    }
-}
-
-
+        .photo-preview {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        .photo-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        .photo-btn {
+            background: #f0f0f0;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .photo-container {
+            position: relative;
+            display: inline-block;
+        }
+        .remove-photo {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: red;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 <body>
@@ -678,22 +678,7 @@
         </div>
         <div class="right-icons">
             <a href="/dashboard"><button class="icon-btn">🏠</button></a>
-            <a href="/logout" aria-label="Logout">
-    <button class="logout-icon-btn">
-        <svg viewBox="0 0 24 24">
-            <!-- Door Frame -->
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <!-- Door Handle -->
-            <line x1="10" y1="12" x2="10" y2="12.01" />
-            <!-- Door itself (angled) -->
-            <path d="M10 21h5a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-5" />
-            <!-- Exit Arrow -->
-            <polyline points="16 17 21 12 16 7" />
-            <line x1="21" y1="12" x2="9" y2="12" />
-        </svg>
-    </button>
-</a>
-            
+            <a href="/logout"><button class="icon-btn">🚪</button></a>
         </div>
     </div>
 
@@ -718,10 +703,22 @@
         <div class="create-talo" id="createTaloSection">
             <textarea id="taloContent" rows="3" placeholder="What's happening? (max {{ 500 if user.is_premium else 250 }} characters)" maxlength="{{ 500 if user.is_premium else 250 }}"></textarea>
             <div class="char-counter" id="charCounter">{{ 500 if user.is_premium else 250 }} characters remaining</div>
+            <div id="photoPreview" class="photo-preview"></div>
             <div class="talo-actions">
+                <div class="photo-buttons">
+                    <button type="button" class="photo-btn" onclick="selectMediaSearch()">📷 Add Photo/Video</button>
+                    <span id="mediaCount" style="font-size:12px; color:#666; margin-left:8px;">0 files selected</span>
+                </div>
                 <button type="button" id="submitTaloBtn" class="btn btn-primary" onclick="createTaloFromSearch()">Talo →</button>
             </div>
+            <div id="uploadProgress" style="display: none; margin-top: 10px;">
+                <div style="background: #f0f0f0; border-radius: 10px; overflow: hidden;">
+                    <div id="progressBar" style="width: 0%; height: 4px; background: #cc0000; transition: width 0.3s;"></div>
+                </div>
+                <p id="progressText" style="font-size: 12px; color: #666; margin-top: 5px;">Uploading...</p>
+            </div>
         </div>
+        <input type="file" id="mediaInput" accept="image/*,video/*" multiple style="display:none" onchange="handleMediaSelectionSearch(this.files)">
 
         <div class="tabs">
             <button class="tab-btn active" onclick="showTab('posts')">📝 Posts ({{ results.total_posts }})</button>
@@ -845,13 +842,129 @@
         </div>
     </div>
 
+    <!-- Firebase SDK - same config/rules as the main timeline's composer -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBj9wQ04hnfPjowVvEa_yf8_Fq3VXVaH5I",
+            authDomain: "giteksolhub-project.firebaseapp.com",
+            projectId: "giteksolhub-project",
+            storageBucket: "giteksolhub-project.firebasestorage.app",
+            messagingSenderId: "917911843059",
+            appId: "1:917911843059:web:0aa2438be6605d1f400786"
+        };
+
+        const firebaseApp = initializeApp(firebaseConfig);
+        const storage = getStorage(firebaseApp);
+
+        window.firebaseStorage = storage;
+        window.firebaseRef = ref;
+        window.uploadBytes = uploadBytes;
+        window.getDownloadURL = getDownloadURL;
+    </script>
+
     <script>
+        const loggedInUserId = '{{ user.user_id }}';
+
         function viewPhoto(url) {
             document.getElementById('viewerImage').src = url;
             document.getElementById('photoViewerOverlay').classList.add('active');
         }
         function closePhotoViewer() {
             document.getElementById('photoViewerOverlay').classList.remove('active');
+        }
+
+        // ===== Photo/video selection (same 1 video OR 1-4 photos rule as
+        // the main timeline's composer) =====
+        let selectedMediaSearch = []; // { file, type: 'image'|'video', previewUrl, duration? }
+
+        function selectMediaSearch() {
+            document.getElementById('mediaInput').click();
+        }
+
+        function handleMediaSelectionSearch(files) {
+            const isVideo = files.length === 1 && files[0].type.startsWith('video/');
+            const areImages = files.length >= 1 && files.length <= 4 && Array.from(files).every(f => f.type.startsWith('image/'));
+
+            if (!isVideo && !areImages) {
+                alert('You can either upload 1 video (max 20s) OR 1-4 photos. Please select valid files.');
+                document.getElementById('mediaInput').value = '';
+                return;
+            }
+
+            if (isVideo) {
+                const videoFile = files[0];
+                const video = document.createElement('video');
+                video.preload = 'metadata';
+                video.onloadedmetadata = function() {
+                    if (video.duration > 20) {
+                        alert('Video must be 20 seconds or less.');
+                        document.getElementById('mediaInput').value = '';
+                        return;
+                    }
+                    selectedMediaSearch = [{ file: videoFile, type: 'video', previewUrl: URL.createObjectURL(videoFile), duration: video.duration }];
+                    updateMediaPreviewSearch();
+                    updateMediaCountSearch();
+                };
+                video.src = URL.createObjectURL(videoFile);
+                video.onerror = function() {
+                    alert('Unable to read video file. Please try another.');
+                    document.getElementById('mediaInput').value = '';
+                };
+            } else {
+                selectedMediaSearch = [];
+                for (let f of files) {
+                    selectedMediaSearch.push({ file: f, type: 'image', previewUrl: URL.createObjectURL(f) });
+                }
+                updateMediaPreviewSearch();
+                updateMediaCountSearch();
+            }
+            document.getElementById('mediaInput').value = '';
+        }
+
+        function updateMediaCountSearch() {
+            document.getElementById('mediaCount').textContent = selectedMediaSearch.length + ' file(s) selected';
+        }
+
+        function updateMediaPreviewSearch() {
+            const container = document.getElementById('photoPreview');
+            container.innerHTML = '';
+            selectedMediaSearch.forEach((item, index) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'photo-container';
+
+                if (item.type === 'image') {
+                    const img = document.createElement('img');
+                    img.src = item.previewUrl;
+                    img.style.width = '80px';
+                    img.style.height = '80px';
+                    img.style.objectFit = 'cover';
+                    img.style.borderRadius = '8px';
+                    wrapper.appendChild(img);
+                } else {
+                    const video = document.createElement('video');
+                    video.src = item.previewUrl;
+                    video.controls = true;
+                    video.style.width = '80px';
+                    video.style.height = '80px';
+                    video.style.objectFit = 'cover';
+                    video.style.borderRadius = '8px';
+                    wrapper.appendChild(video);
+                }
+
+                const removeBtn = document.createElement('button');
+                removeBtn.textContent = '✖';
+                removeBtn.className = 'remove-photo';
+                removeBtn.onclick = () => {
+                    selectedMediaSearch.splice(index, 1);
+                    updateMediaPreviewSearch();
+                    updateMediaCountSearch();
+                };
+                wrapper.appendChild(removeBtn);
+                container.appendChild(wrapper);
+            });
         }
 
         // ===== Talo creation from the category/search results page =====
@@ -904,6 +1017,9 @@
                 const textarea = document.getElementById('taloContent');
                 textarea.value = '';
                 updateCharCounterSearch();
+                selectedMediaSearch = [];
+                document.getElementById('photoPreview').innerHTML = '';
+                updateMediaCountSearch();
             }
         }
 
@@ -917,6 +1033,9 @@
             }
 
             const submitBtn = document.getElementById('submitTaloBtn');
+            const progressDiv = document.getElementById('uploadProgress');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Posting...';
 
@@ -932,15 +1051,45 @@
                     return;
                 }
 
+                // Upload any selected photos/video to Firebase first, same
+                // as the main timeline's composer.
+                const mediaUrls = [];
+                if (selectedMediaSearch.length > 0) {
+                    progressDiv.style.display = 'block';
+                    for (let i = 0; i < selectedMediaSearch.length; i++) {
+                        const item = selectedMediaSearch[i];
+                        progressBar.style.width = `${((i + 1) / (selectedMediaSearch.length + 1)) * 100}%`;
+                        progressText.textContent = `Uploading ${item.type} ${i + 1}/${selectedMediaSearch.length}...`;
+
+                        const fileExt = item.file.name.split('.').pop();
+                        const fileName = `${loggedInUserId}/${Date.now()}/${i}_${Date.now()}.${fileExt}`;
+                        const folder = item.type === 'video' ? 'videos' : 'talos';
+                        const storageRef = window.firebaseRef(window.firebaseStorage, `${folder}/${fileName}`);
+                        const snapshot = await window.uploadBytes(storageRef, item.file);
+                        const downloadURL = await window.getDownloadURL(snapshot.ref);
+                        mediaUrls.push({
+                            url: downloadURL,
+                            path: `${folder}/${fileName}`,
+                            type: item.type,
+                            duration: item.duration || null
+                        });
+                    }
+                    progressBar.style.width = '100%';
+                    progressText.textContent = 'Creating post...';
+                }
+
                 const response = await fetch('/api/create_talo', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ content: content, photos: [] })
+                    body: JSON.stringify({ content: content, photos: mediaUrls })
                 });
 
                 if (response.ok) {
                     textarea.value = '';
                     updateCharCounterSearch();
+                    selectedMediaSearch = [];
+                    document.getElementById('photoPreview').innerHTML = '';
+                    updateMediaCountSearch();
                     location.reload();
                 } else {
                     const error = await response.json().catch(() => ({}));
@@ -952,6 +1101,8 @@
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Talo →';
+                progressDiv.style.display = 'none';
+                progressBar.style.width = '0%';
             }
         }
 
