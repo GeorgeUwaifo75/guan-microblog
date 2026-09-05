@@ -6148,26 +6148,57 @@ function viewPost(taloId, event) {
 
 <script>
 (function () {
-    // TODO: replace with your deployed Render URL for the IvieAI FastAPI proxy,
-    // e.g. 'https://ivieai-proxy.onrender.com' (no trailing slash).
+    // Your deployed Render URL for the IvieAI FastAPI proxy (no trailing slash).
     const IVIE_API_URL = 'https://ivie-ai-proxy.onrender.com';
 
     let ivieSessionId = null;
     let ivieGenerating = false;
-    let ivieOpenedOnce = false;
+    let ivieServerAwake = false;
+    let ivieWaking = false;
+
+    // Render's free tier spins a service down after inactivity. The first
+    // request after that can take anywhere from a few seconds to ~60+
+    // seconds (Render container cold start, plus the underlying HF Space
+    // waking up too). While the container is still starting, Render's own
+    // edge can return an error with no CORS headers on it, which the
+    // browser reports as a generic "Failed to fetch" — indistinguishable
+    // from a real outage. So instead of a single fire-and-forget ping, we
+    // actively retry the wake-up call until the service actually answers.
+    async function ivieWakeServer() {
+        if (ivieServerAwake || ivieWaking) return;
+        ivieWaking = true;
+        ivieSetStatus('waking up Ivie…', true);
+
+        const maxAttempts = 8;       // ~8 x 8s ≈ up to ~64s of retrying
+        const delayMs = 8000;
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                const res = await fetch(`${IVIE_API_URL}/health`, { cache: 'no-store' });
+                if (res.ok) {
+                    ivieServerAwake = true;
+                    ivieWaking = false;
+                    ivieSetStatus('ready', false);
+                    return;
+                }
+            } catch (err) {
+                // still starting up — fall through and retry
+            }
+            if (attempt < maxAttempts) {
+                ivieSetStatus(`waking up Ivie… (this can take a minute the first time)`, true);
+                await new Promise(r => setTimeout(r, delayMs));
+            }
+        }
+
+        ivieWaking = false;
+        ivieSetStatus('taking longer than usual — you can still try sending a message', false);
+    }
 
     window.openIvieChat = function () {
         document.getElementById('ivieChatOverlay').classList.add('active');
         const input = document.getElementById('ivieChatInput');
         if (input) input.focus();
-
-        // Wake the backend the first time the chat is opened, since a
-        // Render free-tier service (and the underlying HF Space) can be
-        // asleep and take a while to respond to the very first request.
-        if (!ivieOpenedOnce) {
-            ivieOpenedOnce = true;
-            fetch(`${IVIE_API_URL}/health`).catch(() => {});
-        }
+        ivieWakeServer();
     };
 
     window.closeIvieChat = function () {
@@ -6209,6 +6240,20 @@ function viewPost(taloId, event) {
         else if (loading) dot.classList.add('loading');
     }
 
+    // One attempt at the actual /chat call. Throws on network failure or
+    // a non-2xx response; returns the parsed JSON on success.
+    async function ivieChatRequest(text) {
+        const res = await fetch(`${IVIE_API_URL}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text, session_id: ivieSessionId })
+        });
+        if (!res.ok) {
+            throw new Error(`http_${res.status}`);
+        }
+        return res.json();
+    }
+
     window.sendIvieMessage = async function () {
         const input = document.getElementById('ivieChatInput');
         const sendBtn = document.getElementById('ivieChatSendBtn');
@@ -6220,42 +6265,54 @@ function viewPost(taloId, event) {
         ivieGenerating = true;
         input.disabled = true;
         sendBtn.disabled = true;
-        ivieSetStatus('thinking...', true);
         ivieShowTyping();
 
-        try {
-            const res = await fetch(`${IVIE_API_URL}/chat`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text, session_id: ivieSessionId })
-            });
+        // Retry a couple of times in case the very first request lands
+        // mid cold-start (container up but not fully ready yet).
+        const maxAttempts = 3;
+        let lastErr = null;
 
-            ivieHideTyping();
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            ivieSetStatus(attempt === 1 ? 'thinking...' : `still waking up, retrying (${attempt}/${maxAttempts})...`, true);
+            try {
+                const data = await ivieChatRequest(text);
+                ivieServerAwake = true;
+                ivieHideTyping();
 
-            if (!res.ok) {
-                throw new Error(`Server error: ${res.status}`);
+                if (data.session_id) ivieSessionId = data.session_id;
+
+                if (data.success) {
+                    ivieAddMessage(data.response, 'bot');
+                    ivieSetStatus(data.model_loading ? 'warming up' : 'ready', !!data.model_loading);
+                } else {
+                    ivieAddMessage(`⚠️ ${data.detail || 'Something went wrong'}`, 'bot');
+                    ivieSetStatus('error', false, true);
+                }
+                lastErr = null;
+                break;
+            } catch (err) {
+                lastErr = err;
+                if (attempt < maxAttempts) {
+                    await new Promise(r => setTimeout(r, 5000));
+                }
             }
-
-            const data = await res.json();
-            if (data.session_id) ivieSessionId = data.session_id;
-
-            if (data.success) {
-                ivieAddMessage(data.response, 'bot');
-                ivieSetStatus(data.model_loading ? 'warming up' : 'ready', !!data.model_loading);
-            } else {
-                throw new Error(data.detail || 'Something went wrong');
-            }
-        } catch (err) {
-            console.error('Ivie chat error:', err);
-            ivieHideTyping();
-            ivieAddMessage("⚠️ Couldn't reach Ivie right now. Please try again in a moment.", 'bot');
-            ivieSetStatus('error', false, true);
-        } finally {
-            ivieGenerating = false;
-            input.disabled = false;
-            sendBtn.disabled = false;
-            input.focus();
         }
+
+        if (lastErr) {
+            console.error('Ivie chat error:', lastErr);
+            ivieHideTyping();
+            const isNetworkError = lastErr.message && !lastErr.message.startsWith('http_');
+            const hint = isNetworkError
+                ? "This usually means the service is still starting up after being idle, or a CORS/network issue. Check your browser console's Network tab for the exact request."
+                : `The server responded with an error (${lastErr.message.replace('http_', 'HTTP ')}).`;
+            ivieAddMessage(`⚠️ Couldn't reach Ivie right now. ${hint}`, 'bot');
+            ivieSetStatus('error', false, true);
+        }
+
+        ivieGenerating = false;
+        input.disabled = false;
+        sendBtn.disabled = false;
+        input.focus();
     };
 
     document.addEventListener('keydown', function (e) {
