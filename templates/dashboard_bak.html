@@ -664,6 +664,28 @@
             gap: 6px;
         }
 
+        .ivie-chat-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .ivie-chat-clear {
+            cursor: pointer;
+            font-size: 15px;
+            line-height: 1;
+            opacity: 0.9;
+            transition: transform 0.15s ease;
+        }
+
+        .ivie-chat-clear:hover {
+            transform: scale(1.15);
+        }
+
+        .ivie-chat-clear:active {
+            transform: scale(0.9);
+        }
+
         .ivie-chat-close {
             cursor: pointer;
             font-size: 22px;
@@ -755,6 +777,12 @@
             border-radius: 50%;
             background: #22c55e;
             flex-shrink: 0;
+        }
+
+        .ivie-quota {
+            margin-left: auto;
+            color: #999;
+            white-space: nowrap;
         }
 
         .ivie-status-dot.loading {
@@ -6144,7 +6172,10 @@ function viewPost(taloId, event) {
     <div class="ivie-chat-panel">
         <div class="ivie-chat-header">
             <span class="ivie-chat-title">🧠 Ivie AI</span>
-            <span class="ivie-chat-close" onclick="closeIvieChat()">&times;</span>
+            <div class="ivie-chat-header-actions">
+                <span class="ivie-chat-clear" id="ivieClearBtn" onclick="clearIvieChat()" role="button" tabindex="0" title="Clear chat history" aria-label="Clear chat history">🗑️</span>
+                <span class="ivie-chat-close" onclick="closeIvieChat()">&times;</span>
+            </div>
         </div>
         <div class="ivie-chat-window" id="ivieChatWindow">
             <div class="ivie-message bot">
@@ -6154,6 +6185,7 @@ function viewPost(taloId, event) {
         <div class="ivie-chat-status">
             <span class="ivie-status-dot" id="ivieStatusDot"></span>
             <span id="ivieStatusText">ready</span>
+            <span class="ivie-quota" id="ivieQuotaText"></span>
         </div>
         <div class="ivie-chat-input-row">
             <input type="text" id="ivieChatInput" placeholder="Type a message..." autocomplete="off">
@@ -6171,6 +6203,16 @@ function viewPost(taloId, event) {
     let ivieGenerating = false;
     let ivieServerAwake = false;
     let ivieWaking = false;
+    let ivieLockedOut = false;
+
+    // userData is defined earlier on this page (dashboard.html) with the
+    // logged-in user's id and premium status.
+    function ivieUserId() {
+        return (typeof userData !== 'undefined' && userData.user_id) || 'anonymous';
+    }
+    function ivieIsPremium() {
+        return !!(typeof userData !== 'undefined' && userData.is_premium);
+    }
 
     // Render's free tier spins a service down after inactivity. The first
     // request after that can take anywhere from a few seconds to ~60+
@@ -6195,6 +6237,7 @@ function viewPost(taloId, event) {
                     ivieServerAwake = true;
                     ivieWaking = false;
                     ivieSetStatus('ready', false);
+                    ivieRefreshQuota();
                     return;
                 }
             } catch (err) {
@@ -6210,15 +6253,67 @@ function viewPost(taloId, event) {
         ivieSetStatus('taking longer than usual — you can still try sending a message', false);
     }
 
+    // Read-only lookup of today's remaining quota, shown in the status bar.
+    // Best-effort: failures here are silent since it's purely informational.
+    async function ivieRefreshQuota() {
+        try {
+            const url = `${IVIE_API_URL}/usage/${encodeURIComponent(ivieUserId())}?is_premium=${ivieIsPremium()}`;
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) return;
+            const data = await res.json();
+            ivieSetQuota(data.remaining, data.limit);
+            if (data.remaining <= 0) {
+                ivieLockOutForToday();
+            }
+        } catch (err) {
+            // quota display is a nice-to-have — ignore failures
+        }
+    }
+
+    function ivieSetQuota(remaining, limit) {
+        const el = document.getElementById('ivieQuotaText');
+        if (remaining === null || remaining === undefined || limit === null || limit === undefined) {
+            el.textContent = '';
+        } else {
+            el.textContent = `${remaining}/${limit} left today`;
+        }
+    }
+
+    function ivieLockOutForToday() {
+        ivieLockedOut = true;
+        const input = document.getElementById('ivieChatInput');
+        const sendBtn = document.getElementById('ivieChatSendBtn');
+        input.disabled = true;
+        sendBtn.disabled = true;
+        input.placeholder = 'Daily limit reached — come back tomorrow';
+    }
+
     window.openIvieChat = function () {
         document.getElementById('ivieChatOverlay').classList.add('active');
         const input = document.getElementById('ivieChatInput');
-        if (input) input.focus();
+        if (input && !ivieLockedOut) input.focus();
         ivieWakeServer();
     };
 
     window.closeIvieChat = function () {
         document.getElementById('ivieChatOverlay').classList.remove('active');
+    };
+
+    // Clears the visible conversation and starts a fresh session server-side.
+    // This does NOT reset the daily request quota — that's tracked
+    // separately per user/day regardless of how many times chat is cleared.
+    window.clearIvieChat = function () {
+        const win = document.getElementById('ivieChatWindow');
+        win.innerHTML = '<div class="ivie-message bot"><div class="ivie-bubble">👋 Hi! I\'m Ivie, your AI assistant. Ask me anything.</div></div>';
+
+        if (ivieSessionId) {
+            fetch(`${IVIE_API_URL}/session/${ivieSessionId}`, { method: 'DELETE' }).catch(() => {});
+        }
+        ivieSessionId = null;
+
+        if (!ivieLockedOut) {
+            ivieSetStatus('ready', false);
+        }
     };
 
     function ivieAddMessage(text, sender) {
@@ -6262,7 +6357,12 @@ function viewPost(taloId, event) {
         const res = await fetch(`${IVIE_API_URL}/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: text, session_id: ivieSessionId })
+            body: JSON.stringify({
+                message: text,
+                session_id: ivieSessionId,
+                user_id: ivieUserId(),
+                is_premium: ivieIsPremium()
+            })
         });
         if (!res.ok) {
             throw new Error(`http_${res.status}`);
@@ -6274,7 +6374,7 @@ function viewPost(taloId, event) {
         const input = document.getElementById('ivieChatInput');
         const sendBtn = document.getElementById('ivieChatSendBtn');
         const text = input.value.trim();
-        if (!text || ivieGenerating) return;
+        if (!text || ivieGenerating || ivieLockedOut) return;
 
         ivieAddMessage(text, 'user');
         input.value = '';
@@ -6297,9 +6397,18 @@ function viewPost(taloId, event) {
 
                 if (data.session_id) ivieSessionId = data.session_id;
 
-                if (data.success) {
+                if (data.limit_reached) {
+                    ivieAddMessage(data.response, 'bot');
+                    ivieSetStatus('limit reached', false, true);
+                    ivieSetQuota(0, data.daily_limit);
+                    ivieLockOutForToday();
+                } else if (data.success) {
                     ivieAddMessage(data.response, 'bot');
                     ivieSetStatus(data.model_loading ? 'warming up' : 'ready', !!data.model_loading);
+                    if (data.daily_limit !== undefined && data.daily_limit !== null) {
+                        ivieSetQuota(data.remaining_today, data.daily_limit);
+                        if (data.remaining_today <= 0) ivieLockOutForToday();
+                    }
                 } else {
                     ivieAddMessage(`⚠️ ${data.detail || 'Something went wrong'}`, 'bot');
                     ivieSetStatus('error', false, true);
@@ -6326,9 +6435,11 @@ function viewPost(taloId, event) {
         }
 
         ivieGenerating = false;
-        input.disabled = false;
-        sendBtn.disabled = false;
-        input.focus();
+        if (!ivieLockedOut) {
+            input.disabled = false;
+            sendBtn.disabled = false;
+            input.focus();
+        }
     };
 
     document.addEventListener('keydown', function (e) {

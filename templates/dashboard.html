@@ -583,20 +583,29 @@
             padding: 10px;
             margin: -10px;
             transition: transform 0.2s ease;
-            animation: ivieBrainGlow 2.4s ease-in-out infinite;
+        }
+
+        /* Pulse lives on an inner span so it never fights with the outer
+           element's hover/active tap-feedback transform below — both
+           transforms compose visually without one overwriting the other. */
+        .ivie-chat-icon-inner {
+            display: inline-flex;
+            animation: ivieBrainGlow 1.8s ease-in-out infinite;
         }
 
         @keyframes ivieBrainGlow {
             0%, 100% {
-                filter: drop-shadow(0 0 0px rgba(255, 214, 64, 0));
+                filter: drop-shadow(0 0 0px rgba(255, 111, 0, 0));
+                transform: scale(1);
             }
             50% {
-                filter: drop-shadow(0 0 6px rgba(255, 214, 64, 0.95));
+                filter: drop-shadow(0 0 8px rgba(255, 111, 0, 0.95));
+                transform: scale(1.28);
             }
         }
 
         @media (prefers-reduced-motion: reduce) {
-            .ivie-chat-icon {
+            .ivie-chat-icon-inner {
                 animation: none;
             }
         }
@@ -2842,7 +2851,7 @@
     <!-- Fixed Footer -->
     <div class="footer">
         <div class="footer-inner">
-            <span class="ivie-chat-icon" id="ivieChatIcon" onclick="openIvieChat()" role="button" tabindex="0" aria-label="Chat with Ivie AI" title="Chat with Ivie AI">🧠</span>
+            <span class="ivie-chat-icon" id="ivieChatIcon" onclick="openIvieChat()" role="button" tabindex="0" aria-label="Chat with Ivie AI" title="Chat with Ivie AI"><span class="ivie-chat-icon-inner">🧠</span></span>
             <p>&copy; 2026 GuAn Microblogging Platform. All rights reserved.</p>
         </div>
     </div>
