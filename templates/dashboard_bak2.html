@@ -554,16 +554,6 @@
             right: 0;
             z-index: 100;
             box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
-            /* Height of the container itself trimmed ~10% below its
-               natural content+padding height (~33px). Padding/font-size
-               above are left at their original values — only the box's
-               own height is constrained. */
-            height: 30px;
-            box-sizing: border-box;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
         }
         
         .footer p {
@@ -2116,7 +2106,6 @@
             .footer {
                 padding: 8px 12px;
                 font-size: 10px;
-                height: 25px;
             }
             
             .notifications-panel {
