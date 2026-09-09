@@ -600,22 +600,49 @@
            transforms compose visually without one overwriting the other. */
         .ivie-chat-icon-inner {
             display: inline-flex;
-            animation: ivieBrainGlow 1.8s ease-in-out infinite;
+            position: relative;
+            animation: ivieBrainScale 1.8s ease-in-out infinite;
         }
 
-        @keyframes ivieBrainGlow {
+        /* The glow lives on its own pseudo-element and is pre-blurred once,
+           then only faded via opacity. Animating opacity/transform runs on
+           the compositor thread; animating filter (the old approach)
+           forces the browser to recompute and repaint the blur on every
+           frame, which is what was causing the jank/flashes around this
+           icon - especially while a video was also decoding. */
+        .ivie-chat-icon-inner::after {
+            content: '';
+            position: absolute;
+            inset: -7px;
+            border-radius: 50%;
+            background: rgba(255, 111, 0, 0.9);
+            filter: blur(6px);
+            opacity: 0;
+            z-index: -1;
+            animation: ivieGlowPulse 1.8s ease-in-out infinite;
+        }
+
+        @keyframes ivieBrainScale {
             0%, 100% {
-                filter: drop-shadow(0 0 0px rgba(255, 111, 0, 0));
                 transform: scale(1);
             }
             50% {
-                filter: drop-shadow(0 0 8px rgba(255, 111, 0, 0.95));
                 transform: scale(1.28);
             }
         }
 
+        @keyframes ivieGlowPulse {
+            0%, 100% {
+                opacity: 0;
+            }
+            50% {
+                opacity: 0.95;
+            }
+        }
+
         @media (prefers-reduced-motion: reduce) {
-            .ivie-chat-icon-inner {
+            .ivie-chat-icon-inner,
+            .ivie-chat-icon-inner::after {
                 animation: none;
             }
         }
@@ -1261,6 +1288,23 @@
     margin: 0 auto;
     height: auto;
     aspect-ratio: auto;
+}
+
+/* Video posts: reserve a box up front (instead of aspect-ratio: auto)
+   so the card doesn't jump/flash once the browser reads the video's
+   real dimensions from its metadata. Capped by the existing
+   max-height:500px on the <video> itself, and object-fit:contain
+   letterboxes rather than crops, so this works for both portrait and
+   landscape clips. */
+.talo-photos.photo-count-1 .photo-item.video-item {
+    aspect-ratio: 9 / 16;
+    max-height: 500px;
+}
+
+@media (max-width: 768px) {
+    .talo-photos.photo-count-1 .photo-item.video-item {
+        max-height: 350px;
+    }
 }
 
 .talo-photos.photo-count-1 .photo-item img {
@@ -2788,8 +2832,8 @@
             <div class="talo-photos photo-count-{{ talo.photos|length }}">
                 {% for media in talo.photos %}
                     {% if media.type == 'video' %}
-                        <div class="photo-item" style="cursor:default;">
-                            <video controls style="width:100%; height:100%; object-fit:cover; border-radius:12px;">
+                        <div class="photo-item video-item" style="cursor:default;">
+                            <video controls preload="metadata" playsinline>
                                 <source src="{{ media.url }}" type="video/mp4">
                                 Your browser does not support the video tag.
                             </video>

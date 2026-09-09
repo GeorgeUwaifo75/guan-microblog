@@ -1382,6 +1382,7 @@ async def create_talo(request: Request):
         data["talos"] = []
     data["talos"].insert(0, talo)
     user["talos_count"] = user.get("talos_count", 0) + 1
+    await save_jsonbin_data(data)
     
     followers = []
     for follow in data.get("follows", []):
