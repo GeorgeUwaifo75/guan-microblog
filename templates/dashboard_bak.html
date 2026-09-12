@@ -662,26 +662,11 @@
             display: none;
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            /* Fallback for browsers without dvh, then the real fix:
-               100vh in a mobile browser TAB (not the installed PWA) is
-               measured against the "largest" viewport, as if the address
-               bar/bottom toolbar were hidden. That made this overlay
-               taller than what's actually visible on screen, pushing the
-               header off the top and the input row off the bottom.
-               100dvh tracks the CURRENT visible viewport instead, and a
-               JS fallback below covers browsers that support neither. */
-            height: 100vh;
-            height: calc(var(--ivie-vh, 1vh) * 100);
-            height: 100dvh;
             background: rgba(0,0,0,0.6);
             z-index: 99990;
             align-items: center;
             justify-content: center;
             padding: 20px;
-            /* Keep the panel clear of notches / home indicators too */
-            padding-top: calc(20px + env(safe-area-inset-top, 0px));
-            padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-            box-sizing: border-box;
         }
 
         .ivie-chat-overlay.active {
@@ -693,8 +678,6 @@
             width: 100%;
             max-width: 420px;
             height: 80vh;
-            height: calc(var(--ivie-vh, 1vh) * 80);
-            height: 80dvh;
             max-height: 640px;
             border-radius: 20px;
             overflow: hidden;
@@ -904,23 +887,9 @@
             }
             .ivie-chat-panel {
                 height: 100vh;
-                height: calc(var(--ivie-vh, 1vh) * 100);
-                height: 100dvh;
                 max-height: 100vh;
-                max-height: calc(var(--ivie-vh, 1vh) * 100);
-                max-height: 100dvh;
                 border-radius: 0;
                 max-width: 100%;
-            }
-            /* On full-screen mobile the panel's own top/bottom edges are
-               the screen edges, so give the header and input row their
-               own safe-area padding instead of padding the whole panel
-               (which would leave a gap around the white background). */
-            .ivie-chat-header {
-                padding-top: calc(14px + env(safe-area-inset-top, 0px));
-            }
-            .ivie-chat-input-row {
-                padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
             }
         }
 
@@ -6290,26 +6259,6 @@ function viewPost(taloId, event) {
 </div>
 
 <script>
-(function () {
-    // Fallback for browsers that don't support the `dvh` CSS unit yet.
-    // Mirrors the actual visible viewport height (which shrinks/grows as
-    // a mobile browser's address bar and toolbar show/hide) into a CSS
-    // variable so the chat overlay/panel never gets sized taller than
-    // what's actually on screen. window.visualViewport is preferred when
-    // available since it tracks the real visible area most accurately.
-    function setIvieVh() {
-        const vv = window.visualViewport;
-        const h = vv ? vv.height : window.innerHeight;
-        document.documentElement.style.setProperty('--ivie-vh', (h * 0.01) + 'px');
-    }
-    setIvieVh();
-    window.addEventListener('resize', setIvieVh);
-    window.addEventListener('orientationchange', setIvieVh);
-    if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', setIvieVh);
-    }
-})();
-
 (function () {
     // Your deployed Render URL for the IvieAI FastAPI proxy (no trailing slash).
     const IVIE_API_URL = 'https://ivie-ai-proxy.onrender.com';
