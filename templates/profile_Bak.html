@@ -372,24 +372,6 @@
         .save-btn:hover {
             background: #990000;
         }
-        .save-btn:disabled {
-            background: #e08a8a;
-            cursor: not-allowed;
-        }
-        .save-btn-spinner {
-            display: inline-block;
-            width: 14px;
-            height: 14px;
-            border: 2px solid rgba(255,255,255,0.5);
-            border-top: 2px solid #fff;
-            border-radius: 50%;
-            vertical-align: -2px;
-            margin-right: 8px;
-            animation: saveBtnSpin 0.8s linear infinite;
-        }
-        @keyframes saveBtnSpin {
-            to { transform: rotate(360deg); }
-        }
 
         /* User List Modal */
         .userlist-modal {
@@ -1019,20 +1001,9 @@ function showFlashNotification(message, type = 'success') {
         }
 
         async function saveProfile() {
-            const saveBtn = document.getElementById('saveProfileBtn');
-            const originalLabel = saveBtn ? saveBtn.innerHTML : '';
-
-            // Show a saving indicator immediately and lock the button so a
-            // second tap can't fire a duplicate update while this one is
-            // still in flight.
-            if (saveBtn) {
-                saveBtn.disabled = true;
-                saveBtn.innerHTML = '<span class="save-btn-spinner"></span>Saving...';
-            }
-
             const formData = new FormData();
             const photoFile = document.getElementById('photoInput').files[0];
-
+            
             if (photoFile && loggedInUserId) {
                 try {
                     const uploadResult = await window.uploadProfilePhoto(photoFile, loggedInUserId);
@@ -1040,39 +1011,25 @@ function showFlashNotification(message, type = 'success') {
                     formData.append('profile_photo_path', uploadResult.path);
                 } catch (err) {
                     alert('Failed to upload photo. Please try again.');
-                    if (saveBtn) {
-                        saveBtn.disabled = false;
-                        saveBtn.innerHTML = originalLabel;
-                    }
                     return;
                 }
             }
-
+            
             formData.append('first_name', document.getElementById('firstName').value);
             formData.append('last_name', document.getElementById('lastName').value);
             formData.append('bio', document.getElementById('bio').value);
-
+            
             try {
                 const response = await fetch('/api/update_profile', { method: 'POST', body: formData });
                 if (response.ok) {
-                    // Close the edit modal now that the update is confirmed,
-                    // then refresh so the page reflects the saved changes.
-                    closeEditModal();
+                    alert('Profile updated successfully!');
                     location.reload();
                 } else {
                     alert('Failed to update profile');
-                    if (saveBtn) {
-                        saveBtn.disabled = false;
-                        saveBtn.innerHTML = originalLabel;
-                    }
                 }
             } catch (error) {
                 console.error('Error:', error);
                 alert('Error updating profile');
-                if (saveBtn) {
-                    saveBtn.disabled = false;
-                    saveBtn.innerHTML = originalLabel;
-                }
             }
         }
 

@@ -602,6 +602,15 @@
             display: inline-flex;
             position: relative;
             animation: ivieBrainScale 1.8s ease-in-out infinite;
+            /* Pin this to its own GPU layer so mobile Safari/Chrome don't
+               keep dropping and re-rasterizing it. Without this hint,
+               background tab-switches / screen-off idling cause the
+               browser to evict the layer; when it comes back the very
+               next animation frame is a raw, unclipped repaint, which is
+               the one-frame "flash" reported on mobile. */
+            will-change: transform;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
         }
 
         /* The glow lives on its own pseudo-element and is pre-blurred once,
@@ -620,6 +629,21 @@
             opacity: 0;
             z-index: -1;
             animation: ivieGlowPulse 1.8s ease-in-out infinite;
+            will-change: opacity;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+
+        /* Applied via JS while the tab/screen is backgrounded (see the
+           visibilitychange handler below). Infinite CSS animations don't
+           actually stop when a mobile tab goes to the background - they
+           keep ticking on a throttled clock, so by the time the page is
+           visible again the animation is out of sync with what last got
+           painted. Resuming from that stale, out-of-sync frame is what
+           produces the visible flash. Pausing removes the mismatch. */
+        .ivie-chat-icon-inner.ivie-anim-paused,
+        .ivie-chat-icon-inner.ivie-anim-paused::after {
+            animation-play-state: paused;
         }
 
         @keyframes ivieBrainScale {
@@ -1808,6 +1832,24 @@
             font-size: 16px;
             cursor: pointer;
             margin-top: 15px;
+        }
+        .save-profile-btn:disabled {
+            background: #e08a8a;
+            cursor: not-allowed;
+        }
+        .save-profile-btn-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255,255,255,0.5);
+            border-top: 2px solid #fff;
+            border-radius: 50%;
+            vertical-align: -2px;
+            margin-right: 8px;
+            animation: saveProfileBtnSpin 0.8s linear infinite;
+        }
+        @keyframes saveProfileBtnSpin {
+            to { transform: rotate(360deg); }
         }
         
         .btn {
@@ -3047,7 +3089,7 @@
 
 
 
-                <button type="button" class="save-profile-btn" onclick="saveProfileChanges()">Save Changes</button>
+                <button type="button" class="save-profile-btn" id="saveProfileChangesBtn" onclick="saveProfileChanges()">Save Changes</button>
             </form>
         </div>
     </div>
@@ -4650,7 +4692,17 @@ async function checkForBannedWords(content) {
             formData.append('current_password', currentPassword);
             formData.append('new_password', newPassword);
         }
-        
+
+        // Validation passed - now this tap is actually going to hit the
+        // server, so show a saving indicator and lock the button against
+        // a duplicate submit while the request is in flight.
+        const saveBtn = document.getElementById('saveProfileChangesBtn');
+        const originalLabel = saveBtn ? saveBtn.innerHTML : '';
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="save-profile-btn-spinner"></span>Saving...';
+        }
+
         if (photoFile) {
             try {
                 const uploadResult = await window.uploadProfilePhotoToFirebase(photoFile, loggedInUserId);
@@ -4658,6 +4710,10 @@ async function checkForBannedWords(content) {
                 formData.append('profile_photo_path', uploadResult.path);
             } catch (error) {
                 alert('Error uploading photo: ' + error.message);
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = originalLabel;
+                }
                 return;
             }
         }
@@ -4681,20 +4737,33 @@ async function checkForBannedWords(content) {
                         passwordSuccess.textContent = result.message || 'Profile and password updated successfully!';
                         passwordSuccess.style.display = 'block';
                     }
+                    // Leave the modal open just long enough to show the
+                    // password-changed confirmation, then close it before
+                    // redirecting to log back in with the new password.
                     setTimeout(() => {
-                        alert('Profile updated successfully! Please log in again with your new password.');
+                        closeProfileEditModal();
                         window.location.href = '/logout';
                     }, 2000);
                 } else {
-                    alert(result.message || 'Profile updated successfully!');
+                    // Close the modal now that the update is confirmed,
+                    // then refresh so the dashboard reflects the changes.
+                    closeProfileEditModal();
                     location.reload();
                 }
             } else {
                 alert(result.detail || 'Failed to update profile');
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = originalLabel;
+                }
             }
         } catch (error) {
             console.error('Error updating profile:', error);
             alert('Error updating profile. Please try again.');
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalLabel;
+            }
         }
     }
     
@@ -6311,9 +6380,31 @@ function viewPost(taloId, event) {
 })();
 
 (function () {
-    // Your deployed Render URL for the IvieAI FastAPI proxy (no trailing slash).
-    const IVIE_API_URL = 'https://ivie-ai-proxy.onrender.com';
+    // The brain icon's pulse/glow (ivieBrainScale / ivieGlowPulse) runs
+    // on an infinite CSS animation for as long as the footer is on
+    // screen - which is effectively the whole time someone is idling on
+    // the app. Mobile browsers throttle (but don't fully stop) infinite
+    // animations while the tab is backgrounded or the screen is off, so
+    // by the time the page is visible again the animation clock has
+    // drifted from what was last actually painted. Resuming from that
+    // stale, out-of-sync frame is what shows up as an occasional flash.
+    // Explicitly pausing on hidden and un-pausing on visible keeps the
+    // animation's timeline frozen while backgrounded instead of quietly
+    // drifting, so there's nothing to "catch up" on when it returns.
+    const ivieIconInner = document.querySelector('.ivie-chat-icon-inner');
+    if (ivieIconInner) {
+        document.addEventListener('visibilitychange', function () {
+            ivieIconInner.classList.toggle('ivie-anim-paused', document.hidden);
+        });
+    }
+})();
 
+(function () {
+    // Your deployed Render URL for the IvieAI FastAPI proxy (no trailing slash).
+   // const IVIE_API_URL = 'https://ivie-ai-proxy.onrender.com';  //Old
+    const IVIE_API_URL = 'https://GeorgeUwaifo-IvieAI.hf.space';
+     
+  
     let ivieSessionId = null;
     let ivieGenerating = false;
     let ivieServerAwake = false;
@@ -6468,6 +6559,7 @@ function viewPost(taloId, event) {
 
     // One attempt at the actual /chat call. Throws on network failure or
     // a non-2xx response; returns the parsed JSON on success.
+
     async function ivieChatRequest(text) {
         const res = await fetch(`${IVIE_API_URL}/chat`, {
             method: 'POST',
