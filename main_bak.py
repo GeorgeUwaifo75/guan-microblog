@@ -735,11 +735,6 @@ class UserLogin(BaseModel):
     user_id: str
     password: str
 
-class ForgotPasswordRequest(BaseModel):
-    user_id: str
-    email: str
-    new_password: str
-
 class CreateTaloRequest(BaseModel):
     content: str
     photos: List[Dict[str, str]] = []
@@ -857,13 +852,6 @@ async def api_signup(user_data: UserSignup):
     user_id = user_data.user_id.strip()
     if not user_id:
         raise HTTPException(status_code=400, detail="User ID cannot be empty")
-
-    # User IDs are used in @mentions, profile URLs, and login lookups, so
-    # they must be a single continuous string. Reject any internal
-    # whitespace (spaces, tabs, etc.) rather than silently stripping it,
-    # so the user knows to fix it and the ID they see is the ID they get.
-    if re.search(r"\s", user_id):
-        raise HTTPException(status_code=400, detail="User ID cannot contain spaces")
     
     if user_data.age < 18:
         raise HTTPException(status_code=400, detail="You must be 18 or older")
@@ -1017,45 +1005,6 @@ async def api_login(login_data: UserLogin):
             response.set_cookie(key="session_token", value=token, httponly=True)
             return response
     raise HTTPException(status_code=401, detail="Invalid credentials")
-
-@app.post("/api/forgot_password")
-async def forgot_password(reset_data: ForgotPasswordRequest):
-    """Self-service password reset for users who are locked out.
-
-    There's no outbound email infrastructure wired up for this app yet, so
-    rather than emailing a reset link, we verify account ownership directly:
-    the User ID and the email address on file for that account must both
-    match before a new password is accepted. This mirrors the super admin's
-    forced-reset flow (must_change_password / session invalidation) but is
-    user-initiated and requires no admin involvement.
-    """
-    data = await get_jsonbin_data(force_refresh=True, fast_mode=True)
-
-    user_id = (reset_data.user_id or "").strip()
-    email = (reset_data.email or "").strip().lower()
-    new_password = reset_data.new_password or ""
-
-    if not user_id or not email:
-        raise HTTPException(status_code=400, detail="User ID and email are required")
-
-    if len(new_password) < 4:
-        raise HTTPException(status_code=400, detail="New password must be at least 4 characters")
-
-    for user in data.get("users", []):
-        if user["user_id"] == user_id and (user.get("email") or "").strip().lower() == email:
-            user["password_hash"] = hash_password(new_password)
-            user["must_change_password"] = False
-            # Invalidate any active session so the reset takes effect
-            # immediately and an old, possibly-compromised login can't
-            # keep being used.
-            user["session_token"] = None
-            await save_jsonbin_data(data)
-            logger.info(f"Password self-reset for user {user_id}")
-            return {"message": "Password reset successful. Please log in with your new password."}
-
-    # Deliberately generic: don't reveal whether the User ID exists, only
-    # that this User ID + email combination didn't match an account.
-    raise HTTPException(status_code=400, detail="No account matches that User ID and email combination")
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):

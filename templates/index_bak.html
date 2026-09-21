@@ -272,42 +272,8 @@
                     <label>Password</label>
                     <input type="password" id="login_password" autocomplete="new-password" required>
                 </div>
-                <p style="text-align: right; margin: -8px 0 15px;">
-                    <a href="#" onclick="event.preventDefault(); closeModal('login'); openModal('forgot');" style="font-size: 13px; color: #cc0000; text-decoration: none; font-weight: bold;">Forgot password?</a>
-                </p>
                 <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
             </form>
-        </div>
-    </div>
-
-    <!-- Forgot Password Modal -->
-    <div id="forgotPasswordModal" class="modal">
-        <div class="modal-content">
-            <span class="close-btn" onclick="closeModal('forgot')">&times;</span>
-            <h3>Reset Your Password</h3>
-            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">Enter your User ID and the email address on your account, then choose a new password.</p>
-            <form id="forgotPasswordForm" autocomplete="off">
-                <div class="form-group">
-                    <label>User ID</label>
-                    <input type="text" id="forgot_user_id" autocomplete="off" required>
-                </div>
-                <div class="form-group">
-                    <label>Email</label>
-                    <input type="email" id="forgot_email" autocomplete="off" required>
-                </div>
-                <div class="form-group">
-                    <label>New Password</label>
-                    <input type="password" id="forgot_new_password" autocomplete="new-password" required minlength="4">
-                </div>
-                <div class="form-group">
-                    <label>Confirm New Password</label>
-                    <input type="password" id="forgot_confirm_password" autocomplete="new-password" required minlength="4">
-                </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Reset Password</button>
-            </form>
-            <p style="text-align: center; margin-top: 15px; font-size: 13px;">
-                <a href="#" onclick="event.preventDefault(); closeModal('forgot'); openModal('login');" style="color: #cc0000; text-decoration: none; font-weight: bold;">Back to Login</a>
-            </p>
         </div>
     </div>
 
@@ -322,8 +288,8 @@
                     <input type="email" id="email" required>
                 </div>
                 <div class="form-group">
-                    <label>User ID * (no spaces)</label>
-                    <input type="text" id="user_id" required pattern="\S+" title="User ID cannot contain spaces">
+                    <label>User ID *</label>
+                    <input type="text" id="user_id" required>
                 </div>
                 <div class="form-group">
                     <label>First Name *</label>
@@ -376,16 +342,6 @@
     <script>
     let isLoggingIn = false;
     let isSigningUp = false;
-    let isResettingPassword = false;
-
-    // Strip any spaces the moment they're typed/pasted so the signup User ID
-    // can never contain one, rather than only catching it at submit time.
-    document.getElementById('user_id').addEventListener('input', function() {
-        const cleaned = this.value.replace(/\s/g, '');
-        if (cleaned !== this.value) {
-            this.value = cleaned;
-        }
-    });
     
     function openModal(type) {
         if (type === 'login') {
@@ -410,15 +366,6 @@
                 signupBtn.disabled = false;
                 signupBtn.innerHTML = 'Sign Up';
             }
-        } else if (type === 'forgot') {
-            document.getElementById('forgotPasswordModal').style.display = 'flex';
-            // Reset forgot-password form and loading state
-            document.getElementById('forgotPasswordForm').reset();
-            const forgotBtn = document.querySelector('#forgotPasswordForm button[type="submit"]');
-            if (forgotBtn) {
-                forgotBtn.disabled = false;
-                forgotBtn.innerHTML = 'Reset Password';
-            }
         }
     }
     
@@ -427,8 +374,6 @@
             document.getElementById('loginModal').style.display = 'none';
         } else if (type === 'signup') {
             document.getElementById('signupModal').style.display = 'none';
-        } else if (type === 'forgot') {
-            document.getElementById('forgotPasswordModal').style.display = 'none';
         }
     }
     
@@ -562,20 +507,11 @@
             return;
         }
         
-        const signupUserId = document.getElementById('user_id').value.replace(/\s/g, '');
-        document.getElementById('user_id').value = signupUserId;
-        if (!signupUserId) {
-            alert('User ID cannot be empty');
-            setButtonLoading(signupBtn, false, originalText);
-            isSigningUp = false;
-            return;
-        }
-
         const selectedCategories = Array.from(document.querySelectorAll('.signup-category-checkbox:checked')).map(cb => cb.value);
 
         const signupData = {
             email: document.getElementById('email').value,
-            user_id: signupUserId,
+            user_id: document.getElementById('user_id').value,
             first_name: document.getElementById('first_name').value,
             last_name: document.getElementById('last_name').value,
             password: document.getElementById('password').value,
@@ -625,69 +561,6 @@
         }
     });
     
-    document.getElementById('forgotPasswordForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        if (isResettingPassword) return;
-
-        const newPassword = document.getElementById('forgot_new_password').value;
-        const confirmPassword = document.getElementById('forgot_confirm_password').value;
-        if (newPassword !== confirmPassword) {
-            alert('New password and confirmation do not match');
-            return;
-        }
-
-        isResettingPassword = true;
-        const resetBtn = e.target.querySelector('button[type="submit"]');
-        const originalText = resetBtn.innerHTML;
-        setButtonLoading(resetBtn, true, originalText);
-
-        const resetData = {
-            user_id: document.getElementById('forgot_user_id').value,
-            email: document.getElementById('forgot_email').value,
-            new_password: newPassword
-        };
-
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-            const response = await fetch('/api/forgot_password', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(resetData),
-                signal: controller.signal
-            });
-
-            clearTimeout(timeoutId);
-
-            if (response.ok) {
-                alert('Password reset successful! Please login with your new password.');
-                closeModal('forgot');
-                openModal('login');
-                setButtonLoading(resetBtn, false, originalText);
-                isResettingPassword = false;
-            } else {
-                let errorMsg = 'Password reset failed';
-                try {
-                    const error = await response.json();
-                    errorMsg = error.detail || errorMsg;
-                } catch (e) {}
-                alert(errorMsg);
-                setButtonLoading(resetBtn, false, originalText);
-                isResettingPassword = false;
-            }
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                alert('Request timed out. Please check your connection and try again.');
-            } else {
-                alert('Network error. Please check your connection and try again.');
-            }
-            setButtonLoading(resetBtn, false, originalText);
-            isResettingPassword = false;
-        }
-    });
-
     window.onclick = function(event) {
         if (event.target.classList.contains('modal')) {
             event.target.style.display = 'none';
