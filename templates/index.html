@@ -285,7 +285,7 @@
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal('forgot')">&times;</span>
             <h3>Reset Your Password</h3>
-            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">Enter your User ID and the email address on your account, then choose a new password.</p>
+            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">Enter your User ID, email, and age on your account, then choose a new password.</p>
             <form id="forgotPasswordForm" autocomplete="off">
                 <div class="form-group">
                     <label>User ID</label>
@@ -296,6 +296,10 @@
                     <input type="email" id="forgot_email" autocomplete="off" required>
                 </div>
                 <div class="form-group">
+                    <label>Age</label>
+                    <input type="number" id="forgot_age" autocomplete="off" required min="18">
+                </div>
+                <div class="form-group">
                     <label>New Password</label>
                     <input type="password" id="forgot_new_password" autocomplete="new-password" required minlength="4">
                 </div>
@@ -303,8 +307,13 @@
                     <label>Confirm New Password</label>
                     <input type="password" id="forgot_confirm_password" autocomplete="new-password" required minlength="4">
                 </div>
+                <p id="forgotAttemptsWarning" style="display:none; font-size: 12px; color: #cc0000; margin: -8px 0 12px;"></p>
                 <button type="submit" class="btn btn-primary" style="width: 100%;">Reset Password</button>
             </form>
+            <div id="forgotLockedMessage" style="display:none; font-size: 14px; color: #cc0000; text-align: center; padding: 15px 0; line-height: 1.5;">
+                Too many unsuccessful verification attempts. For your security, self-service reset has been disabled.<br>
+                Please contact the administrator at <a href="mailto:geocorpsys@gmail.com" style="color: #cc0000; font-weight: bold;">geocorpsys@gmail.com</a> to have your password reset.
+            </div>
             <p style="text-align: center; margin-top: 15px; font-size: 13px;">
                 <a href="#" onclick="event.preventDefault(); closeModal('forgot'); openModal('login');" style="color: #cc0000; text-decoration: none; font-weight: bold;">Back to Login</a>
             </p>
@@ -419,6 +428,9 @@
                 forgotBtn.disabled = false;
                 forgotBtn.innerHTML = 'Reset Password';
             }
+            // Reflect a prior lockout (tracked for this browser session) so
+            // reopening the modal doesn't quietly grant fresh attempts.
+            updateForgotLockState();
         }
     }
     
@@ -625,10 +637,46 @@
         }
     });
     
+    // Self-service resets are capped at 3 verification attempts per browser
+    // session; sessionStorage keeps the count across a modal close/reopen or
+    // a page refresh within the same session so it can't be trivially reset.
+    const MAX_FORGOT_ATTEMPTS = 3;
+
+    function getForgotAttempts() {
+        return parseInt(sessionStorage.getItem('guan_forgot_attempts') || '0', 10);
+    }
+
+    function updateForgotLockState() {
+        const attempts = getForgotAttempts();
+        const remaining = MAX_FORGOT_ATTEMPTS - attempts;
+        const form = document.getElementById('forgotPasswordForm');
+        const lockedMsg = document.getElementById('forgotLockedMessage');
+        const warning = document.getElementById('forgotAttemptsWarning');
+
+        if (remaining <= 0) {
+            form.style.display = 'none';
+            lockedMsg.style.display = 'block';
+            warning.style.display = 'none';
+        } else {
+            form.style.display = 'block';
+            lockedMsg.style.display = 'none';
+            if (attempts > 0) {
+                warning.textContent = `${remaining} attempt${remaining === 1 ? '' : 's'} remaining before you'll need to request an admin reset.`;
+                warning.style.display = 'block';
+            } else {
+                warning.style.display = 'none';
+            }
+        }
+    }
+
     document.getElementById('forgotPasswordForm').addEventListener('submit', async (e) => {
         e.preventDefault();
 
         if (isResettingPassword) return;
+        if (getForgotAttempts() >= MAX_FORGOT_ATTEMPTS) {
+            updateForgotLockState();
+            return;
+        }
 
         const newPassword = document.getElementById('forgot_new_password').value;
         const confirmPassword = document.getElementById('forgot_confirm_password').value;
@@ -645,6 +693,7 @@
         const resetData = {
             user_id: document.getElementById('forgot_user_id').value,
             email: document.getElementById('forgot_email').value,
+            age: parseInt(document.getElementById('forgot_age').value),
             new_password: newPassword
         };
 
@@ -662,6 +711,7 @@
             clearTimeout(timeoutId);
 
             if (response.ok) {
+                sessionStorage.removeItem('guan_forgot_attempts');
                 alert('Password reset successful! Please login with your new password.');
                 closeModal('forgot');
                 openModal('login');
@@ -673,6 +723,22 @@
                     const error = await response.json();
                     errorMsg = error.detail || errorMsg;
                 } catch (e) {}
+
+                // Only a verification mismatch (400) counts against the
+                // attempt limit — a server-side hiccup (5xx) or timeout
+                // shouldn't cost the user an attempt.
+                if (response.status === 400) {
+                    const attempts = getForgotAttempts() + 1;
+                    sessionStorage.setItem('guan_forgot_attempts', String(attempts));
+                    if (attempts >= MAX_FORGOT_ATTEMPTS) {
+                        updateForgotLockState();
+                        setButtonLoading(resetBtn, false, originalText);
+                        isResettingPassword = false;
+                        return;
+                    }
+                    updateForgotLockState();
+                }
+
                 alert(errorMsg);
                 setButtonLoading(resetBtn, false, originalText);
                 isResettingPassword = false;

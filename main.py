@@ -738,6 +738,7 @@ class UserLogin(BaseModel):
 class ForgotPasswordRequest(BaseModel):
     user_id: str
     email: str
+    age: int
     new_password: str
 
 class CreateTaloRequest(BaseModel):
@@ -1018,16 +1019,35 @@ async def api_login(login_data: UserLogin):
             return response
     raise HTTPException(status_code=401, detail="Invalid credentials")
 
+ADMIN_RESET_CONTACT_EMAIL = "geocorpsys@gmail.com"
+MAX_RESET_ATTEMPTS = 3
+
+def get_reset_attempt_record(data: dict, user_id: str) -> dict:
+    """Find (or create) the password-reset attempt counter for a given
+    user_id. Tracked server-side, keyed by the submitted user_id, so a
+    lockout can't be bypassed by simply reloading the page and trying
+    again - unlike a purely client-side counter."""
+    if "password_reset_attempts" not in data:
+        data["password_reset_attempts"] = []
+    for rec in data["password_reset_attempts"]:
+        if rec.get("user_id") == user_id:
+            return rec
+    rec = {"user_id": user_id, "count": 0, "locked": False}
+    data["password_reset_attempts"].append(rec)
+    return rec
+
 @app.post("/api/forgot_password")
 async def forgot_password(reset_data: ForgotPasswordRequest):
     """Self-service password reset for users who are locked out.
 
     There's no outbound email infrastructure wired up for this app yet, so
     rather than emailing a reset link, we verify account ownership directly:
-    the User ID and the email address on file for that account must both
+    the User ID, the email address on file, AND the age on file must all
     match before a new password is accepted. This mirrors the super admin's
     forced-reset flow (must_change_password / session invalidation) but is
-    user-initiated and requires no admin involvement.
+    user-initiated and requires no admin involvement - up to a point: after
+    3 failed verification attempts the account is locked out of self-service
+    reset and the user is told to contact the administrator directly.
     """
     data = await get_jsonbin_data(force_refresh=True, fast_mode=True)
 
@@ -1041,21 +1061,53 @@ async def forgot_password(reset_data: ForgotPasswordRequest):
     if len(new_password) < 4:
         raise HTTPException(status_code=400, detail="New password must be at least 4 characters")
 
-    for user in data.get("users", []):
-        if user["user_id"] == user_id and (user.get("email") or "").strip().lower() == email:
-            user["password_hash"] = hash_password(new_password)
-            user["must_change_password"] = False
-            # Invalidate any active session so the reset takes effect
-            # immediately and an old, possibly-compromised login can't
-            # keep being used.
-            user["session_token"] = None
-            await save_jsonbin_data(data)
-            logger.info(f"Password self-reset for user {user_id}")
-            return {"message": "Password reset successful. Please log in with your new password."}
+    attempt = get_reset_attempt_record(data, user_id)
 
-    # Deliberately generic: don't reveal whether the User ID exists, only
-    # that this User ID + email combination didn't match an account.
-    raise HTTPException(status_code=400, detail="No account matches that User ID and email combination")
+    locked_message = (
+        f"Too many failed verification attempts. Please contact the "
+        f"administrator at {ADMIN_RESET_CONTACT_EMAIL} to have your password reset."
+    )
+
+    if attempt.get("locked"):
+        raise HTTPException(status_code=403, detail=locked_message)
+
+    matched_user = None
+    for user in data.get("users", []):
+        if (user["user_id"] == user_id
+                and (user.get("email") or "").strip().lower() == email
+                and user.get("age") == reset_data.age):
+            matched_user = user
+            break
+
+    if not matched_user:
+        attempt["count"] = attempt.get("count", 0) + 1
+        attempt["updated_at"] = datetime.now().isoformat()
+        remaining = MAX_RESET_ATTEMPTS - attempt["count"]
+        if remaining <= 0:
+            attempt["locked"] = True
+            await save_jsonbin_data(data)
+            raise HTTPException(status_code=403, detail=locked_message)
+        await save_jsonbin_data(data)
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Verification failed - User ID, email, and age must all match your account. "
+                f"{remaining} attempt(s) remaining before you'll need to contact the administrator "
+                f"at {ADMIN_RESET_CONTACT_EMAIL}."
+            )
+        )
+
+    # Successful verification: reset the password and clear the attempt counter.
+    matched_user["password_hash"] = hash_password(new_password)
+    matched_user["must_change_password"] = False
+    # Invalidate any active session so the reset takes effect immediately
+    # and an old, possibly-compromised login can't keep being used.
+    matched_user["session_token"] = None
+    attempt["count"] = 0
+    attempt["locked"] = False
+    await save_jsonbin_data(data)
+    logger.info(f"Password self-reset for user {user_id}")
+    return {"message": "Password reset successful. Please log in with your new password."}
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
