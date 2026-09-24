@@ -1324,11 +1324,13 @@
             text-decoration: underline;
         }
         
-        /* Enhanced Photo Grid Styles - matches the post-detail page grid so
-           multiple photos fill their cells the same way on the timeline
-           (fixed aspect-ratio cells, image absolutely positioned + cropped
-           with object-fit: cover) instead of stacking at their own natural
-           height. */
+        /* Enhanced Photo Grid Styles.
+           - 1-2 photos (or a single video): the media is shown at its own
+             natural aspect ratio, scaled down to fit (object-fit: contain),
+             so nothing is cropped - the whole photo/video is always visible.
+           - 3-4 photos: kept as a fixed-ratio cropped grid (object-fit:
+             cover), matching the post-detail page and typical grid-of-
+             thumbnails behavior. */
 .talo-photos {
     display: grid;
     gap: 8px;
@@ -1336,44 +1338,68 @@
     width: 100%;
 }
 
-/* 1 photo - full width */
+/* 1 photo/video - full width, natural aspect ratio, nothing cropped */
 .talo-photos.photo-count-1 {
     grid-template-columns: 1fr;
     max-width: 100%;
 }
 
 .talo-photos.photo-count-1 .photo-item {
-    aspect-ratio: 4 / 5;
+    aspect-ratio: auto;
+    height: auto;
     max-width: 100%;
     margin: 0 auto;
 }
 
-/* Video posts: taller/portrait box so letterboxing (object-fit: contain)
-   doesn't waste too much space, and the card doesn't jump/flash once the
-   browser reads the video's real dimensions from its metadata. */
-.talo-photos.photo-count-1 .photo-item.video-item {
-    aspect-ratio: 9 / 16;
-    max-height: 500px;
+.talo-photos.photo-count-1 .photo-item img,
+.talo-photos.photo-count-1 .photo-item video {
+    position: static;
+    width: 100%;
+    height: auto;
+    max-height: 600px;
+    object-fit: contain;
+    display: block;
 }
 
 @media (max-width: 768px) {
-    .talo-photos.photo-count-1 .photo-item.video-item {
-        max-height: 350px;
+    .talo-photos.photo-count-1 .photo-item img,
+    .talo-photos.photo-count-1 .photo-item video {
+        max-height: 400px;
     }
 }
 
-/* 2 photos - side by side */
+/* 2 photos - side by side, each scaled to fit within its cell without
+   cropping */
 .talo-photos.photo-count-2 {
     grid-template-columns: 1fr 1fr;
     max-width: 100%;
 }
 
 .talo-photos.photo-count-2 .photo-item {
-    aspect-ratio: 4 / 5;
+    aspect-ratio: auto;
+    height: auto;
     max-width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-/* 3 photos - first takes full width, next two side by side */
+.talo-photos.photo-count-2 .photo-item img {
+    position: static;
+    width: 100%;
+    height: auto;
+    max-height: 350px;
+    object-fit: contain;
+    display: block;
+}
+
+@media (max-width: 768px) {
+    .talo-photos.photo-count-2 .photo-item img {
+        max-height: 220px;
+    }
+}
+
+/* 3 photos - first takes full width, next two side by side (cropped grid) */
 .talo-photos.photo-count-3 {
     grid-template-columns: 1fr 1fr;
     grid-template-areas: 
@@ -1394,7 +1420,7 @@
     max-width: 100%;
 }
 
-/* 4 photos - 2x2 grid */
+/* 4 photos - 2x2 grid (cropped grid) */
 .talo-photos.photo-count-4 {
     grid-template-columns: 1fr 1fr;
     max-width: 100%;
@@ -1413,10 +1439,12 @@
     border-top: 1px solid #eee;
 }
 
-/* Photo item container - handles both images and videos. The item's box
-   is sized by aspect-ratio (set per photo-count above); the media inside
-   is absolutely positioned to fill that box entirely, cropping via
-   object-fit rather than leaving gaps or stretching. */
+/* Photo item container - handles both images and videos. For 3-4 photo
+   posts the item's box is sized by aspect-ratio (set above) and the media
+   is absolutely positioned to fill/crop it (object-fit: cover, below).
+   For 1-2 photo posts and single videos, the rules above override this
+   with static positioning and object-fit: contain so the full media is
+   always visible. */
 .photo-item {
     position: relative;
     overflow: hidden;
