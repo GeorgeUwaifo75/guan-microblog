@@ -690,6 +690,74 @@ def deduct_tac(user: dict, amount: float):
     user["wallet_balance"] = new_balance
     return new_balance
 
+def get_trending_hashtags(all_talos: list, limit: int = 10) -> list:
+    """Ranks hashtags by mention count, prioritizing the most recent activity.
+
+    Starts from "right now" (last 24 hours) so the list reflects what's
+    trending today. Only if that window doesn't produce enough distinct
+    hashtags to fill `limit` does it widen the lookback - weekly, then
+    monthly, then bi-monthly, then all-time - adding hashtags (in
+    descending count order) that haven't already been picked up by a
+    narrower/more-recent window. This way "today's" trends always take
+    priority, but the list still gets filled out on quiet days instead of
+    coming back mostly empty.
+    """
+    now = datetime.now()
+    windows = [
+        timedelta(days=1),    # daily
+        timedelta(days=7),    # weekly
+        timedelta(days=30),   # monthly
+        timedelta(days=60),   # bi-monthly
+    ]
+
+    def hashtag_counts_since(cutoff):
+        counts = {}
+        for talo in all_talos:
+            created_at = talo.get("created_at", "")
+            if cutoff is not None:
+                try:
+                    talo_time = datetime.fromisoformat(created_at)
+                except (ValueError, TypeError):
+                    continue
+                if talo_time < cutoff:
+                    continue
+            for word in talo.get("content", "").split():
+                if word.startswith("#") and len(word) > 1:
+                    counts[word] = counts.get(word, 0) + 1
+        return counts
+
+    trending = []
+    seen = set()
+
+    for window in windows:
+        if len(trending) >= limit:
+            break
+        cutoff = now - window
+        counts = hashtag_counts_since(cutoff)
+        ranked = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+        for tag, count in ranked:
+            if tag in seen:
+                continue
+            trending.append((tag, count))
+            seen.add(tag)
+            if len(trending) >= limit:
+                break
+
+    # Last resort: no time cutoff at all (full history), for a brand-new
+    # or very quiet platform that still has some old hashtagged posts.
+    if len(trending) < limit:
+        counts = hashtag_counts_since(None)
+        ranked = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+        for tag, count in ranked:
+            if tag in seen:
+                continue
+            trending.append((tag, count))
+            seen.add(tag)
+            if len(trending) >= limit:
+                break
+
+    return trending
+
 def organize_replies_hierarchically(replies):
     """Organize replies into a hierarchical tree structure"""
     reply_dict = {}
@@ -1179,16 +1247,7 @@ async def dashboard(request: Request):
     personal_talos.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     
     all_talos = data.get("talos", [])
-    global_words = []
-    for talo in all_talos:
-        content = talo.get("content", "")
-        for word in content.split():
-            if word.startswith("#") and len(word) > 1:
-                global_words.append(word)
-    word_count = {}
-    for word in global_words:
-        word_count[word] = word_count.get(word, 0) + 1
-    trending = sorted(word_count.items(), key=lambda x: x[1], reverse=True)[:10]
+    trending = get_trending_hashtags(all_talos, limit=10)
     
     active_users = len([u for u in data.get("users", []) if u.get("last_active", "") > (datetime.now() - timedelta(days=1)).isoformat()])
     
