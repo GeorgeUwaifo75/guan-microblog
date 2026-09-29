@@ -1199,10 +1199,38 @@ async def dashboard(request: Request):
         response.delete_cookie("session_token")
         return response
     
+    # Always update last_active in memory so the "active users" stat below
+    # (and any other in-process reader of this cached data) stays accurate
+    # right away - this mutates the same object the shared cache is holding,
+    # so it's visible to every other request immediately even before/without
+    # a write to JSONBin. See the persistence decision just below for why
+    # that write doesn't need to happen on every single dashboard view.
+    previous_last_active = user.get("last_active", "")
     user["last_active"] = datetime.now().isoformat()
-    ensure_user_categories(user)
-    run_one_time_category_reset(data)
-    await save_jsonbin_data(data)
+
+    categories_changed = ensure_user_categories(user)
+    reset_ran = run_one_time_category_reset(data)
+
+    # A full save here means a full network PUT of the ENTIRE database to
+    # JSONBin, blocking this response until it completes. That's only truly
+    # required when something that must survive a server restart changed:
+    #   - ensure_user_categories / run_one_time_category_reset made a real,
+    #     structural edit (these MUST be persisted, or the one-time reset
+    #     could incorrectly re-run after a restart and wipe categories again)
+    #   - this user's last_active was stale by more than 10 minutes, so we
+    #     still durably persist "last seen" periodically rather than only
+    #     ever keeping it in memory
+    # Otherwise (the common case: someone just re-opened the dashboard a
+    # minute after their last visit), we skip the write entirely. Nothing is
+    # lost: the in-memory cache above already has the fresh last_active, and
+    # it will be flushed to JSONBin as a side effect the next time ANY save
+    # happens for ANY reason (posting, liking, replying, etc. all persist
+    # this same shared data object) - or by the 10-minute check itself.
+    ten_minutes_ago = (datetime.now() - timedelta(minutes=10)).isoformat()
+    last_active_stale = (not previous_last_active) or (previous_last_active < ten_minutes_ago)
+
+    if categories_changed or reset_ran or last_active_stale:
+        await save_jsonbin_data(data)
     
     followed_user_ids = set()
     for follow in data.get("follows", []):
@@ -1212,16 +1240,33 @@ async def dashboard(request: Request):
     
     talos = data.get("talos", [])
     
+    # Build lookups once instead of scanning the full users/replies lists for
+    # every single talo (was O(talos x users) + O(talos x replies); this
+    # makes it O(talos + users + replies)). Same output as before: if a
+    # user_id somehow appeared more than once in "users", the original code
+    # kept whichever record it reached first and stopped there - this keeps
+    # that same effective behavior by only ever inserting a user_id's first
+    # occurrence into the lookup.
+    users_by_id = {}
+    for u in data.get("users", []):
+        uid = u.get("user_id")
+        if uid is not None and uid not in users_by_id:
+            users_by_id[uid] = u
+
+    reply_counts_by_talo = {}
+    for r in data.get("replies", []):
+        pid = r.get("parent_talo_id")
+        reply_counts_by_talo[pid] = reply_counts_by_talo.get(pid, 0) + 1
+
     all_promoted_talos = []
     regular_talos = []
     
     for talo in talos:
-        for u in data.get("users", []):
-            if u["user_id"] == talo["user_id"]:
-                talo["user_name"] = f"{u['first_name']} {u['last_name']}"
-                talo["user_photo"] = u.get("profile_photo")
-                break
-        talo["reply_count"] = len([r for r in data.get("replies", []) if r.get("parent_talo_id") == talo["id"]])
+        u = users_by_id.get(talo["user_id"])
+        if u:
+            talo["user_name"] = f"{u['first_name']} {u['last_name']}"
+            talo["user_photo"] = u.get("profile_photo")
+        talo["reply_count"] = reply_counts_by_talo.get(talo["id"], 0)
         
         if talo.get("promoted", False):
             all_promoted_talos.append(talo)
