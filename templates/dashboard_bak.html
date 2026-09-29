@@ -1977,30 +1977,6 @@
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
-
-        /* Full-page navigation overlay, shown while a post page is loading */
-        .page-nav-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(255, 255, 255, 0.85);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 99999;
-        }
-
-        .page-nav-overlay.active {
-            display: flex;
-        }
-
-        .page-nav-spinner {
-            width: 44px;
-            height: 44px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #cc0000;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
         
         .retalo-original {
             background: #f0f8f0;
@@ -2685,11 +2661,6 @@
 </head>
 <body{% if user.categories %} class="has-subs-strip"{% endif %}>
 
-    <!-- Full-page navigation loading overlay -->
-    <div class="page-nav-overlay" id="pageNavOverlay">
-        <div class="page-nav-spinner"></div>
-    </div>
-
     <!-- Pull to Refresh Indicator -->
     <div class="pull-to-refresh" id="pullToRefresh">
         <div class="refresh-spinner"></div>
@@ -2935,7 +2906,7 @@
                data-photos='{{ talo.photos|tojson }}'>
                  🔄 <span class="retalo-count">{{ talo.retalos }}</span>
               </button>
-            <a href="/post/{{ talo.id }}" class="reply-btn" onclick="showPageNavOverlay()">💬 <span>{{ talo.reply_count }}</span></a>
+            <a href="/post/{{ talo.id }}" class="reply-btn">💬 <span>{{ talo.reply_count }}</span></a>
 
             <button class="stat-btn share-btn" 
                     data-id="{{ talo.id }}" 
@@ -3359,7 +3330,6 @@ window.togglePostActions = function(btn) {
                 if (postCard) {
                     postCard.remove();
                 } else {
-                    showPageNavOverlay();
                     location.reload();
                 }
             } else {
@@ -3521,7 +3491,7 @@ window.openPromotionModalFromPost = function(taloId) {
                     <button class="stat-btn retalo-btn" data-id="${taloId}" data-user-id="${userData.user_id}" data-content="${escapeHtml(content)}" data-photos='${JSON.stringify(photos)}'>
                         🔄 <span class="retalo-count">0</span>
                     </button>
-                    <a href="/post/${taloId}" class="reply-btn" onclick="showPageNavOverlay()">💬 <span>0</span></a>
+                    <a href="/post/${taloId}" class="reply-btn">💬 <span>0</span></a>
                 </div>
             </div>
         `;
@@ -3850,19 +3820,10 @@ startLiveTimestampUpdates();
     function viewProfile(userId) {
         window.location.href = `/profile/${userId}`;
     }
-
-    // Shows the full-page loading spinner while navigating to another page.
-    function showPageNavOverlay() {
-        const overlay = document.getElementById('pageNavOverlay');
-        if (overlay) overlay.classList.add('active');
+    
+    function viewPost(postId) {
+        window.location.href = `/post/${postId}`;
     }
-
-    // If the page is restored from the browser's back/forward cache (e.g. the user
-    // tapped "Back" from the post page), make sure the overlay isn't stuck showing.
-    window.addEventListener('pageshow', function (event) {
-        const overlay = document.getElementById('pageNavOverlay');
-        if (overlay) overlay.classList.remove('active');
-    });
     
     // ========== TIMELINE FUNCTIONS ==========
     function loadLastSeenTimestamp() {
@@ -3901,7 +3862,6 @@ startLiveTimestampUpdates();
     				latestTaloTimestamp = now;
     				localStorage.setItem('lastSeenTimestamp', now);
     				// Force a full page reload to get properly sorted posts
-   				 showPageNavOverlay();
    				 location.reload();
 	}
     
@@ -4398,7 +4358,7 @@ startLiveTimestampUpdates();
                     btn.disabled = false;
                 }
                 showFlashNotification('✓ Post reposted successfully!', 'success');
-                setTimeout(() => { showPageNavOverlay(); location.reload(); }, 2000);
+                setTimeout(() => location.reload(), 2000);
             } else {
                 showFlashNotification(data.detail || 'Failed to repost', 'error');
                 if (btn) {
@@ -4540,16 +4500,16 @@ async function createTaloWithFirebase() {
 
             if (celebrations.length > 0) {
                 queueCelebrations(celebrations);
-                setTimeout(() => { showPageNavOverlay(); location.reload(); }, celebrations.length * 4500 + 300);
+                setTimeout(() => location.reload(), celebrations.length * 4500 + 300);
             } else if (data.tac_earned > 0) {
                 showFlashNotification(`✓ Post created! +${formatTac(data.tac_earned)} TaC earned`, 'success');
-                setTimeout(() => { showPageNavOverlay(); location.reload(); }, 1200);
+                setTimeout(() => location.reload(), 1200);
             } else if (data.tac_supply_capped) {
                 showFlashNotification('✓ Post created! The 30,000 TaC supply cap has been reached, so no TaC was earned this time.', 'success');
-                setTimeout(() => { showPageNavOverlay(); location.reload(); }, 1500);
+                setTimeout(() => location.reload(), 1500);
             } else {
                 showFlashNotification('✓ Post created successfully!', 'success');
-                setTimeout(() => { showPageNavOverlay(); location.reload(); }, 1000);
+                setTimeout(() => location.reload(), 1000);
             }
         } else {
             const error = await response.json();
@@ -4748,14 +4708,12 @@ async function checkForBannedWords(content) {
                     // redirecting to log back in with the new password.
                     setTimeout(() => {
                         closeProfileEditModal();
-                        showPageNavOverlay();
                         window.location.href = '/logout';
                     }, 2000);
                 } else {
                     // Close the modal now that the update is confirmed,
                     // then refresh so the dashboard reflects the changes.
                     closeProfileEditModal();
-                    showPageNavOverlay();
                     location.reload();
                 }
             } else {
@@ -5101,24 +5059,18 @@ window.viewAndMarkNotification = async function(notificationId, type, relatedTal
                 const match = smallText?.match(/@(\w+)/);
                 if (match) username = match[1];
             }
-            if (username) {
-                showPageNavOverlay();
-                window.location.href = `/profile/${username}`;
-            }
+            if (username) window.location.href = `/profile/${username}`;
         } else if (type === 'reply' || type === 'reply_to_reply') {
             // Navigate to the post
             if (relatedTaloId) {
-                showPageNavOverlay();
                 window.location.href = `/post/${relatedTaloId}`;
             }
         } else if (type === 'like' || type === 'retalo') {
             if (relatedTaloId) {
-                showPageNavOverlay();
                 window.location.href = `/post/${relatedTaloId}`;
             }
         } else if (type === 'mention') {
             if (relatedTaloId) {
-                showPageNavOverlay();
                 window.location.href = `/post/${relatedTaloId}`;
             }
         }
@@ -5531,7 +5483,6 @@ async function initiatePromotion() {
                     showFlashNotification('✓ Payment successful! Your post is now promoted.', 'success');
                     closePromotionModal();
                     setTimeout(() => {
-                        showPageNavOverlay();
                         location.reload();
                     }, 2000);
                 })
@@ -6154,7 +6105,7 @@ async function confirmPremiumPayment(transactionRef, userId) {
         const data = await response.json();
         if (response.ok) {
             showFlashNotification('🎉 Premium upgrade successful! You now have premium status.', 'success');
-            setTimeout(() => { showPageNavOverlay(); location.reload(); }, 2000);
+            setTimeout(() => location.reload(), 2000);
         } else {
             showFlashNotification(data.detail || 'Payment confirmed but upgrade failed. Please contact support.', 'error');
         }
@@ -6319,7 +6270,6 @@ function viewPost(taloId, event) {
     if (interactive) {
         return;
     }
-    showPageNavOverlay();
     window.location.href = `/post/${taloId}`;
 }
 

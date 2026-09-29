@@ -1446,10 +1446,9 @@ async def view_post(request: Request, talo_id: str, reply_id: str = None):
             "error": "Post not found"
         })
     
-    # Increment view count (but not when the author is viewing their own post)
-    if talo.get("user_id") != user.get("user_id"):
-        talo["views"] = talo.get("views", 0) + 1
-        await save_jsonbin_data(data)   # save the updated data
+    # Increment view count
+    talo["views"] = talo.get("views", 0) + 1
+    await save_jsonbin_data(data)   # save the updated data
     
     for u in data.get("users", []):
         if u["user_id"] == talo["user_id"]:
