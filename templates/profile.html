@@ -135,11 +135,18 @@
         .stat:hover {
             background: #f5f5f5;
         }
+
+
         .stat-number {
-            font-size: 20px;
+            font-size: 17px;
             font-weight: bold;
             color: #cc0000;
         }
+        .stat-label {
+            font-size: 12px;
+            color: #1a5fb4; /* blue label */
+        }
+
         .follow-btn {
             background: #cc0000;
             color: white;
@@ -561,6 +568,12 @@
             justify-content: space-around;
             margin: 15px 0;
         }
+
+        .mobile-stat-label {
+            font-size: 11px;
+            color: #1a5fb4;
+        }
+
         .mobile-stat { text-align: center; }
         .mobile-stat-number {
             font-size: 18px;
@@ -675,20 +688,21 @@
 
             <button class="follow-btn" id="followBtn">Loading...</button>
             
-            <div class="stats">
+              <div class="stats">
                 <div class="stat" id="followersStat">
                     <div class="stat-number" id="followersCount">{{ profile_user.followers_count }}</div>
-                    <div>Followers</div>
+                    <div class="stat-label">Followers</div>
                 </div>
                 <div class="stat" id="followingStat">
                     <div class="stat-number" id="followingCount">{{ profile_user.following_count }}</div>
-                    <div>Following</div>
+                    <div class="stat-label">Following</div>
                 </div>
                 <div class="stat">
                     <div class="stat-number">{{ profile_user.talos_count }}</div>
-                    <div>Talos</div>
+                    <div class="stat-label">Talos</div>
                 </div>
             </div>
+
         </div>
 
         <div id="talosFeed">
@@ -1228,20 +1242,23 @@ function showFlashNotification(message, type = 'success') {
                     <h3>${currentData.first_name} ${currentData.last_name}</h3>
                     <p>@${profileUserId}</p>
                     ${currentData.bio ? `<p style="font-size: 12px; color: #666; margin-top: 8px;">${currentData.bio}</p>` : ''}
-                    <div class="mobile-stats">
-                        <div class="mobile-stat">
-                            <div class="mobile-stat-number">{{ profile_user.followers_count }}</div>
-                            <div>Followers</div>
-                        </div>
-                        <div class="mobile-stat">
-                            <div class="mobile-stat-number">{{ profile_user.following_count }}</div>
-                            <div>Following</div>
-                        </div>
-                        <div class="mobile-stat">
-                            <div class="mobile-stat-number">{{ profile_user.talos_count }}</div>
-                            <div>Talos</div>
-                        </div>
-                    </div>
+                   
+                     <div class="mobile-stats">
+    <div class="mobile-stat">
+        <div class="mobile-stat-number">{{ profile_user.followers_count }}</div>
+        <div class="mobile-stat-label">Followers</div>
+    </div>
+    <div class="mobile-stat">
+        <div class="mobile-stat-number">{{ profile_user.following_count }}</div>
+        <div class="mobile-stat-label">Following</div>
+    </div>
+    <div class="mobile-stat">
+        <div class="mobile-stat-number">{{ profile_user.talos_count }}</div>
+        <div class="mobile-stat-label">Talos</div>
+    </div>
+</div>
+
+
                 </div>
             `;
         }

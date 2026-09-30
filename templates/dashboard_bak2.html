@@ -2261,51 +2261,6 @@
                 max-width: 100%;
             }
         }
-
-
-/* ===== Mobile header icon control =====
-   On mobile, only the notification bell is shown by default.
-   The home button appears only when there are unread notifications.
-   The logout button is moved into the mobile slide-out menu instead. */
-@media (max-width: 768px) {
-    #homeBtnHeader {
-        display: none !important;
-    }
-    #homeBtnHeader.visible-with-notifications {
-        display: block !important;
-    }
-    .header .right-icons > a[href="/logout"] {
-        display: none !important;
-    }
-    .mobile-logout-btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        margin: 15px 0 5px;
-        padding: 12px;
-        background: #cc0000;
-        color: white;
-        text-decoration: none;
-        border-radius: 12px;
-        font-weight: bold;
-        font-size: 14px;
-        cursor: pointer;
-        transition: background 0.2s ease;
-    }
-    .mobile-logout-btn:hover,
-    .mobile-logout-btn:active {
-        background: #990000;
-    }
-}
-
-@media (min-width: 769px) {
-    .mobile-logout-btn {
-        display: none !important;
-    }
-}
-
-
         
         @media (min-width: 769px) {
             .mobile-menu-overlay, .mobile-menu, .trending-modal, .menu-icon-btn {
@@ -3060,14 +3015,11 @@
             <span>Menu</span>
             <button class="mobile-menu-close" onclick="closeMobileMenu()">&times;</button>
         </div>
-                <div class="mobile-menu-content">
-           				 <div id="mobileProfileCard"></div>
-            				<div id="mobileTrendingCard"></div>
-           				 <a href="/logout" class="mobile-logout-btn">
-               					 <span>🚪</span> Logout
-           				 </a>
-       			 </div>
-    	</div>
+        <div class="mobile-menu-content">
+            <div id="mobileProfileCard"></div>
+            <div id="mobileTrendingCard"></div>
+        </div>
+    </div>
 
     <!-- Trending Modal for Mobile -->
     <div id="trendingModal" class="trending-modal">
@@ -5074,29 +5026,7 @@ function updateNotificationBadge(count) {
     } else {
         badge.style.display = 'none';
     }
-
-// Sync home button visibility with notification count (mobile only)
-    updateHomeButtonVisibility();
 }
-
-
-// Toggles visibility of the header home button on mobile. On mobile only
-// the notification bell is shown by default; the home button appears only
-// when there are unread notifications.
-function updateHomeButtonVisibility() {
-    const homeBtn = document.getElementById('homeBtnHeader');
-    if (!homeBtn) return;
-    if (window.innerWidth <= 768) {
-        if (currentNotificationCount > 0) {
-            homeBtn.classList.add('visible-with-notifications');
-        } else {
-            homeBtn.classList.remove('visible-with-notifications');
-        }
-    } else {
-        homeBtn.classList.remove('visible-with-notifications');
-    }
-}
-
 
 // --- Animate bell button for visual feedback ---
 function animateBellButton() {
