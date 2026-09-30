@@ -980,6 +980,24 @@
     }
 }
 
+
+/* ===== Mobile header icon control =====
+   On mobile, only the notification bell is shown by default.
+   The home button appears only when there are unread notifications.
+   The logout button is hidden from the header on mobile. */
+@media (max-width: 768px) {
+    /* Home link in header - hidden by default, shown when notifications exist */
+    .header .right-icons > a[href="/dashboard"] {
+        display: none !important;
+    }
+    .header .right-icons > a[href="/dashboard"].visible-with-notifications {
+        display: block !important;
+    }
+    /* Logout link hidden on mobile header */
+    .header .right-icons > a[href="/logout"] {
+        display: none !important;
+    }
+}
     </style>
 </head>
 <body>
@@ -1002,7 +1020,7 @@
                 🔔 
                 <span id="notificationCount" class="notification-badge" style="display: none;">0</span>
             </button>
-            <a href="/dashboard" onclick="showPageNavOverlay()"><button class="icon-btn">🏠</button></a>
+                        <a href="/dashboard" id="homeBtnHeader" onclick="showPageNavOverlay()"><button class="icon-btn">🏠</button></a>
             <a href="/logout" aria-label="Logout">
     <button class="logout-icon-btn">
         <svg viewBox="0 0 24 24">
@@ -1728,7 +1746,28 @@
             } else {
                 badge.style.display = 'none';
             }
+
+// Sync home button visibility with notification count (mobile only)
+    updateHomeButtonVisibility();
         }
+
+
+// Toggles visibility of the header home button on mobile. On mobile only
+// the notification bell is shown by default; the home button appears only
+// when there are unread notifications.
+function updateHomeButtonVisibility() {
+    const homeBtn = document.getElementById('homeBtnHeader');
+    if (!homeBtn) return;
+    if (window.innerWidth <= 768) {
+        if (currentNotificationCount > 0) {
+            homeBtn.classList.add('visible-with-notifications');
+        } else {
+            homeBtn.classList.remove('visible-with-notifications');
+        }
+    } else {
+        homeBtn.classList.remove('visible-with-notifications');
+    }
+}
 
         function animateBellButton() {
             const bellBtn = document.getElementById('activityBellBtn');
@@ -2087,6 +2126,8 @@ document.addEventListener('click', function(e) {
 
         // Also try to clean up old subscriptions on page load (already handled by registration)
     })();
+
+window.addEventListener('resize', updateHomeButtonVisibility);
 </script>
 
 <script>
@@ -2106,6 +2147,9 @@ document.addEventListener('click', function(e) {
         });
     });
   }
+
+
+
 </script>
 
 
