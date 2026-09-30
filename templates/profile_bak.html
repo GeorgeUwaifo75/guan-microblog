@@ -1392,10 +1392,6 @@ function viewPost(taloId, event) {
     if (interactive) {
         return;
     }
-    // This page isn't the dashboard timeline, so make sure we don't leave a
-    // stale scroll-restore target that would make a later "Back to Dashboard"
-    // jump to an unrelated post from an earlier dashboard visit.
-    try { sessionStorage.removeItem('guanScrollRestoreTaloId'); } catch (e) {}
     window.location.href = `/post/${taloId}`;
 }       
     </script>

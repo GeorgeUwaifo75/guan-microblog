@@ -2690,21 +2690,6 @@
         <div class="page-nav-spinner"></div>
     </div>
 
-    <script>
-        // If we're returning from a post opened from this timeline, keep the
-        // nav overlay up immediately (before anything else renders) so the
-        // page never flashes at the top before jumping to the remembered
-        // post further down. restoreTimelineScrollPosition() (further down
-        // this file) does the actual scrolling and reveals the page after.
-        (function () {
-            try {
-                if (sessionStorage.getItem('guanScrollRestoreTaloId')) {
-                    document.getElementById('pageNavOverlay').classList.add('active');
-                }
-            } catch (e) { /* sessionStorage unavailable - fall back to normal load */ }
-        })();
-    </script>
-
     <!-- Pull to Refresh Indicator -->
     <div class="pull-to-refresh" id="pullToRefresh">
         <div class="refresh-spinner"></div>
@@ -2952,7 +2937,7 @@
                data-photos='{{ talo.photos|tojson }}'>
                  🔄 <span class="retalo-count">{{ talo.retalos }}</span>
               </button>
-            <a href="/post/{{ talo.id }}" class="reply-btn" onclick="try { sessionStorage.setItem('guanScrollRestoreTaloId', '{{ talo.id }}'); } catch (e) {} showPageNavOverlay()">💬 <span>{{ talo.reply_count }}</span></a>
+            <a href="/post/{{ talo.id }}" class="reply-btn" onclick="showPageNavOverlay()">💬 <span>{{ talo.reply_count }}</span></a>
 
             <button class="stat-btn share-btn" 
                     data-id="{{ talo.id }}" 
@@ -3538,7 +3523,7 @@ window.openPromotionModalFromPost = function(taloId) {
                     <button class="stat-btn retalo-btn" data-id="${taloId}" data-user-id="${userData.user_id}" data-content="${escapeHtml(content)}" data-photos='${JSON.stringify(photos)}'>
                         🔄 <span class="retalo-count">0</span>
                     </button>
-                    <a href="/post/${taloId}" class="reply-btn" onclick="try { sessionStorage.setItem('guanScrollRestoreTaloId', '${taloId}'); } catch (e) {} showPageNavOverlay()">💬 <span>0</span></a>
+                    <a href="/post/${taloId}" class="reply-btn" onclick="showPageNavOverlay()">💬 <span>0</span></a>
                 </div>
             </div>
         `;
@@ -3874,63 +3859,11 @@ startLiveTimestampUpdates();
         if (overlay) overlay.classList.add('active');
     }
 
-    function hidePageNavOverlay() {
-        const overlay = document.getElementById('pageNavOverlay');
-        if (overlay) overlay.classList.remove('active');
-    }
-
-    // Set to true while restoreTimelineScrollPosition() is actively working,
-    // so the pageshow handler below doesn't reveal the page out from under it.
-    let restoringTimelineScroll = false;
-
-    // If the user tapped a post from the timeline, scrolls back to that exact
-    // post once we're back on the dashboard, instead of landing at the top.
-    // The overlay is kept up (see the inline script right after <body>) until
-    // this finishes, so no jump is ever visible.
-    function restoreTimelineScrollPosition() {
-        let targetId = null;
-        try {
-            targetId = sessionStorage.getItem('guanScrollRestoreTaloId');
-            sessionStorage.removeItem('guanScrollRestoreTaloId');
-        } catch (e) { /* sessionStorage unavailable */ }
-
-        if (!targetId) {
-            hidePageNavOverlay();
-            return;
-        }
-
-        restoringTimelineScroll = true;
-
-        const scrollToTarget = () => {
-            const container = document.getElementById('scrollableContent');
-            const card = document.querySelector(`.talo-card[data-talo-id="${targetId}"]`);
-            if (!container || !card) return false;
-            const containerRect = container.getBoundingClientRect();
-            const cardRect = card.getBoundingClientRect();
-            container.scrollTop = Math.max(0, container.scrollTop + (cardRect.top - containerRect.top) - 12);
-            return true;
-        };
-
-        // First pass as soon as the timeline cards exist in the DOM...
-        scrollToTarget();
-        // ...then a short corrective pass once images have had a moment to
-        // load and settle the layout, so the position doesn't drift after
-        // we reveal the page. If the post isn't on this page of the timeline
-        // (e.g. it fell outside the loaded posts), we simply stay at the top.
-        setTimeout(() => {
-            scrollToTarget();
-            restoringTimelineScroll = false;
-            hidePageNavOverlay();
-        }, 250);
-    }
-
-    document.addEventListener('DOMContentLoaded', restoreTimelineScrollPosition);
-
     // If the page is restored from the browser's back/forward cache (e.g. the user
     // tapped "Back" from the post page), make sure the overlay isn't stuck showing.
     window.addEventListener('pageshow', function (event) {
-        if (restoringTimelineScroll) return;
-        hidePageNavOverlay();
+        const overlay = document.getElementById('pageNavOverlay');
+        if (overlay) overlay.classList.remove('active');
     });
     
     // ========== TIMELINE FUNCTIONS ==========
@@ -5162,11 +5095,7 @@ window.viewAndMarkNotification = async function(notificationId, type, relatedTal
             updateNotificationBadge(currentNotificationCount);
         }
         
-        // Navigate based on type. These don't originate from a timeline
-        // scroll position, so clear any pending scroll-restore target -
-        // otherwise a later "Back to Dashboard" could jump to an unrelated,
-        // stale post from an earlier, different visit to the timeline.
-        try { sessionStorage.removeItem('guanScrollRestoreTaloId'); } catch (e) {}
+        // Navigate based on type
         if (type === 'follow') {
             let username = relatedTaloId;
             if (!username && notifItem) {
@@ -6392,16 +6321,6 @@ function viewPost(taloId, event) {
     if (interactive) {
         return;
     }
-    // Only remember this post's timeline position when the click actually
-    // came from a timeline card - not from search results, which reuse this
-    // same function but aren't part of scrolling the timeline.
-    try {
-        if (event.currentTarget && event.currentTarget.classList.contains('talo-card')) {
-            sessionStorage.setItem('guanScrollRestoreTaloId', taloId);
-        } else {
-            sessionStorage.removeItem('guanScrollRestoreTaloId');
-        }
-    } catch (e) { /* sessionStorage unavailable */ }
     showPageNavOverlay();
     window.location.href = `/post/${taloId}`;
 }
