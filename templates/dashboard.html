@@ -2726,7 +2726,7 @@
     		<span id="notificationCount" class="notification-badge" style="display: none;">0</span>
 	    </button>
 
-
+<!-- 
             <button class="icon-btn" onclick="markAllPostsAsViewed()" id="homeBtnHeader" title="Mark all posts as viewed">
                 🏠
             </button>
@@ -2745,7 +2745,7 @@
         </svg>
     </button>
 </a>
-
+-->
         </div>
     </div>
     {% if user.categories %}
@@ -5313,6 +5313,19 @@ document.addEventListener('click', function(e) {
         panel.classList.remove('show');
     }
 });
+
+// --- Close panel when the timeline is scrolled (same effect as tapping the
+// bell a second time) ---
+(function () {
+    const scrollContainer = document.getElementById('scrollableContent');
+    if (!scrollContainer) return;
+    scrollContainer.addEventListener('scroll', function () {
+        const panel = document.getElementById('notificationsPanel');
+        if (panel && panel.classList.contains('show')) {
+            panel.classList.remove('show');
+        }
+    }, { passive: true });
+})();
 
 // --- FIX: Add missing markAllPostsAsViewed function ---
 window.markAllPostsAsViewed = async function() {

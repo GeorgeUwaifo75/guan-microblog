@@ -1977,6 +1977,30 @@
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
+
+        /* Full-page navigation overlay, shown while a post page is loading */
+        .page-nav-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.85);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+        }
+
+        .page-nav-overlay.active {
+            display: flex;
+        }
+
+        .page-nav-spinner {
+            width: 44px;
+            height: 44px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #cc0000;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
         
         .retalo-original {
             background: #f0f8f0;
@@ -2661,6 +2685,26 @@
 </head>
 <body{% if user.categories %} class="has-subs-strip"{% endif %}>
 
+    <!-- Full-page navigation loading overlay -->
+    <div class="page-nav-overlay" id="pageNavOverlay">
+        <div class="page-nav-spinner"></div>
+    </div>
+
+    <script>
+        // If we're returning from a post opened from this timeline, keep the
+        // nav overlay up immediately (before anything else renders) so the
+        // page never flashes at the top before jumping to the remembered
+        // post further down. restoreTimelineScrollPosition() (further down
+        // this file) does the actual scrolling and reveals the page after.
+        (function () {
+            try {
+                if (sessionStorage.getItem('guanScrollRestoreTaloId')) {
+                    document.getElementById('pageNavOverlay').classList.add('active');
+                }
+            } catch (e) { /* sessionStorage unavailable - fall back to normal load */ }
+        })();
+    </script>
+
     <!-- Pull to Refresh Indicator -->
     <div class="pull-to-refresh" id="pullToRefresh">
         <div class="refresh-spinner"></div>
@@ -2682,6 +2726,7 @@
     		<span id="notificationCount" class="notification-badge" style="display: none;">0</span>
 	    </button>
 
+
             <button class="icon-btn" onclick="markAllPostsAsViewed()" id="homeBtnHeader" title="Mark all posts as viewed">
                 🏠
             </button>
@@ -2700,6 +2745,7 @@
         </svg>
     </button>
 </a>
+
         </div>
     </div>
     {% if user.categories %}
@@ -2906,7 +2952,7 @@
                data-photos='{{ talo.photos|tojson }}'>
                  🔄 <span class="retalo-count">{{ talo.retalos }}</span>
               </button>
-            <a href="/post/{{ talo.id }}" class="reply-btn">💬 <span>{{ talo.reply_count }}</span></a>
+            <a href="/post/{{ talo.id }}" class="reply-btn" onclick="try { sessionStorage.setItem('guanScrollRestoreTaloId', '{{ talo.id }}'); } catch (e) {} showPageNavOverlay()">💬 <span>{{ talo.reply_count }}</span></a>
 
             <button class="stat-btn share-btn" 
                     data-id="{{ talo.id }}" 
@@ -3330,6 +3376,7 @@ window.togglePostActions = function(btn) {
                 if (postCard) {
                     postCard.remove();
                 } else {
+                    showPageNavOverlay();
                     location.reload();
                 }
             } else {
@@ -3491,7 +3538,7 @@ window.openPromotionModalFromPost = function(taloId) {
                     <button class="stat-btn retalo-btn" data-id="${taloId}" data-user-id="${userData.user_id}" data-content="${escapeHtml(content)}" data-photos='${JSON.stringify(photos)}'>
                         🔄 <span class="retalo-count">0</span>
                     </button>
-                    <a href="/post/${taloId}" class="reply-btn">💬 <span>0</span></a>
+                    <a href="/post/${taloId}" class="reply-btn" onclick="try { sessionStorage.setItem('guanScrollRestoreTaloId', '${taloId}'); } catch (e) {} showPageNavOverlay()">💬 <span>0</span></a>
                 </div>
             </div>
         `;
@@ -3820,10 +3867,71 @@ startLiveTimestampUpdates();
     function viewProfile(userId) {
         window.location.href = `/profile/${userId}`;
     }
-    
-    function viewPost(postId) {
-        window.location.href = `/post/${postId}`;
+
+    // Shows the full-page loading spinner while navigating to another page.
+    function showPageNavOverlay() {
+        const overlay = document.getElementById('pageNavOverlay');
+        if (overlay) overlay.classList.add('active');
     }
+
+    function hidePageNavOverlay() {
+        const overlay = document.getElementById('pageNavOverlay');
+        if (overlay) overlay.classList.remove('active');
+    }
+
+    // Set to true while restoreTimelineScrollPosition() is actively working,
+    // so the pageshow handler below doesn't reveal the page out from under it.
+    let restoringTimelineScroll = false;
+
+    // If the user tapped a post from the timeline, scrolls back to that exact
+    // post once we're back on the dashboard, instead of landing at the top.
+    // The overlay is kept up (see the inline script right after <body>) until
+    // this finishes, so no jump is ever visible.
+    function restoreTimelineScrollPosition() {
+        let targetId = null;
+        try {
+            targetId = sessionStorage.getItem('guanScrollRestoreTaloId');
+            sessionStorage.removeItem('guanScrollRestoreTaloId');
+        } catch (e) { /* sessionStorage unavailable */ }
+
+        if (!targetId) {
+            hidePageNavOverlay();
+            return;
+        }
+
+        restoringTimelineScroll = true;
+
+        const scrollToTarget = () => {
+            const container = document.getElementById('scrollableContent');
+            const card = document.querySelector(`.talo-card[data-talo-id="${targetId}"]`);
+            if (!container || !card) return false;
+            const containerRect = container.getBoundingClientRect();
+            const cardRect = card.getBoundingClientRect();
+            container.scrollTop = Math.max(0, container.scrollTop + (cardRect.top - containerRect.top) - 12);
+            return true;
+        };
+
+        // First pass as soon as the timeline cards exist in the DOM...
+        scrollToTarget();
+        // ...then a short corrective pass once images have had a moment to
+        // load and settle the layout, so the position doesn't drift after
+        // we reveal the page. If the post isn't on this page of the timeline
+        // (e.g. it fell outside the loaded posts), we simply stay at the top.
+        setTimeout(() => {
+            scrollToTarget();
+            restoringTimelineScroll = false;
+            hidePageNavOverlay();
+        }, 250);
+    }
+
+    document.addEventListener('DOMContentLoaded', restoreTimelineScrollPosition);
+
+    // If the page is restored from the browser's back/forward cache (e.g. the user
+    // tapped "Back" from the post page), make sure the overlay isn't stuck showing.
+    window.addEventListener('pageshow', function (event) {
+        if (restoringTimelineScroll) return;
+        hidePageNavOverlay();
+    });
     
     // ========== TIMELINE FUNCTIONS ==========
     function loadLastSeenTimestamp() {
@@ -3862,6 +3970,7 @@ startLiveTimestampUpdates();
     				latestTaloTimestamp = now;
     				localStorage.setItem('lastSeenTimestamp', now);
     				// Force a full page reload to get properly sorted posts
+   				 showPageNavOverlay();
    				 location.reload();
 	}
     
@@ -4358,7 +4467,7 @@ startLiveTimestampUpdates();
                     btn.disabled = false;
                 }
                 showFlashNotification('✓ Post reposted successfully!', 'success');
-                setTimeout(() => location.reload(), 2000);
+                setTimeout(() => { showPageNavOverlay(); location.reload(); }, 2000);
             } else {
                 showFlashNotification(data.detail || 'Failed to repost', 'error');
                 if (btn) {
@@ -4500,16 +4609,16 @@ async function createTaloWithFirebase() {
 
             if (celebrations.length > 0) {
                 queueCelebrations(celebrations);
-                setTimeout(() => location.reload(), celebrations.length * 4500 + 300);
+                setTimeout(() => { showPageNavOverlay(); location.reload(); }, celebrations.length * 4500 + 300);
             } else if (data.tac_earned > 0) {
                 showFlashNotification(`✓ Post created! +${formatTac(data.tac_earned)} TaC earned`, 'success');
-                setTimeout(() => location.reload(), 1200);
+                setTimeout(() => { showPageNavOverlay(); location.reload(); }, 1200);
             } else if (data.tac_supply_capped) {
                 showFlashNotification('✓ Post created! The 30,000 TaC supply cap has been reached, so no TaC was earned this time.', 'success');
-                setTimeout(() => location.reload(), 1500);
+                setTimeout(() => { showPageNavOverlay(); location.reload(); }, 1500);
             } else {
                 showFlashNotification('✓ Post created successfully!', 'success');
-                setTimeout(() => location.reload(), 1000);
+                setTimeout(() => { showPageNavOverlay(); location.reload(); }, 1000);
             }
         } else {
             const error = await response.json();
@@ -4708,12 +4817,14 @@ async function checkForBannedWords(content) {
                     // redirecting to log back in with the new password.
                     setTimeout(() => {
                         closeProfileEditModal();
+                        showPageNavOverlay();
                         window.location.href = '/logout';
                     }, 2000);
                 } else {
                     // Close the modal now that the update is confirmed,
                     // then refresh so the dashboard reflects the changes.
                     closeProfileEditModal();
+                    showPageNavOverlay();
                     location.reload();
                 }
             } else {
@@ -5051,7 +5162,11 @@ window.viewAndMarkNotification = async function(notificationId, type, relatedTal
             updateNotificationBadge(currentNotificationCount);
         }
         
-        // Navigate based on type
+        // Navigate based on type. These don't originate from a timeline
+        // scroll position, so clear any pending scroll-restore target -
+        // otherwise a later "Back to Dashboard" could jump to an unrelated,
+        // stale post from an earlier, different visit to the timeline.
+        try { sessionStorage.removeItem('guanScrollRestoreTaloId'); } catch (e) {}
         if (type === 'follow') {
             let username = relatedTaloId;
             if (!username && notifItem) {
@@ -5059,18 +5174,24 @@ window.viewAndMarkNotification = async function(notificationId, type, relatedTal
                 const match = smallText?.match(/@(\w+)/);
                 if (match) username = match[1];
             }
-            if (username) window.location.href = `/profile/${username}`;
+            if (username) {
+                showPageNavOverlay();
+                window.location.href = `/profile/${username}`;
+            }
         } else if (type === 'reply' || type === 'reply_to_reply') {
             // Navigate to the post
             if (relatedTaloId) {
+                showPageNavOverlay();
                 window.location.href = `/post/${relatedTaloId}`;
             }
         } else if (type === 'like' || type === 'retalo') {
             if (relatedTaloId) {
+                showPageNavOverlay();
                 window.location.href = `/post/${relatedTaloId}`;
             }
         } else if (type === 'mention') {
             if (relatedTaloId) {
+                showPageNavOverlay();
                 window.location.href = `/post/${relatedTaloId}`;
             }
         }
@@ -5483,6 +5604,7 @@ async function initiatePromotion() {
                     showFlashNotification('✓ Payment successful! Your post is now promoted.', 'success');
                     closePromotionModal();
                     setTimeout(() => {
+                        showPageNavOverlay();
                         location.reload();
                     }, 2000);
                 })
@@ -6105,7 +6227,7 @@ async function confirmPremiumPayment(transactionRef, userId) {
         const data = await response.json();
         if (response.ok) {
             showFlashNotification('🎉 Premium upgrade successful! You now have premium status.', 'success');
-            setTimeout(() => location.reload(), 2000);
+            setTimeout(() => { showPageNavOverlay(); location.reload(); }, 2000);
         } else {
             showFlashNotification(data.detail || 'Payment confirmed but upgrade failed. Please contact support.', 'error');
         }
@@ -6270,6 +6392,17 @@ function viewPost(taloId, event) {
     if (interactive) {
         return;
     }
+    // Only remember this post's timeline position when the click actually
+    // came from a timeline card - not from search results, which reuse this
+    // same function but aren't part of scrolling the timeline.
+    try {
+        if (event.currentTarget && event.currentTarget.classList.contains('talo-card')) {
+            sessionStorage.setItem('guanScrollRestoreTaloId', taloId);
+        } else {
+            sessionStorage.removeItem('guanScrollRestoreTaloId');
+        }
+    } catch (e) { /* sessionStorage unavailable */ }
+    showPageNavOverlay();
     window.location.href = `/post/${taloId}`;
 }
 
