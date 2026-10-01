@@ -787,6 +787,21 @@ def organize_replies_hierarchically(replies):
     
     return top_level_replies
 
+# Countries available at signup, mapped to the user's interface language.
+# English: Nigeria, Kenya, Ghana, United States, United Kingdom, Canada
+# Spanish: Spain, Mexico, Venezuela
+COUNTRY_LANGUAGE_MAP = {
+    "Nigeria": "en",
+    "Kenya": "en",
+    "Ghana": "en",
+    "United States": "en",
+    "United Kingdom": "en",
+    "Canada": "en",
+    "Spain": "es",
+    "Mexico": "es",
+    "Venezuela": "es",
+}
+
 # Models
 class UserSignup(BaseModel):
     email: str
@@ -797,6 +812,7 @@ class UserSignup(BaseModel):
     gender: str
     age: int
     country: str
+    language: Optional[str] = None  # informational only; the server derives it from country
     categories: Optional[List[str]] = None
 
 class UserLogin(BaseModel):
@@ -937,6 +953,13 @@ async def api_signup(user_data: UserSignup):
     if user_data.age < 18:
         raise HTTPException(status_code=400, detail="You must be 18 or older")
     
+    # Country must be one of the supported options; language is derived from it
+    # server-side so a tampered client payload can't set an inconsistent pair.
+    country = (user_data.country or "").strip()
+    if country not in COUNTRY_LANGUAGE_MAP:
+        raise HTTPException(status_code=400, detail="Please select a valid country from the list")
+    language = COUNTRY_LANGUAGE_MAP[country]
+    
     for user in data.get("users", []):
         if user["user_id"] == user_id:
             raise HTTPException(status_code=400, detail="User ID already exists")
@@ -952,7 +975,8 @@ async def api_signup(user_data: UserSignup):
         "password_hash": hash_password(user_data.password),
         "gender": user_data.gender,
         "age": user_data.age,
-        "country": user_data.country,
+        "country": country,
+        "language": language,
         "profile_photo": None,
         "background_image": None,
         "is_active": True,

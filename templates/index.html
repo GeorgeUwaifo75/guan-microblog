@@ -165,6 +165,35 @@
             border-radius: 8px;
             font-size: 14px;
         }
+        .password-wrapper {
+            position: relative;
+        }
+        .password-wrapper input {
+            padding-right: 44px;
+        }
+        .password-toggle {
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            padding: 6px;
+            cursor: pointer;
+            color: #777;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 0;
+        }
+        .password-toggle:hover, .password-toggle:focus-visible {
+            color: #cc0000;
+            outline: none;
+        }
+        .password-toggle svg {
+            width: 20px;
+            height: 20px;
+        }
         .close-btn {
             float: right;
             font-size: 24px;
@@ -270,7 +299,12 @@
                 </div>
                 <div class="form-group">
                     <label>Password</label>
-                    <input type="password" id="login_password" autocomplete="new-password" required>
+                    <div class="password-wrapper">
+                        <input type="password" id="login_password" autocomplete="new-password" required>
+                        <button type="button" class="password-toggle" id="loginPasswordToggle" aria-label="Show password" aria-pressed="false" onclick="toggleLoginPassword()">
+                            <svg id="loginEyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
+                    </div>
                 </div>
                 <p style="text-align: right; margin: -8px 0 15px;">
                     <a href="#" onclick="event.preventDefault(); closeModal('login'); openModal('forgot');" style="font-size: 13px; color: #cc0000; text-decoration: none; font-weight: bold;">Forgot password?</a>
@@ -359,7 +393,22 @@
                 </div>
                 <div class="form-group">
                     <label>Country *</label>
-                    <input type="text" id="country" required>
+                    <select id="country" required>
+                        <option value="" disabled selected>Select your country</option>
+                        <optgroup label="English-speaking">
+                            <option value="Nigeria" data-lang="en">Nigeria</option>
+                            <option value="Kenya" data-lang="en">Kenya</option>
+                            <option value="Ghana" data-lang="en">Ghana</option>
+                            <option value="United States" data-lang="en">United States</option>
+                            <option value="United Kingdom" data-lang="en">United Kingdom</option>
+                            <option value="Canada" data-lang="en">Canada</option>
+                        </optgroup>
+                        <optgroup label="Spanish-speaking">
+                            <option value="Spain" data-lang="es">Spain</option>
+                            <option value="Mexico" data-lang="es">Mexico</option>
+                            <option value="Venezuela" data-lang="es">Venezuela</option>
+                        </optgroup>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Interests (optional)</label>
@@ -387,6 +436,27 @@
     let isSigningUp = false;
     let isResettingPassword = false;
 
+    // ----- Login password visibility (eye icon) -----
+    const EYE_OPEN_SVG = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+    const EYE_OFF_SVG = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+
+    function setLoginPasswordVisible(visible) {
+        const input = document.getElementById('login_password');
+        const btn = document.getElementById('loginPasswordToggle');
+        const icon = document.getElementById('loginEyeIcon');
+        if (!input || !btn || !icon) return;
+        input.type = visible ? 'text' : 'password';
+        icon.innerHTML = visible ? EYE_OFF_SVG : EYE_OPEN_SVG;
+        btn.setAttribute('aria-label', visible ? 'Hide password' : 'Show password');
+        btn.setAttribute('aria-pressed', visible ? 'true' : 'false');
+    }
+
+    function toggleLoginPassword() {
+        const input = document.getElementById('login_password');
+        setLoginPasswordVisible(input.type === 'password');
+        input.focus();
+    }
+
     // Strip any spaces the moment they're typed/pasted so the signup User ID
     // can never contain one, rather than only catching it at submit time.
     document.getElementById('user_id').addEventListener('input', function() {
@@ -405,6 +475,7 @@
             // bfcache/autofill even after form.reset(), so clear explicitly too.
             document.getElementById('login_user_id').value = '';
             document.getElementById('login_password').value = '';
+            setLoginPasswordVisible(false);
             const loginBtn = document.querySelector('#loginForm button[type="submit"]');
             if (loginBtn) {
                 loginBtn.disabled = false;
@@ -594,6 +665,7 @@
             gender: document.getElementById('gender').value,
             age: age,
             country: document.getElementById('country').value,
+            language: document.getElementById('country').selectedOptions[0].dataset.lang || 'en',
             categories: selectedCategories
         };
         
