@@ -405,7 +405,6 @@ async def get_jsonbin_data(force_refresh=False, fast_mode=False) -> Dict:
                                     for col in collections:
                                         if col not in data_content:
                                             data_content[col] = []
-                                    apply_user_defaults(data_content)
                                     api_cache.set("jsonbin_data", data_content)
                                     return data_content
                                 else:
@@ -803,32 +802,6 @@ COUNTRY_LANGUAGE_MAP = {
     "Venezuela": "es",
 }
 
-DEFAULT_COUNTRY = "Nigeria"
-DEFAULT_LANGUAGE = "en"
-# Number of existing accounts upgraded by apply_user_defaults() that have not
-# yet been written back to storage (flushed once at startup).
-_user_defaults_pending_save = 0
-
-
-def apply_user_defaults(data: Dict) -> int:
-    """Backfill country/language on accounts created before language support.
-
-    Every account without a `language` field (i.e. all pre-existing users)
-    becomes Nigeria / English. An account that somehow carries an unsupported
-    country is repaired the same way. Idempotent; returns the number changed.
-    """
-    global _user_defaults_pending_save
-    changed = 0
-    for u in data.get("users", []):
-        if not isinstance(u, dict):
-            continue
-        if "language" not in u or u.get("country") not in COUNTRY_LANGUAGE_MAP:
-            u["country"] = DEFAULT_COUNTRY
-            u["language"] = COUNTRY_LANGUAGE_MAP[DEFAULT_COUNTRY]
-            changed += 1
-    _user_defaults_pending_save += changed
-    return changed
-
 # Models
 class UserSignup(BaseModel):
     email: str
@@ -1133,7 +1106,7 @@ async def api_login(login_data: UserLogin):
             # the user to retry. Returning JSON keeps the login request small
             # and fast; the frontend performs a single, separate navigation to
             # /dashboard afterward.
-            response = JSONResponse(content={"success": True, "redirect": "/dashboard", "first_login": is_first_login, "language": user.get("language", DEFAULT_LANGUAGE)})
+            response = JSONResponse(content={"success": True, "redirect": "/dashboard", "first_login": is_first_login})
             response.set_cookie(key="session_token", value=token, httponly=True)
             return response
     raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -1364,7 +1337,6 @@ async def dashboard(request: Request):
         "promoted_shown_count": promoted_shown_count,
         "promoted_total_count": promoted_total_count,
         "user_email": user.get("email", ""),
-        "user_language": user.get("language", DEFAULT_LANGUAGE),
         "vapid_public_key": VAPID_PUBLIC_KEY,
         "all_categories": GUAN_CATEGORIES,
         "category_hashtag_map": GUAN_CATEGORY_HASHTAG_MAP
@@ -4418,17 +4390,6 @@ async def startup_event():
                     logger.error(f"Pre-load attempt {attempt + 1} failed: {str(e)}")
                     if attempt < 2:
                         await asyncio.sleep(5)
-            
-            # Persist the Nigeria/English default for pre-existing accounts once,
-            # so the stored records themselves carry country + language.
-            try:
-                if _user_defaults_pending_save > 0:
-                    fresh = await get_jsonbin_data()
-                    apply_user_defaults(fresh)
-                    await save_jsonbin_data(fresh)
-                    logger.info(f"Backfilled country/language on {_user_defaults_pending_save} existing accounts")
-            except Exception as e:
-                logger.warning(f"Could not persist user language defaults on startup (will persist on next save): {e}")
             
             # Try to ensure wa_guan account exists, but don't block startup
             for attempt in range(3):

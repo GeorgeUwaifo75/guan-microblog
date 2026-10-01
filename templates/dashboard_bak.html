@@ -1,15 +1,10 @@
 <!DOCTYPE html>
-<html lang="{{ user_language|default('en') }}">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
 
 <!-- PWA Meta Tags  -->
-    <script>
-        window.GUAN_LANG = {{ (user_language|default('en'))|tojson }};
-        try { localStorage.setItem('guan_lang', window.GUAN_LANG); } catch (e) {}
-    </script>
-    <script src="/static/i18n.js"></script>
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#cc0000">
     <meta name="apple-mobile-web-app-capable" content="yes">

@@ -220,7 +220,6 @@
             }
         }
     </style>
-    <script src="/static/i18n.js"></script>
 </head>
 <body>
 
@@ -437,26 +436,6 @@
     let isSigningUp = false;
     let isResettingPassword = false;
 
-    // ----- Language: follows the selected country on the signup form -----
-    function storedLanguage() {
-        try { return localStorage.getItem('guan_lang') || 'en'; } catch (e) { return 'en'; }
-    }
-    function selectedCountryLanguage() {
-        const sel = document.getElementById('country');
-        const opt = sel && sel.selectedOptions && sel.selectedOptions[0];
-        return (opt && opt.dataset.lang) || null;
-    }
-    document.addEventListener('DOMContentLoaded', function () {
-        const countrySelect = document.getElementById('country');
-        if (countrySelect) {
-            countrySelect.addEventListener('change', function () {
-                const l = selectedCountryLanguage();
-                // Preview only (not persisted) until the account is actually created.
-                if (l && window.GuanI18n) GuanI18n.setLang(l, false);
-            });
-        }
-    });
-
     // ----- Login password visibility (eye icon) -----
     const EYE_OPEN_SVG = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
     const EYE_OFF_SVG = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
@@ -531,7 +510,6 @@
             document.getElementById('loginModal').style.display = 'none';
         } else if (type === 'signup') {
             document.getElementById('signupModal').style.display = 'none';
-            if (window.GuanI18n) GuanI18n.setLang(storedLanguage(), false);
         } else if (type === 'forgot') {
             document.getElementById('forgotPasswordModal').style.display = 'none';
         }
@@ -620,9 +598,6 @@
                     // Flag this as the account's first-ever login so the
                     // dashboard can greet them with a one-time confetti
                     // celebration once it loads.
-                    if (result && result.language && window.GuanI18n) {
-                        GuanI18n.setLang(result.language);
-                    }
                     if (result && result.first_login) {
                         sessionStorage.setItem('guan_first_login', '1');
                     }
@@ -708,7 +683,6 @@
             clearTimeout(timeoutId);
             
             if (response.ok) {
-                if (signupData.language && window.GuanI18n) GuanI18n.setLang(signupData.language);
                 alert('Account created successfully! Please login.');
                 closeModal('signup');
                 openModal('login');
